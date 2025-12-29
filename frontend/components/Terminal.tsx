@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { clsx } from "clsx";
+import "@xterm/xterm/css/xterm.css";
 
 // Dynamic imports for xterm (client-side only)
 let Terminal: typeof import("@xterm/xterm").Terminal;
