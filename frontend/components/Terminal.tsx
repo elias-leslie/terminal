@@ -530,21 +530,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
 
   return (
     <div className={clsx("relative overflow-hidden", className)}>
-      {/* Status indicator - hidden on mobile (shown in control bar) */}
-      <div className="absolute top-2 right-2 z-10 items-center gap-2 hidden md:flex">
-        <span
-          className={clsx("w-2 h-2 rounded-full", {
-            "bg-yellow-400 animate-pulse": status === "connecting",
-            "bg-green-400": status === "connected",
-            "bg-gray-400": status === "disconnected",
-            "bg-red-400": status === "error" || status === "timeout",
-            "bg-orange-400": status === "session_dead",
-          })}
-        />
-        <span className="text-xs text-slate-400">
-          {status === "session_dead" ? "dead" : status}
-        </span>
-      </div>
+      {/* Status indicator removed - now integrated into tab buttons (TerminalTabs.tsx) */}
 
       {/* Terminal container - no min-height to prevent overflow */}
       <div

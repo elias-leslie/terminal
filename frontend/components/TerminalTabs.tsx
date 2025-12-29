@@ -190,9 +190,12 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   // Loading state
   if (isLoading) {
     return (
-      <div className={clsx("flex flex-col h-full items-center justify-center", className)}>
-        <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
-        <span className="mt-2 text-sm text-slate-500">Loading terminals...</span>
+      <div
+        className={clsx("flex flex-col h-full items-center justify-center", className)}
+        style={{ backgroundColor: "var(--term-bg-deep)" }}
+      >
+        <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--term-accent)" }} />
+        <span className="mt-2 text-sm" style={{ color: "var(--term-text-muted)" }}>Loading terminals...</span>
       </div>
     );
   }
@@ -200,64 +203,125 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   return (
     <div className={clsx("flex flex-col h-full min-h-0 overflow-visible", className)}>
       {/* Tab bar - order-2 on mobile (below terminal), order-1 on desktop (above terminal) */}
-      <div className={clsx(
-        "flex-shrink-0 flex items-center gap-1 px-2 py-1 bg-slate-800 overflow-x-auto overflow-y-visible",
-        isMobile ? "order-2 border-t border-slate-700" : "order-1 border-b border-slate-700"
-      )}>
-        {sessions.map((session) => (
-          <button
-            key={session.id}
-            onClick={() => setActiveId(session.id)}
-            className={clsx(
-              "flex items-center gap-2 px-3 py-1.5 text-sm rounded-t-md transition-colors",
-              "group min-w-0 flex-shrink-0",
-              session.id === activeId
-                ? "bg-slate-900 text-white border-t border-l border-r border-slate-700"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
-            )}
-          >
-            <TerminalIcon className="w-3.5 h-3.5 flex-shrink-0" />
-            {editingId === session.id ? (
-              <input
-                ref={editInputRef}
-                type="text"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={handleSaveEdit}
-                onKeyDown={handleEditKeyDown}
-                className="bg-slate-800 border border-slate-600 rounded px-1 py-0 text-sm w-24 focus:outline-none focus:ring-1 focus:ring-phosphor-500"
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <span
-                className="truncate max-w-[120px]"
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  handleStartEdit(session.id, session.name);
-                }}
-              >
-                {session.name}
-                {!session.is_alive && " (dead)"}
-              </span>
-            )}
+      <div
+        className={clsx(
+          "flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 overflow-x-auto overflow-y-visible",
+          isMobile ? "order-2" : "order-1"
+        )}
+        style={{ backgroundColor: "var(--term-bg-surface)", borderColor: "var(--term-border)" }}
+      >
+        {sessions.map((session) => {
+          const sessionStatus = terminalStatuses.get(session.id);
+          const isActive = session.id === activeId;
+
+          return (
             <button
-              onClick={(e) => handleCloseTab(session.id, e)}
+              key={session.id}
+              onClick={() => setActiveId(session.id)}
               className={clsx(
-                "p-0.5 rounded hover:bg-slate-600 opacity-0 group-hover:opacity-100 transition-opacity",
-                session.id === activeId && "opacity-100"
+                "flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-all duration-200",
+                "group min-w-0 flex-shrink-0",
+                isActive
+                  ? "text-white"
+                  : "hover:text-white"
               )}
-              title="Close terminal"
+              style={{
+                backgroundColor: isActive ? "var(--term-bg-elevated)" : "transparent",
+                color: isActive ? "var(--term-text-primary)" : "var(--term-text-muted)",
+                boxShadow: isActive
+                  ? "0 0 12px var(--term-accent-glow), inset 0 1px 0 rgba(255,255,255,0.05)"
+                  : "none",
+                border: isActive ? "1px solid var(--term-border-active)" : "1px solid transparent",
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
+                  e.currentTarget.style.boxShadow = "0 0 8px rgba(0, 255, 159, 0.08)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.boxShadow = "none";
+                }
+              }}
             >
-              <X className="w-3 h-3" />
+              {/* Status dot integrated into tab */}
+              <span
+                className={clsx("w-2 h-2 rounded-full flex-shrink-0", {
+                  "animate-pulse": sessionStatus === "connecting",
+                })}
+                style={{
+                  backgroundColor:
+                    sessionStatus === "connected" ? "var(--term-accent)" :
+                    sessionStatus === "connecting" ? "var(--term-warning)" :
+                    sessionStatus === "error" || sessionStatus === "timeout" ? "var(--term-error)" :
+                    sessionStatus === "session_dead" ? "var(--term-warning)" :
+                    "var(--term-text-muted)",
+                  boxShadow: sessionStatus === "connected" ? "0 0 6px var(--term-accent)" : "none",
+                }}
+                title={sessionStatus || "unknown"}
+              />
+              {editingId === session.id ? (
+                <input
+                  ref={editInputRef}
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={handleSaveEdit}
+                  onKeyDown={handleEditKeyDown}
+                  className="rounded px-1 py-0 text-sm w-24 focus:outline-none focus:ring-1"
+                  style={{
+                    backgroundColor: "var(--term-bg-deep)",
+                    borderColor: "var(--term-accent)",
+                    color: "var(--term-text-primary)",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <span
+                  className="truncate max-w-[120px]"
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    handleStartEdit(session.id, session.name);
+                  }}
+                >
+                  {session.name}
+                  {!session.is_alive && " (dead)"}
+                </span>
+              )}
+              <button
+                onClick={(e) => handleCloseTab(session.id, e)}
+                className={clsx(
+                  "p-0.5 rounded transition-all duration-150",
+                  isActive ? "opacity-60 hover:opacity-100" : "opacity-0 group-hover:opacity-60 hover:!opacity-100"
+                )}
+                style={{ color: "var(--term-text-muted)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                title="Close terminal"
+              >
+                <X className="w-3 h-3" />
+              </button>
             </button>
-          </button>
-        ))}
+          );
+        })}
 
         {/* Add new terminal button */}
         <button
           onClick={handleAddTab}
           disabled={isCreating}
-          className="flex items-center gap-1 px-2 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700/50 rounded transition-colors disabled:opacity-50"
+          className="flex items-center justify-center w-7 h-7 rounded-md transition-all duration-150 disabled:opacity-50"
+          style={{ color: "var(--term-text-muted)" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
+            e.currentTarget.style.color = "var(--term-accent)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "transparent";
+            e.currentTarget.style.color = "var(--term-text-muted)";
+          }}
+          title="New terminal"
         >
           {isCreating ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -270,7 +334,14 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         {showReconnect && !isMobile && (
           <button
             onClick={handleReconnect}
-            className="flex items-center gap-1 px-2 py-1.5 text-sm text-amber-400 hover:text-amber-300 hover:bg-slate-700/50 rounded transition-colors"
+            className="flex items-center gap-1 px-2 py-1.5 text-sm rounded-md transition-all duration-150"
+            style={{ color: "var(--term-warning)" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
             title="Reconnect terminal"
           >
             <RefreshCw className="w-4 h-4" />
@@ -281,7 +352,10 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
         {/* Layout mode buttons - hidden on mobile */}
         {!isMobile && (
-          <div className="ml-auto flex items-center gap-0.5 border-l border-slate-700 pl-2">
+          <div
+            className="ml-auto flex items-center gap-0.5 pl-2"
+            style={{ borderLeft: "1px solid var(--term-border)" }}
+          >
             <LayoutModeButtons layoutMode={layoutMode} onLayoutChange={handleLayoutModeChange} />
           </div>
         )}
@@ -294,15 +368,18 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               onClick={handleReconnect}
               disabled={!showReconnect}
               className={clsx(
-                "p-1.5 rounded transition-colors",
-                showReconnect
-                  ? "text-amber-400 hover:text-amber-300 hover:bg-slate-700/50"
-                  : activeStatus === "connected"
-                    ? "text-green-400 cursor-default"
-                    : activeStatus === "connecting"
-                      ? "text-yellow-400 animate-pulse cursor-default"
-                      : "text-slate-500 cursor-default"
+                "p-1.5 rounded-md transition-all duration-150",
+                activeStatus === "connecting" && "animate-pulse"
               )}
+              style={{
+                color: showReconnect
+                  ? "var(--term-warning)"
+                  : activeStatus === "connected"
+                    ? "var(--term-accent)"
+                    : activeStatus === "connecting"
+                      ? "var(--term-warning)"
+                      : "var(--term-text-muted)",
+              }}
               title={showReconnect ? "Reconnect" : `Status: ${activeStatus || "unknown"}`}
             >
               <RefreshCw className="w-4 h-4" />
@@ -332,7 +409,10 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
       )}>
         {sessions.length === 0 ? (
           // Empty state - just show hint text
-          <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+          <div
+            className="flex items-center justify-center h-full text-sm"
+            style={{ color: "var(--term-text-muted)" }}
+          >
             Click <Plus className="w-4 h-4 mx-1 inline" /> to start a terminal
           </div>
         ) : layoutMode === "single" ? (
@@ -433,10 +513,16 @@ function SplitPane({ session, projectPath, layoutMode, isLast, paneCount, fontFa
         className="flex flex-col h-full min-h-0 overflow-hidden"
       >
         {/* Small header showing terminal name */}
-        <div className="flex-shrink-0 flex items-center px-2 py-0.5 bg-slate-800/50 border-b border-slate-700">
-          <TerminalIcon className="w-3 h-3 text-slate-500 mr-1.5" />
-          <span className="text-xs text-slate-400 truncate">{session.name}</span>
-          {!session.is_alive && <span className="text-xs text-red-400 ml-1">(dead)</span>}
+        <div
+          className="flex-shrink-0 flex items-center px-2 py-0.5"
+          style={{
+            backgroundColor: "var(--term-bg-surface)",
+            borderBottom: "1px solid var(--term-border)",
+          }}
+        >
+          <TerminalIcon className="w-3 h-3 mr-1.5" style={{ color: "var(--term-text-muted)" }} />
+          <span className="text-xs truncate" style={{ color: "var(--term-text-muted)" }}>{session.name}</span>
+          {!session.is_alive && <span className="text-xs ml-1" style={{ color: "var(--term-error)" }}>(dead)</span>}
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
           <TerminalComponent
@@ -456,8 +542,11 @@ function SplitPane({ session, projectPath, layoutMode, isLast, paneCount, fontFa
             layoutMode === "horizontal"
               ? "h-1 cursor-row-resize"
               : "w-1 cursor-col-resize",
-            "bg-slate-700 hover:bg-slate-600 active:bg-phosphor-500 transition-colors"
+            "transition-colors"
           )}
+          style={{ backgroundColor: "var(--term-border)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--term-border-active)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "var(--term-border)"; }}
         />
       )}
     </>

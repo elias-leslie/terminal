@@ -20,21 +20,36 @@ interface LayoutModeButtonsProps {
 export function LayoutModeButtons({ layoutMode, onLayoutChange }: LayoutModeButtonsProps) {
   return (
     <>
-      {LAYOUT_BUTTONS.map(({ mode, icon: Icon, title }) => (
-        <button
-          key={mode}
-          onClick={() => onLayoutChange(mode)}
-          title={title}
-          className={clsx(
-            "p-1.5 rounded transition-colors",
-            layoutMode === mode
-              ? "bg-slate-700 text-phosphor-400"
-              : "text-slate-500 hover:text-slate-300 hover:bg-slate-700/50"
-          )}
-        >
-          <Icon className="w-4 h-4" />
-        </button>
-      ))}
+      {LAYOUT_BUTTONS.map(({ mode, icon: Icon, title }) => {
+        const isActive = layoutMode === mode;
+        return (
+          <button
+            key={mode}
+            onClick={() => onLayoutChange(mode)}
+            title={title}
+            className="p-1.5 rounded-md transition-all duration-150"
+            style={{
+              backgroundColor: isActive ? "var(--term-bg-elevated)" : "transparent",
+              color: isActive ? "var(--term-accent)" : "var(--term-text-muted)",
+              boxShadow: isActive ? "0 0 8px var(--term-accent-glow)" : "none",
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive) {
+                e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
+                e.currentTarget.style.color = "var(--term-text-primary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.color = "var(--term-text-muted)";
+              }
+            }}
+          >
+            <Icon className="w-4 h-4" />
+          </button>
+        );
+      })}
     </>
   );
 }
