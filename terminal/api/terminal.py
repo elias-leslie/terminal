@@ -167,6 +167,11 @@ async def terminal_websocket(
         # Spawn PTY for tmux
         master_fd, pid = _spawn_pty_for_tmux(session_name)
 
+        # Clear screen to remove tmux initialization garbage
+        # tmux sends escape sequences on attach that get partially rendered as chars
+        await asyncio.sleep(0.05)  # Brief pause for tmux to initialize
+        os.write(master_fd, b"\x1b[2J\x1b[H")  # Clear screen and home cursor
+
         # Store session info
         _sessions[session_id] = {
             "master_fd": master_fd,
