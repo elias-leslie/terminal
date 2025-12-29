@@ -1,19 +1,23 @@
 #!/bin/bash
 #
 # Terminal Restore Script
-# Restores code from backup archives
-# NOTE: No database restore - terminal uses shared summitflow database
+# Restores code and terminal-specific tables from backup archives
 #
 # Usage:
 #   ./scripts/restore.sh --list              # List available backups
 #   ./scripts/restore.sh --latest            # Restore from latest backup
 #   ./scripts/restore.sh --file <archive>    # Restore from specific archive
+#   ./scripts/restore.sh --db-only           # Restore tables only
+#   ./scripts/restore.sh --files-only        # Restore files only (no tables)
 #   ./scripts/restore.sh --dry-run           # Show what would be restored
 #
 # Sources (checked in order):
 #   1. Local: ~/terminal/backups/
 #   2. Pending: ~/.local/share/backup-pending/
 #   3. SMB: //192.168.8.128/davion-gem/project-backups/terminal/
+#
+# Database: Restores terminal-specific tables to shared summitflow DB:
+#   - terminal_sessions
 
 set -eo pipefail
 
@@ -25,9 +29,20 @@ source "$SCRIPT_DIR/lib/backup-utils.sh"
 LOCAL_BACKUP_DIR="$PROJECT_DIR/backups"
 RESTORE_STAGING="/tmp/${PROJECT_NAME}-restore-$$"
 
+# Terminal-specific tables (must match backup.sh)
+TERMINAL_TABLES=(
+    "terminal_sessions"
+)
+
+# Database config - terminal uses shared summitflow DB
+TERMINAL_DB_NAME="summitflow"
+TERMINAL_DB_USER="summitflow_app"
+
 # Parse arguments
 RESTORE_MODE=""
 TARGET_FILE=""
+DB_ONLY=false
+FILES_ONLY=false
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
@@ -45,6 +60,14 @@ while [[ $# -gt 0 ]]; do
             TARGET_FILE="$2"
             shift 2
             ;;
+        --db-only)
+            DB_ONLY=true
+            shift
+            ;;
+        --files-only)
+            FILES_ONLY=true
+            shift
+            ;;
         --dry-run)
             DRY_RUN=true
             shift
@@ -56,6 +79,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --list         List available backups (local, pending, SMB)"
             echo "  --latest       Restore from most recent backup"
             echo "  --file <path>  Restore from specific archive file"
+            echo "  --db-only      Restore terminal tables only, skip files"
+            echo "  --files-only   Restore files only, skip tables"
             echo "  --dry-run      Show what would be restored without doing it"
             echo ""
             echo "Sources checked (in order):"
@@ -63,7 +88,10 @@ while [[ $# -gt 0 ]]; do
             echo "  2. Pending: $PENDING_BACKUP_DIR/"
             echo "  3. SMB: //$SMB_HOST/$SMB_SHARE/$SMB_PATH/"
             echo ""
-            echo "NOTE: Terminal uses shared database - no DB restore needed"
+            echo "Database: Restores terminal-specific tables:"
+            for table in "${TERMINAL_TABLES[@]}"; do
+                echo "  - $table"
+            done
             exit 0
             ;;
         *)
@@ -183,10 +211,69 @@ verify_archive() {
     local has_terminal=$(tar -tzf "$archive" | grep -c "${PROJECT_NAME}/terminal/" || true)
     local has_frontend=$(tar -tzf "$archive" | grep -c "${PROJECT_NAME}/frontend/" || true)
     local has_scripts=$(tar -tzf "$archive" | grep -c "${PROJECT_NAME}/scripts/" || true)
+    local has_db=$(tar -tzf "$archive" | grep -c "terminal_tables.sql.gz" || true)
 
     echo "  Terminal backend: $([ "$has_terminal" -gt 0 ] && echo "✓" || echo "✗")"
     echo "  Frontend code: $([ "$has_frontend" -gt 0 ] && echo "✓" || echo "✗")"
     echo "  Scripts: $([ "$has_scripts" -gt 0 ] && echo "✓" || echo "✗")"
+    echo "  Table dump: $([ "$has_db" -gt 0 ] && echo "✓" || echo "✗")"
+
+    # Check for required components based on mode
+    if [ "$DB_ONLY" = true ] && [ "$has_db" -eq 0 ]; then
+        log_error "Archive does not contain table dump (terminal_tables.sql.gz)"
+        return 1
+    fi
+
+    return 0
+}
+
+# Restore terminal-specific tables
+restore_tables() {
+    local dump_file="$1"
+
+    log "Restoring terminal-specific tables..."
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[DRY RUN] Would restore tables from: $dump_file"
+        log_info "[DRY RUN] Tables: ${TERMINAL_TABLES[*]}"
+        return 0
+    fi
+
+    # Load DB password from env (DATABASE_URL for summitflow)
+    if [ -f "$HOME/.env.local" ]; then
+        local db_url=$(grep "^DATABASE_URL=" "$HOME/.env.local" 2>/dev/null | cut -d'=' -f2- || true)
+        if [ -n "$db_url" ]; then
+            local db_pass=$(echo "$db_url" | sed -n 's|postgresql://[^:]*:\([^@]*\)@.*|\1|p')
+            export PGPASSWORD="$db_pass"
+        fi
+    fi
+
+    # Stop terminal service before restoring tables
+    log "Stopping terminal service..."
+    systemctl --user stop summitflow-terminal 2>/dev/null || true
+
+    # Drop existing tables (will be recreated from dump)
+    log "Dropping existing tables..."
+    for table in "${TERMINAL_TABLES[@]}"; do
+        psql -U "$TERMINAL_DB_USER" -h localhost "$TERMINAL_DB_NAME" \
+            -c "DROP TABLE IF EXISTS $table CASCADE;" 2>/dev/null || true
+    done
+
+    # Restore from dump
+    log "Restoring from dump..."
+    if gunzip -c "$dump_file" | psql -U "$TERMINAL_DB_USER" -h localhost "$TERMINAL_DB_NAME" >/dev/null 2>&1; then
+        log_success "Tables restored successfully: ${TERMINAL_TABLES[*]}"
+    else
+        log_error "Table restore failed"
+        unset PGPASSWORD
+        return 1
+    fi
+
+    unset PGPASSWORD
+
+    # Restart terminal service
+    log "Restarting terminal service..."
+    systemctl --user start summitflow-terminal 2>/dev/null || true
 
     return 0
 }
@@ -272,7 +359,7 @@ do_restore() {
     echo "========================================"
     echo ""
     echo "Project: $PROJECT_NAME ($PROJECT_DIR)"
-    echo "NOTE: No database restore (uses shared summitflow DB)"
+    echo "Tables: ${TERMINAL_TABLES[*]}"
     echo ""
 
     if [ ! -f "$archive" ]; then
@@ -293,8 +380,28 @@ do_restore() {
     # Create staging directory
     mkdir -p "$RESTORE_STAGING"
 
-    # Restore files
-    restore_files "$archive" "$RESTORE_STAGING"
+    local tables_restored=false
+    local files_restored=false
+
+    # Restore tables if needed
+    if [ "$FILES_ONLY" != true ]; then
+        log "Extracting table dump..."
+        tar -xzf "$archive" -C "$RESTORE_STAGING" --wildcards "*/terminal_tables.sql.gz" 2>/dev/null || true
+
+        local dump_file=$(find "$RESTORE_STAGING" -name "terminal_tables.sql.gz" | head -1)
+        if [ -n "$dump_file" ] && [ -f "$dump_file" ]; then
+            restore_tables "$dump_file"
+            tables_restored=true
+        else
+            log_warn "No table dump found in archive"
+        fi
+    fi
+
+    # Restore files if needed
+    if [ "$DB_ONLY" != true ]; then
+        restore_files "$archive" "$RESTORE_STAGING"
+        files_restored=true
+    fi
 
     echo ""
     echo "========================================"
@@ -306,7 +413,8 @@ do_restore() {
         echo "  (This was a dry run - no changes made)"
     else
         echo "  Source: $(basename "$archive")"
-        echo "  Files: restored"
+        [ "$tables_restored" = true ] && echo "  Tables: restored (${TERMINAL_TABLES[*]})"
+        [ "$files_restored" = true ] && echo "  Files: restored"
         echo ""
         echo "  Verify with:"
         echo "    bash $PROJECT_DIR/scripts/status.sh"

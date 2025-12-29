@@ -131,9 +131,9 @@ dump_terminal_tables() {
 
     log "Dumping terminal-specific tables..."
 
-    # Load DB password from env
+    # Load DB password from env (DATABASE_URL for summitflow)
     if [ -f "$HOME/.env.local" ]; then
-        local db_url=$(grep "^SUMMITFLOW_DB_URL=" "$HOME/.env.local" 2>/dev/null | cut -d'=' -f2- || true)
+        local db_url=$(grep "^DATABASE_URL=" "$HOME/.env.local" 2>/dev/null | cut -d'=' -f2- || true)
         if [ -n "$db_url" ]; then
             local db_pass=$(echo "$db_url" | sed -n 's|postgresql://[^:]*:\([^@]*\)@.*|\1|p')
             export PGPASSWORD="$db_pass"
@@ -367,6 +367,7 @@ main() {
         echo ""
         echo "  Archive: $ARCHIVE_NAME"
         echo "  Size: $(numfmt --to=iec $archive_size 2>/dev/null || echo "$archive_size bytes")"
+        echo "  Tables: $(numfmt --to=iec $db_size 2>/dev/null || echo "$db_size bytes")"
         echo "  Location: //$SMB_HOST/$SMB_SHARE/$SMB_PATH/$ARCHIVE_NAME"
         if [ "$KEEP_LOCAL" = true ]; then
             echo "  Local: $PROJECT_DIR/backups/$ARCHIVE_NAME"
@@ -376,7 +377,7 @@ main() {
         echo ""
     else
         # Backup saved to pending - update index with pending status
-        update_backup_index "$ARCHIVE_NAME" "$archive_size" 0 "pending" "$verification"
+        update_backup_index "$ARCHIVE_NAME" "$archive_size" "$db_size" "pending" "$verification"
 
         echo ""
         echo "========================================"
