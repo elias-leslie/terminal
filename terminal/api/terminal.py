@@ -14,7 +14,6 @@ import fcntl
 import json
 import os
 import pty
-import re
 import select
 import struct
 import subprocess
@@ -76,80 +75,29 @@ def _create_tmux_session(session_id: str, working_dir: str | None = None) -> str
     return session_name
 
 
-def _get_claude_session_for_project(working_dir: str | None, session_name: str | None) -> str | None:
-    """Find the claude-* tmux session matching a project.
-
-    Tries working_dir first, then falls back to session_name.
-
-    Args:
-        working_dir: Working directory (e.g., /home/user/portfolio-ai)
-        session_name: Terminal session name (e.g., "Portfolio-AI")
-
-    Returns:
-        Claude session name if found and exists, None otherwise
-    """
-    project_name = None
-
-    # Try working_dir first
-    if working_dir:
-        project_name = os.path.basename(working_dir.rstrip("/"))
-
-    # Fall back to session name (convert to lowercase, replace spaces with hyphens)
-    if not project_name and session_name:
-        # "Portfolio-AI" -> "portfolio-ai"
-        project_name = session_name.lower().replace(" ", "-")
-
-    if not project_name:
-        return None
-
-    claude_session = f"claude-{project_name}"
-
-    # Check if this session exists
-    result = subprocess.run(
-        ["tmux", "has-session", "-t", claude_session],
-        capture_output=True,
-    )
-
-    if result.returncode == 0:
-        logger.info("claude_session_found", project=project_name, session=claude_session)
-        return claude_session
-
-    return None
-
-
 def _spawn_pty_for_tmux(
     tmux_session: str,
-    working_dir: str | None = None,
-    terminal_name: str | None = None,
-    stored_claude_session: str | None = None,
+    stored_target_session: str | None = None,
 ) -> tuple[int, int]:
     """Spawn a PTY attached to a tmux session.
 
     Args:
-        tmux_session: tmux session name
-        working_dir: Working directory to determine which claude session to auto-switch to
-        stored_claude_session: Previously stored claude session to reconnect to
-        terminal_name: Terminal display name (fallback for project detection)
+        tmux_session: Base tmux session name to attach to
+        stored_target_session: Previously stored target session to auto-switch to
 
     Returns:
         Tuple of (master_fd, pid)
     """
-    # First check stored claude session, then try to detect from project
-    claude_session = None
-
-    if stored_claude_session:
-        # Verify stored session still exists
+    # Check if stored target session still exists
+    target_session = None
+    if stored_target_session:
         result = subprocess.run(
-            ["tmux", "has-session", "-t", stored_claude_session],
+            ["tmux", "has-session", "-t", stored_target_session],
             capture_output=True,
         )
         if result.returncode == 0:
-            claude_session = stored_claude_session
-            logger.info("using_stored_claude_session", session=stored_claude_session)
-
-    if not claude_session:
-        # Fall back to detecting from working_dir or terminal_name
-        claude_session = _get_claude_session_for_project(working_dir, terminal_name)
+            target_session = stored_target_session
+            logger.info("using_stored_target_session", session=stored_target_session)
 
     # Fork a PTY
     pid, master_fd = pty.fork()
@@ -157,11 +105,11 @@ def _spawn_pty_for_tmux(
     if pid == 0:
         # Child process - set TERM and attach to tmux
         os.environ["TERM"] = "xterm-256color"
-        if claude_session:
-            # Attach to summitflow session then immediately switch to claude session
+        if target_session:
+            # Attach to base session then immediately switch to target session
             os.execvp(
                 "bash",
-                ["bash", "-c", f"tmux attach-session -t {tmux_session} \\; switch-client -t {claude_session}"],
+                ["bash", "-c", f"tmux attach-session -t {tmux_session} \\; switch-client -t {target_session}"],
             )
         else:
             os.execvp("tmux", ["tmux", "attach-session", "-t", tmux_session])
@@ -231,19 +179,16 @@ async def terminal_websocket(
         # Touch session to update last_accessed_at
         terminal_store.touch_session(session_id)
 
-        # Get session info for working directory, name, and stored claude session
+        # Get session info for working directory and stored target session
         session = terminal_store.get_session(session_id)
         session_working_dir = session.get("working_dir") if session else working_dir
-        terminal_name = session.get("name") if session else None
-        stored_claude_session = session.get("last_claude_session") if session else None
+        stored_target_session = session.get("last_claude_session") if session else None
 
         # Create or attach to tmux session (should exist now due to ensure_session_alive)
         tmux_session_name = _create_tmux_session(session_id, session_working_dir)
 
-        # Spawn PTY for tmux (pass stored claude session for auto-reconnect)
-        master_fd, pid = _spawn_pty_for_tmux(
-            tmux_session_name, session_working_dir, terminal_name, stored_claude_session
-        )
+        # Spawn PTY for tmux (pass stored target session for auto-reconnect)
+        master_fd, pid = _spawn_pty_for_tmux(tmux_session_name, stored_target_session)
 
         # Store session info
         _sessions[session_id] = {
@@ -254,6 +199,9 @@ async def terminal_websocket(
 
         # Start output reader task
         output_task = asyncio.create_task(_read_output(websocket, master_fd, session_id))
+
+        # Start session tracker to detect tmux session switches
+        tracker_task = asyncio.create_task(_track_session_switches(session_id, tmux_session_name))
 
         # Read input from WebSocket
         try:
@@ -295,8 +243,10 @@ async def terminal_websocket(
 
         finally:
             output_task.cancel()
+            tracker_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await output_task
+                await tracker_task
 
     except Exception as e:
         logger.error("terminal_error", session_id=session_id, error=str(e))
@@ -314,9 +264,44 @@ async def terminal_websocket(
         logger.info("terminal_cleanup_complete", session_id=session_id)
 
 
-# Patterns to detect tclaude - both new session and reattach
-_TCLAUDE_START_PATTERN = re.compile(r"🚀 Starting Claude in (/\S+)")
-_TCLAUDE_REATTACH_PATTERN = re.compile(r"🔄 Reattaching to (claude-\S+)")
+async def _track_session_switches(session_id: str, base_session: str) -> None:
+    """Poll tmux to detect when user switches to a different session.
+
+    Tracks any session switch away from the base terminal session.
+    On reconnect, the terminal will auto-switch to the last target session.
+    """
+    last_target_session = None
+
+    try:
+        while True:
+            await asyncio.sleep(2)  # Poll every 2 seconds
+
+            # Get the current session for clients attached to our base session
+            result = subprocess.run(
+                ["tmux", "list-clients", "-t", base_session, "-F", "#{client_session}"],
+                capture_output=True,
+                text=True,
+            )
+
+            if result.returncode == 0 and result.stdout.strip():
+                current_session = result.stdout.strip().split("\n")[0]
+
+                # If switched to a different session (not the base), store it
+                if current_session != base_session and current_session != last_target_session:
+                    logger.info("session_switch_detected", from_session=base_session, to_session=current_session)
+                    terminal_store.update_claude_session(session_id, current_session)
+                    last_target_session = current_session
+
+                # If switched back to base session, clear stored target
+                elif current_session == base_session and last_target_session:
+                    logger.info("returned_to_base_session", base=base_session)
+                    terminal_store.update_claude_session(session_id, None)
+                    last_target_session = None
+
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        logger.error("session_tracker_error", error=str(e))
 
 
 async def _read_output(websocket: WebSocket, master_fd: int, session_id: str) -> None:
@@ -344,36 +329,9 @@ async def _read_output(websocket: WebSocket, master_fd: int, session_id: str) ->
                         decoded = output.decode("utf-8", errors="replace")
                         await websocket.send_text(decoded)
 
-                        # Detect tclaude startup (new session or reattach)
-                        claude_session = None
-                        project_name = None
-
-                        # Check for new session: "🚀 Starting Claude in /path"
-                        start_match = _TCLAUDE_START_PATTERN.search(decoded)
-                        if start_match:
-                            project_path = start_match.group(1)
-                            project_name = os.path.basename(project_path.rstrip("/"))
-                            claude_session = f"claude-{project_name}"
-
-                        # Check for reattach: "🔄 Reattaching to claude-project..."
-                        reattach_match = _TCLAUDE_REATTACH_PATTERN.search(decoded)
-                        if reattach_match:
-                            claude_session = reattach_match.group(1).rstrip(".")
-                            # Extract project name from session name
-                            project_name = claude_session.replace("claude-", "", 1)
-
-                        if claude_session:
-                            logger.info("tclaude_detected", project=project_name, session=claude_session)
-                            terminal_store.update_claude_session(session_id, claude_session)
-                            # Send tab name update to frontend
-                            tab_name = project_name.replace("-", " ").title()
-                            await websocket.send_text(f"\x1b]0;{tab_name}\x07")
-
-                        # Detect tmux session exit - triggers reconnect to original session
+                        # Detect tmux session exit - triggers disconnect for reconnect
                         if "[exited]" in decoded:
                             logger.info("tmux_session_exited_detected")
-                            # Clear stored claude session on exit
-                            terminal_store.update_claude_session(session_id, "")
                             break
                 except OSError:
                     break
