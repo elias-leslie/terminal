@@ -174,9 +174,8 @@ async def terminal_websocket(
             "session_name": session_name,
         }
 
-        # Don't start output reader yet - wait for first resize from frontend
-        # This prevents tmux initialization garbage from being sent
-        output_task: asyncio.Task[None] | None = None
+        # Start output reader task
+        output_task = asyncio.create_task(_read_output(websocket, master_fd))
 
         # Read input from WebSocket
         try:
@@ -203,51 +202,23 @@ async def terminal_websocket(
                                 cols=cols,
                                 rows=rows,
                             )
-
-                            # Start output reader on first resize
-                            if output_task is None:
-                                # Drain any garbage that accumulated in PTY buffer
-                                drained_total = 0
-                                while True:
-                                    try:
-                                        discarded = os.read(master_fd, 4096)
-                                        if not discarded:
-                                            break
-                                        drained_total += len(discarded)
-                                        logger.debug(
-                                            "drained_data",
-                                            length=len(discarded),
-                                            preview=repr(discarded[:100]),
-                                        )
-                                    except BlockingIOError:
-                                        break  # No more data in buffer
-                                logger.info("drain_complete", total_bytes=drained_total)
-
-                                # Clear screen and home cursor
-                                os.write(master_fd, b"\x1b[2J\x1b[H")
-                                output_task = asyncio.create_task(
-                                    _read_output(websocket, master_fd, session_id)
-                                )
                         except json.JSONDecodeError:
                             pass
                     else:
-                        # Regular input - only write if output task started
-                        if output_task is not None:
-                            os.write(master_fd, text.encode("utf-8"))
+                        # Regular input - write to PTY
+                        os.write(master_fd, text.encode("utf-8"))
 
                 elif "bytes" in message:
-                    # Binary data - only write if output task started
-                    if output_task is not None:
-                        os.write(master_fd, message["bytes"])
+                    # Binary data - write directly
+                    os.write(master_fd, message["bytes"])
 
         except WebSocketDisconnect:
             logger.info("terminal_disconnected", session_id=session_id)
 
         finally:
-            if output_task is not None:
-                output_task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await output_task
+            output_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await output_task
 
     except Exception as e:
         logger.error("terminal_error", session_id=session_id, error=str(e))
@@ -265,18 +236,14 @@ async def terminal_websocket(
         logger.info("terminal_cleanup_complete", session_id=session_id)
 
 
-async def _read_output(
-    websocket: WebSocket, master_fd: int, session_id: str = ""
-) -> None:
+async def _read_output(websocket: WebSocket, master_fd: int) -> None:
     """Read output from PTY and send to WebSocket.
 
     Args:
         websocket: WebSocket connection
         master_fd: Master file descriptor
-        session_id: Session ID for logging
     """
     loop = asyncio.get_event_loop()
-    message_count = 0
 
     try:
         while True:
@@ -290,15 +257,6 @@ async def _read_output(
                 try:
                     output = os.read(master_fd, 4096)
                     if output:
-                        message_count += 1
-                        if message_count <= 5:
-                            logger.debug(
-                                "sending_output",
-                                session_id=session_id,
-                                msg_num=message_count,
-                                length=len(output),
-                                preview=repr(output[:100]),
-                            )
                         await websocket.send_text(output.decode("utf-8", errors="replace"))
                 except OSError:
                     break
