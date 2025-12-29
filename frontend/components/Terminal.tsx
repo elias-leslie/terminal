@@ -182,22 +182,19 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       term.open(containerRef.current);
 
       // Force local mouse handling only when mouse reporting is enabled.
-      // When apps like Claude Code enable mouse reporting, xterm.js sends
-      // mouse events to the app instead of handling selection locally.
-      // We intercept and re-dispatch with shiftKey=true to force local handling.
+      // Check xterm's internal coreMouseService.areMouseEventsActive property.
       // When mouse reporting is OFF (regular bash), we let events pass through.
       const forceLocalMouseHandling = (e: MouseEvent) => {
-        if (e.shiftKey) return; // Already has shift, let it through
+        if (e.shiftKey) return; // Already has shift (including our synthetic events), let it through
+        if (!e.isTrusted) return; // Skip synthetic events to prevent loops
 
-        // Check if mouse reporting is enabled (internal xterm.js API)
-        // mouseTrackingMode: 0=off, 1+=various mouse modes enabled
+        // Check if mouse reporting is enabled via xterm internal API
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const core = (term as any)._core;
-        // Try both possible paths (varies by xterm.js version)
-        const mouseMode = core?._coreService?.decPrivateModes?.mouseTrackingMode
-          ?? core?.coreService?.decPrivateModes?.mouseTrackingMode;
+        const mouseService = core?.coreMouseService;
+        const mouseActive = mouseService?.areMouseEventsActive;
 
-        if (!mouseMode || mouseMode === 0) {
+        if (!mouseActive) {
           // Mouse reporting not enabled, let event pass through normally
           return;
         }
