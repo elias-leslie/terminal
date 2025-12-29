@@ -132,21 +132,27 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // This prevents character width miscalculation and selection misalignment
       await document.fonts.ready;
 
-      // Explicitly load the configured font to ensure it's available
+      // Explicitly load the exact font family that xterm will use
+      // This must match what xterm.js uses for character width calculation
+      const exactFontFamily = "'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace";
       try {
-        await document.fonts.load(`${fontSize}px ${fontFamily}`);
+        await document.fonts.load(`${fontSize}px JetBrains Mono`);
       } catch {
         // Font load failed, continue anyway - browser will use fallback
-        console.warn(`Failed to load font: ${fontFamily}`);
+        console.warn(`Failed to load font: JetBrains Mono`);
       }
+
+      // Additional delay to ensure font metrics are stable
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       if (!mounted) return;
 
-      // Create terminal
+      // Create terminal with exact font settings to match CSS rendering
       const term = new Terminal({
         cursorBlink: true,
         fontSize: fontSize,
-        fontFamily: fontFamily,
+        fontFamily: exactFontFamily,  // Must match CSS exactly for proper character width
+        letterSpacing: 0,  // Prevent character width miscalculation
         scrollback: 5000, // Enable scrollback buffer (5000 lines)
         // Force selection to work even if shell has mouse mode enabled
         allowProposedApi: true,
@@ -195,29 +201,67 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       term.onSelectionChange(() => {
         const selection = term.getSelection();
         if (selection && selection.length > 0) {
-          navigator.clipboard.writeText(selection).catch((err) => {
-            console.warn("Failed to copy to clipboard:", err);
-          });
+          // Use clipboard API with fallback
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(selection).catch((err) => {
+              console.warn("Clipboard write failed, trying fallback:", err);
+              // Fallback: use deprecated execCommand
+              try {
+                const textarea = document.createElement('textarea');
+                textarea.value = selection;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+              } catch (e) {
+                console.warn("Fallback copy also failed:", e);
+              }
+            });
+          }
         }
       });
 
       // Paste: Ctrl+V, Ctrl+Shift+V, or Cmd+V
       // Note: Middle-click paste not supported in browsers without extensions
       term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        // Only handle keydown, not keyup
+        if (event.type !== 'keydown') return true;
+
         // Ctrl+V or Ctrl+Shift+V or Cmd+V - paste
         // Use event.code for reliable key detection regardless of Shift state
         if ((event.ctrlKey || event.metaKey) && event.code === "KeyV") {
-          navigator.clipboard.readText()
-            .then((text) => {
-              if (text && wsRef.current?.readyState === WebSocket.OPEN) {
-                wsRef.current.send(text);
-              }
-            })
-            .catch((err) => {
-              console.warn("Failed to read clipboard:", err);
-            });
+          event.preventDefault();
+          event.stopPropagation();
+
+          // Try async clipboard API first
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText()
+              .then((text) => {
+                if (text && wsRef.current?.readyState === WebSocket.OPEN) {
+                  wsRef.current.send(text);
+                }
+              })
+              .catch((err) => {
+                console.warn("Clipboard read failed:", err);
+              });
+          }
           return false;
         }
+
+        // Ctrl+C - copy (fallback if auto-copy on selection doesn't work)
+        if ((event.ctrlKey || event.metaKey) && event.code === "KeyC") {
+          const selection = term.getSelection();
+          if (selection && selection.length > 0) {
+            event.preventDefault();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(selection).catch(console.warn);
+            }
+            return false;
+          }
+        }
+
         return true;
       });
 
@@ -378,6 +422,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           }
         }, CONNECTION_TIMEOUT);
 
+        // Track if this is a fresh connection to clear garbage on first output
+        let isFirstMessage = true;
+
         ws.onopen = () => {
           clearTimeout(timeoutId);
           if (!mounted) return;
@@ -392,10 +439,31 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
               })
             );
           }
+
+          // Clear the terminal to remove any garbage from initialization
+          // Small delay to allow resize to take effect
+          setTimeout(() => {
+            if (mounted) {
+              term.clear();
+              // Tell tmux to redraw by sending Ctrl+L (form feed / clear screen)
+              ws.send('\x0c');  // Ctrl+L
+            }
+          }, 100);
         };
 
         ws.onmessage = (event) => {
           if (!mounted) return;
+          // Skip the first message if it contains garbage escape sequences
+          // This happens when tmux sends capability queries before proper resize
+          if (isFirstMessage) {
+            isFirstMessage = false;
+            // Check if this looks like garbage (contains high density of escape sequences)
+            const data = event.data;
+            if (data.length > 50 && (data.match(/\x1b/g) || []).length > 10) {
+              // Likely initialization garbage, skip it
+              return;
+            }
+          }
           term.write(event.data);
         };
 

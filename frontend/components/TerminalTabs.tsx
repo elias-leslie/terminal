@@ -61,14 +61,23 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, []);
 
-  // Auto-create terminal when visiting with URL params and no sessions
+  // Auto-create terminal ONLY on initial page load when no sessions exist
+  // Uses sessionStorage to prevent re-creating after user closes all terminals
   const hasAutoCreated = useRef(false);
   useEffect(() => {
-    if (!isLoading && sessions.length === 0 && !hasAutoCreated.current && !isCreating) {
+    // Only run once when loading completes
+    if (isLoading || hasAutoCreated.current || isCreating) return;
+
+    // Check if we've already auto-created in this browser tab session
+    const sessionKey = `terminal-autocreated-${projectId || 'default'}`;
+    const alreadyCreated = sessionStorage.getItem(sessionKey);
+
+    if (sessions.length === 0 && !alreadyCreated) {
       hasAutoCreated.current = true;
+      sessionStorage.setItem(sessionKey, 'true');
       create("Terminal 1", projectPath);
     }
-  }, [isLoading, sessions.length, isCreating, create, projectPath]);
+  }, [isLoading, sessions.length, isCreating, create, projectPath, projectId]);
 
   // Save keyboard size to localStorage
   const handleKeyboardSizeChange = useCallback((size: KeyboardSizePreset) => {
