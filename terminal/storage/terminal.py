@@ -34,7 +34,7 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           is_alive, created_at, last_accessed_at
+                           is_alive, created_at, last_accessed_at, last_claude_session
                     FROM terminal_sessions
                     WHERE user_id = %s
                     ORDER BY display_order, created_at
@@ -45,7 +45,7 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           is_alive, created_at, last_accessed_at
+                           is_alive, created_at, last_accessed_at, last_claude_session
                     FROM terminal_sessions
                     WHERE user_id = %s AND is_alive = true
                     ORDER BY display_order, created_at
@@ -57,7 +57,7 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           is_alive, created_at, last_accessed_at
+                           is_alive, created_at, last_accessed_at, last_claude_session
                     FROM terminal_sessions
                     ORDER BY display_order, created_at
                     """
@@ -66,7 +66,7 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           is_alive, created_at, last_accessed_at
+                           is_alive, created_at, last_accessed_at, last_claude_session
                     FROM terminal_sessions
                     WHERE is_alive = true
                     ORDER BY display_order, created_at
@@ -90,7 +90,7 @@ def get_session(session_id: str | UUID) -> dict[str, Any] | None:
         cur.execute(
             """
             SELECT id, name, user_id, project_id, working_dir, display_order,
-                   is_alive, created_at, last_accessed_at
+                   is_alive, created_at, last_accessed_at, last_claude_session
             FROM terminal_sessions
             WHERE id = %s
             """,
@@ -289,4 +289,23 @@ def _row_to_dict(row: tuple) -> dict[str, Any]:
         "is_alive": row[6],
         "created_at": row[7],
         "last_accessed_at": row[8],
+        "last_claude_session": row[9] if len(row) > 9 else None,
     }
+
+
+def update_claude_session(session_id: str | UUID, claude_session: str | None) -> None:
+    """Update the last active claude session for a terminal.
+
+    Called when tclaude is run to remember which claude session to reconnect to.
+    Pass None or empty string to clear the stored session.
+    """
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE terminal_sessions
+            SET last_claude_session = NULLIF(%s, '')
+            WHERE id = %s
+            """,
+            (claude_session or "", str(session_id)),
+        )
+        conn.commit()

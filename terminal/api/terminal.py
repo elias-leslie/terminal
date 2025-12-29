@@ -14,6 +14,7 @@ import fcntl
 import json
 import os
 import pty
+import re
 import select
 import struct
 import subprocess
@@ -116,19 +117,39 @@ def _get_claude_session_for_project(working_dir: str | None, session_name: str |
     return None
 
 
-def _spawn_pty_for_tmux(tmux_session: str, working_dir: str | None = None, terminal_name: str | None = None) -> tuple[int, int]:
+def _spawn_pty_for_tmux(
+    tmux_session: str,
+    working_dir: str | None = None,
+    terminal_name: str | None = None,
+    stored_claude_session: str | None = None,
+) -> tuple[int, int]:
     """Spawn a PTY attached to a tmux session.
 
     Args:
         tmux_session: tmux session name
         working_dir: Working directory to determine which claude session to auto-switch to
+        stored_claude_session: Previously stored claude session to reconnect to
         terminal_name: Terminal display name (fallback for project detection)
 
     Returns:
         Tuple of (master_fd, pid)
     """
-    # Check for matching claude session based on project
-    claude_session = _get_claude_session_for_project(working_dir, terminal_name)
+    # First check stored claude session, then try to detect from project
+    claude_session = None
+
+    if stored_claude_session:
+        # Verify stored session still exists
+        result = subprocess.run(
+            ["tmux", "has-session", "-t", stored_claude_session],
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            claude_session = stored_claude_session
+            logger.info("using_stored_claude_session", session=stored_claude_session)
+
+    if not claude_session:
+        # Fall back to detecting from working_dir or terminal_name
+        claude_session = _get_claude_session_for_project(working_dir, terminal_name)
 
     # Fork a PTY
     pid, master_fd = pty.fork()
@@ -210,16 +231,19 @@ async def terminal_websocket(
         # Touch session to update last_accessed_at
         terminal_store.touch_session(session_id)
 
-        # Get session info for working directory and name
+        # Get session info for working directory, name, and stored claude session
         session = terminal_store.get_session(session_id)
         session_working_dir = session.get("working_dir") if session else working_dir
         terminal_name = session.get("name") if session else None
+        stored_claude_session = session.get("last_claude_session") if session else None
 
         # Create or attach to tmux session (should exist now due to ensure_session_alive)
         tmux_session_name = _create_tmux_session(session_id, session_working_dir)
 
-        # Spawn PTY for tmux (pass working_dir and name for auto-switching to claude session)
-        master_fd, pid = _spawn_pty_for_tmux(tmux_session_name, session_working_dir, terminal_name)
+        # Spawn PTY for tmux (pass stored claude session for auto-reconnect)
+        master_fd, pid = _spawn_pty_for_tmux(
+            tmux_session_name, session_working_dir, terminal_name, stored_claude_session
+        )
 
         # Store session info
         _sessions[session_id] = {
@@ -229,7 +253,7 @@ async def terminal_websocket(
         }
 
         # Start output reader task
-        output_task = asyncio.create_task(_read_output(websocket, master_fd))
+        output_task = asyncio.create_task(_read_output(websocket, master_fd, session_id))
 
         # Read input from WebSocket
         try:
@@ -290,12 +314,17 @@ async def terminal_websocket(
         logger.info("terminal_cleanup_complete", session_id=session_id)
 
 
-async def _read_output(websocket: WebSocket, master_fd: int) -> None:
+# Pattern to detect tclaude startup: "🚀 Starting Claude in /path/to/project"
+_TCLAUDE_PATTERN = re.compile(r"🚀 Starting Claude in (/\S+)")
+
+
+async def _read_output(websocket: WebSocket, master_fd: int, session_id: str) -> None:
     """Read output from PTY and send to WebSocket.
 
     Args:
         websocket: WebSocket connection
         master_fd: Master file descriptor
+        session_id: Terminal session ID for updating stored claude session
     """
     loop = asyncio.get_event_loop()
 
@@ -313,9 +342,24 @@ async def _read_output(websocket: WebSocket, master_fd: int) -> None:
                     if output:
                         decoded = output.decode("utf-8", errors="replace")
                         await websocket.send_text(decoded)
+
+                        # Detect tclaude startup and update stored claude session
+                        match = _TCLAUDE_PATTERN.search(decoded)
+                        if match:
+                            project_path = match.group(1)
+                            project_name = os.path.basename(project_path.rstrip("/"))
+                            claude_session = f"claude-{project_name}"
+                            logger.info("tclaude_detected", project=project_name, session=claude_session)
+                            terminal_store.update_claude_session(session_id, claude_session)
+                            # Send tab name update to frontend
+                            tab_name = project_name.replace("-", " ").title()
+                            await websocket.send_text(f"\x1b]0;{tab_name}\x07")
+
                         # Detect tmux session exit - triggers reconnect to original session
                         if "[exited]" in decoded:
                             logger.info("tmux_session_exited_detected")
+                            # Clear stored claude session on exit
+                            terminal_store.update_claude_session(session_id, "")
                             break
                 except OSError:
                     break
