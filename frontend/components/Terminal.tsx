@@ -573,20 +573,32 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   // Update font settings when they change
   useEffect(() => {
     if (terminalRef.current) {
-      terminalRef.current.options.fontFamily = fontFamily;
+      // Ensure full fallback chain for consistent character width calculation
+      // This must match the CSS in globals.css
+      const standardFallbacks = ", 'Consolas', 'Monaco', 'Courier New', monospace";
+      const fullFontFamily = fontFamily.endsWith("monospace")
+        ? fontFamily.replace(/, ?monospace$/, standardFallbacks)
+        : fontFamily + standardFallbacks;
+
+      terminalRef.current.options.fontFamily = fullFontFamily;
       terminalRef.current.options.fontSize = fontSize;
+      terminalRef.current.options.letterSpacing = 0;
 
       // Wait for new font to load before refitting
-      document.fonts.load(`${fontSize}px ${fontFamily}`).then(() => {
-        if (fitAddonRef.current) {
-          fitAddonRef.current.fit();
-          // Second fit after browser paint
-          setTimeout(() => {
-            if (fitAddonRef.current) {
-              fitAddonRef.current.fit();
-            }
-          }, 100);
-        }
+      const primaryFont = fontFamily.replace(/['"]/g, '').split(',')[0].trim();
+      document.fonts.load(`${fontSize}px ${primaryFont}`).then(() => {
+        // Small delay to ensure font metrics are stable
+        setTimeout(() => {
+          if (fitAddonRef.current) {
+            fitAddonRef.current.fit();
+            // Second fit after browser paint
+            setTimeout(() => {
+              if (fitAddonRef.current) {
+                fitAddonRef.current.fit();
+              }
+            }, 100);
+          }
+        }, 50);
       }).catch(() => {
         // Font load failed, fit anyway
         if (fitAddonRef.current) {
