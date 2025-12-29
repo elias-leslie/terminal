@@ -205,8 +205,10 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
       {/* Tab bar - order-2 on mobile (below terminal), order-1 on desktop (above terminal) */}
       <div
         className={clsx(
-          "flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 overflow-x-auto overflow-y-visible",
-          isMobile ? "order-2" : "order-1"
+          "flex-shrink-0 flex items-center overflow-x-auto overflow-y-visible",
+          isMobile
+            ? "order-2 gap-1 px-1.5 py-1"  // Compact on mobile
+            : "order-1 gap-1.5 px-2 py-1.5"
         )}
         style={{ backgroundColor: "var(--term-bg-surface)", borderColor: "var(--term-border)" }}
       >
@@ -219,8 +221,11 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               key={session.id}
               onClick={() => setActiveId(session.id)}
               className={clsx(
-                "flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-all duration-200",
+                "flex items-center rounded-md transition-all duration-200",
                 "group min-w-0 flex-shrink-0",
+                isMobile
+                  ? "gap-1.5 px-2 py-1 text-xs min-h-[36px]"  // Compact but 36px touch target
+                  : "gap-2 px-3 py-1.5 text-sm",
                 isActive
                   ? "text-white"
                   : "hover:text-white"
@@ -280,7 +285,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                 />
               ) : (
                 <span
-                  className="truncate max-w-[120px]"
+                  className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[120px]")}
                   onDoubleClick={(e) => {
                     e.stopPropagation();
                     handleStartEdit(session.id, session.name);

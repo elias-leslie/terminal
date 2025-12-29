@@ -58,52 +58,59 @@ export function ControlBar({
   }, [shiftActive, onSend, clearModifiers]);
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 border-t border-slate-700">
-      {/* Arrow keys */}
-      <div className="flex items-center gap-1">
+    <div
+      className="flex items-center gap-1 px-1.5 py-1"
+      style={{
+        backgroundColor: "var(--term-bg-surface)",
+        borderTop: "1px solid var(--term-border)",
+      }}
+    >
+      {/* Arrow keys - optimized touch targets */}
+      <div className="flex items-center gap-0.5">
         <KeyboardKey
           label="←"
           onPress={handleArrowLeft}
-          className="w-12 text-xl"
+          className="w-10 h-9 text-lg"
         />
         <KeyboardKey
           label="↑"
           onPress={handleArrowUp}
-          className="w-11 text-xl"
+          className="w-9 h-9 text-lg"
         />
         <KeyboardKey
           label="↓"
           onPress={handleArrowDown}
-          className="w-11 text-xl"
+          className="w-9 h-9 text-lg"
         />
         <KeyboardKey
           label="→"
           onPress={handleArrowRight}
-          className="w-12 text-xl"
+          className="w-10 h-9 text-lg"
         />
       </div>
 
       {/* Special terminal keys */}
-      <div className="flex items-center gap-1 ml-1">
+      <div className="flex items-center gap-0.5 ml-0.5">
         <KeyboardKey
           label="ESC"
           onPress={handleEsc}
-          className="text-sm px-2"
+          className="text-xs px-1.5 h-9"
         />
         <KeyboardKey
           label="TAB"
           onPress={handleTab}
-          className="text-sm px-2"
+          className="text-xs px-1.5 h-9"
         />
         <button
           type="button"
           onClick={onCtrlToggle}
-          className={clsx(
-            "h-11 px-2.5 rounded-md text-sm font-medium transition-colors",
-            ctrlActive
-              ? "bg-blue-600 text-white"
-              : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-          )}
+          className="h-9 px-2 rounded-md text-xs font-medium transition-all duration-150"
+          style={{
+            backgroundColor: ctrlActive ? "var(--term-accent)" : "var(--term-bg-elevated)",
+            color: ctrlActive ? "var(--term-bg-deep)" : "var(--term-text-muted)",
+            border: `1px solid ${ctrlActive ? "var(--term-accent)" : "var(--term-border)"}`,
+            boxShadow: ctrlActive ? "0 0 8px var(--term-accent-glow)" : "none",
+          }}
         >
           CTRL
         </button>
@@ -114,15 +121,16 @@ export function ControlBar({
         <button
           type="button"
           onClick={onToggleMinimize}
-          className={clsx(
-            "flex items-center justify-center h-11 w-11 rounded-md transition-colors ml-auto",
-            minimized
-              ? "bg-phosphor-600 text-white"
-              : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-          )}
+          className="flex items-center justify-center h-9 w-9 rounded-md transition-all duration-150 ml-auto"
+          style={{
+            backgroundColor: minimized ? "var(--term-accent)" : "var(--term-bg-elevated)",
+            color: minimized ? "var(--term-bg-deep)" : "var(--term-text-muted)",
+            border: `1px solid ${minimized ? "var(--term-accent)" : "var(--term-border)"}`,
+            boxShadow: minimized ? "0 0 8px var(--term-accent-glow)" : "none",
+          }}
           title={minimized ? "Show keyboard" : "Hide keyboard"}
         >
-          {minimized ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          {minimized ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
       )}
     </div>

@@ -46,6 +46,31 @@ export function KeyboardKey({
     touchedRef.current = false;
   }, [onPress]);
 
+  // Get styles based on state using CSS variables
+  const getStateStyles = (): React.CSSProperties => {
+    switch (state) {
+      case "locked":
+        return {
+          backgroundColor: "var(--term-accent)",
+          color: "var(--term-bg-deep)",
+          border: "1px solid var(--term-accent)",
+          boxShadow: "0 0 8px var(--term-accent-glow)",
+        };
+      case "sticky":
+        return {
+          backgroundColor: "var(--term-bg-elevated)",
+          color: "var(--term-accent)",
+          border: "1px solid var(--term-accent-muted)",
+        };
+      default: // "off"
+        return {
+          backgroundColor: "var(--term-bg-elevated)",
+          color: "var(--term-text-primary)",
+          border: "1px solid var(--term-border)",
+        };
+    }
+  };
+
   return (
     <button
       type="button"
@@ -57,18 +82,15 @@ export function KeyboardKey({
         "text-base font-medium",
         "rounded-md",
         "select-none touch-manipulation",
-        "transition-colors duration-100",
-        // Height
-        "h-11 min-h-[44px]",
-        // State-based styling
-        state === "off" && "bg-slate-700 text-slate-200 active:bg-slate-600",
-        state === "sticky" && "bg-slate-700 text-phosphor-400 border border-phosphor-500 active:bg-slate-600",
-        state === "locked" && "bg-phosphor-600 text-white active:bg-phosphor-500",
+        "transition-all duration-100",
+        // Height - reduced for compact mobile layout
+        "h-9 min-h-[36px]",
         className
       )}
       style={{
         flex: width,
-        minWidth: `${width * 44}px`, // 44px base width
+        minWidth: `${width * 36}px`, // 36px base width for compact layout
+        ...getStateStyles(),
       }}
     >
       {label}

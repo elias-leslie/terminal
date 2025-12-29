@@ -169,48 +169,52 @@ function FullKeyboardInner({ onSend, keyboardSize = "medium" }: FullKeyboardProp
   }, [modifiers]);
 
   return (
-    <div className="terminal-keyboard-container bg-slate-800">
+    <div className="terminal-keyboard-container" style={{ backgroundColor: "var(--term-bg-surface)" }}>
       <div ref={containerRef} />
       <style jsx global>{`
         .terminal-keyboard-theme {
-          background: #1e293b;
-          padding: 6px;
+          background: var(--term-bg-surface);
+          padding: 4px;
           border-radius: 0;
         }
 
         .terminal-keyboard-theme .hg-button {
-          background: #3f4a5c;
-          color: #e2e8f0;
-          border: none;
-          border-radius: 8px;
+          background: var(--term-bg-elevated);
+          color: var(--term-text-primary);
+          border: 1px solid var(--term-border);
+          border-radius: 6px;
           height: ${rowHeight}px;
           min-width: 28px;
-          font-size: ${rowHeight <= 36 ? 18 : rowHeight <= 44 ? 20 : 22}px;
+          font-size: ${rowHeight <= 36 ? 16 : rowHeight <= 44 ? 18 : 20}px;
           font-weight: 400;
           box-shadow: none;
           flex: 1 1 0;
           display: flex;
           align-items: center;
           justify-content: center;
+          transition: all 0.1s ease;
         }
 
         .terminal-keyboard-theme .hg-button:active {
-          background: #4b5563;
+          background: var(--term-border-active);
+          box-shadow: 0 0 8px var(--term-accent-glow);
         }
 
         /* Accent colored keys (shift, backspace, enter) */
         .terminal-keyboard-theme .hg-button.accent-key {
-          background: #4a5568;
+          background: var(--term-bg-elevated);
+          border-color: var(--term-border-active);
         }
 
         .terminal-keyboard-theme .hg-button.accent-key:active {
-          background: #5a6578;
+          background: var(--term-accent);
+          color: var(--term-bg-deep);
         }
 
         /* Wide keys (sym, abc) */
         .terminal-keyboard-theme .hg-button.wide-key {
-          background: #4a5568;
-          font-size: ${rowHeight <= 36 ? 14 : rowHeight <= 44 ? 15 : 16}px;
+          background: var(--term-bg-elevated);
+          font-size: ${rowHeight <= 36 ? 12 : rowHeight <= 44 ? 13 : 14}px;
           font-weight: 500;
         }
 
@@ -218,26 +222,28 @@ function FullKeyboardInner({ onSend, keyboardSize = "medium" }: FullKeyboardProp
         .terminal-keyboard-theme .hg-button[data-skbtn="{shift}"],
         .terminal-keyboard-theme .hg-button[data-skbtn="{bksp}"],
         .terminal-keyboard-theme .hg-button[data-skbtn="{enter}"] {
-          font-size: ${rowHeight <= 36 ? 24 : rowHeight <= 44 ? 26 : 28}px;
+          font-size: ${rowHeight <= 36 ? 20 : rowHeight <= 44 ? 22 : 24}px;
         }
 
         /* Modifier states */
         .terminal-keyboard-theme .hg-button.modifier-sticky {
-          background: #4a5568;
-          border: 2px solid #60a5fa;
-          color: #60a5fa;
+          background: var(--term-bg-elevated);
+          border: 1px solid var(--term-accent-muted);
+          color: var(--term-accent);
         }
 
         .terminal-keyboard-theme .hg-button.modifier-locked {
-          background: #3b82f6;
-          color: white;
+          background: var(--term-accent);
+          color: var(--term-bg-deep);
+          border-color: var(--term-accent);
+          box-shadow: 0 0 8px var(--term-accent-glow);
         }
 
         .terminal-keyboard-theme .hg-row {
           display: flex;
           flex-direction: row;
-          gap: 4px;
-          margin-bottom: 6px;
+          gap: 3px;
+          margin-bottom: 4px;
         }
 
         .terminal-keyboard-theme .hg-row:last-child {
@@ -274,7 +280,6 @@ function FullKeyboardInner({ onSend, keyboardSize = "medium" }: FullKeyboardProp
         /* Enter key - wider */
         .terminal-keyboard-theme .hg-button[data-skbtn="{enter}"] {
           flex: 1.5 1 0;
-          background: #4a5568;
         }
 
         /* Apostrophe and period - normal size */
