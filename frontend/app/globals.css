@@ -3,6 +3,30 @@
 :root {
   --background: #0f172a;
   --foreground: #e2e8f0;
+
+  /* Phosphor Terminal Theme */
+  /* Backgrounds */
+  --term-bg-deep: #0a0e14;        /* Terminal canvas */
+  --term-bg-surface: #0f1419;     /* Tab bar, panels */
+  --term-bg-elevated: #151b23;    /* Dropdowns, modals */
+
+  /* Borders */
+  --term-border: #1e2530;         /* Default border */
+  --term-border-active: #2a3544;  /* Active/focused border */
+
+  /* Text */
+  --term-text-primary: #e6edf3;   /* Primary text */
+  --term-text-muted: #7d8590;     /* Secondary/muted text */
+
+  /* Accent - Phosphor Green */
+  --term-accent: #00ff9f;                     /* Primary accent */
+  --term-accent-muted: #00cc7f;               /* Muted accent */
+  --term-accent-glow: rgba(0, 255, 159, 0.15); /* Glow effect */
+
+  /* Status Colors */
+  --term-success: #3fb950;
+  --term-warning: #d29922;
+  --term-error: #f85149;
 }
 
 @theme inline {
