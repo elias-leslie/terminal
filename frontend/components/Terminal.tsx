@@ -7,7 +7,7 @@ import { clsx } from "clsx";
 let Terminal: typeof import("@xterm/xterm").Terminal;
 let FitAddon: typeof import("@xterm/addon-fit").FitAddon;
 let WebLinksAddon: typeof import("@xterm/addon-web-links").WebLinksAddon;
-let ClipboardAddon: typeof import("@xterm/addon-clipboard").ClipboardAddon;
+// ClipboardAddon removed - conflicts with manual clipboard handling
 
 interface TerminalProps {
   sessionId: string;
@@ -122,14 +122,11 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       const xtermModule = await import("@xterm/xterm");
       const fitModule = await import("@xterm/addon-fit");
       const webLinksModule = await import("@xterm/addon-web-links");
-      const clipboardModule = await import("@xterm/addon-clipboard");
-
       if (!mounted) return;
 
       Terminal = xtermModule.Terminal;
       FitAddon = fitModule.FitAddon;
       WebLinksAddon = webLinksModule.WebLinksAddon;
-      ClipboardAddon = clipboardModule.ClipboardAddon;
 
       // Wait for fonts to be ready before creating terminal
       // This prevents character width miscalculation and selection misalignment
@@ -185,11 +182,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Create addons
       const fitAddon = new FitAddon();
       const webLinksAddon = new WebLinksAddon();
-      const clipboardAddon = new ClipboardAddon();
 
       term.loadAddon(fitAddon);
       term.loadAddon(webLinksAddon);
-      term.loadAddon(clipboardAddon);
 
       // Open terminal in container
       term.open(containerRef.current);
@@ -197,21 +192,28 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Linux-style copy: automatically copy selection to clipboard
       term.onSelectionChange(() => {
         const selection = term.getSelection();
-        if (selection) {
-          navigator.clipboard.writeText(selection);
+        if (selection && selection.length > 0) {
+          navigator.clipboard.writeText(selection).catch((err) => {
+            console.warn("Failed to copy to clipboard:", err);
+          });
         }
       });
 
-      // Paste: Ctrl+Shift+V or right-click
+      // Paste: Ctrl+V, Ctrl+Shift+V, or Cmd+V
       // Note: Middle-click paste not supported in browsers without extensions
       term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
-        // Ctrl+Shift+V or Cmd+Shift+V - paste
-        if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === "V") {
-          navigator.clipboard.readText().then((text) => {
-            if (text && wsRef.current?.readyState === WebSocket.OPEN) {
-              wsRef.current.send(text);
-            }
-          });
+        // Ctrl+V or Ctrl+Shift+V or Cmd+V - paste
+        // Use event.code for reliable key detection regardless of Shift state
+        if ((event.ctrlKey || event.metaKey) && event.code === "KeyV") {
+          navigator.clipboard.readText()
+            .then((text) => {
+              if (text && wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(text);
+              }
+            })
+            .catch((err) => {
+              console.warn("Failed to read clipboard:", err);
+            });
           return false;
         }
         return true;
@@ -503,10 +505,24 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
     if (terminalRef.current) {
       terminalRef.current.options.fontFamily = fontFamily;
       terminalRef.current.options.fontSize = fontSize;
-      // Refit after font change
-      if (fitAddonRef.current) {
-        fitAddonRef.current.fit();
-      }
+
+      // Wait for new font to load before refitting
+      document.fonts.load(`${fontSize}px ${fontFamily}`).then(() => {
+        if (fitAddonRef.current) {
+          fitAddonRef.current.fit();
+          // Second fit after browser paint
+          setTimeout(() => {
+            if (fitAddonRef.current) {
+              fitAddonRef.current.fit();
+            }
+          }, 100);
+        }
+      }).catch(() => {
+        // Font load failed, fit anyway
+        if (fitAddonRef.current) {
+          fitAddonRef.current.fit();
+        }
+      });
     }
   }, [fontFamily, fontSize]);
 

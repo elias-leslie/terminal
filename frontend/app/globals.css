@@ -27,9 +27,21 @@ body {
   font-family: var(--font-mono), monospace;
 }
 
-/* xterm styles */
+/* xterm styles - ensure consistent font rendering */
 .xterm {
   height: 100%;
+}
+
+.xterm,
+.xterm-screen,
+.xterm-rows {
+  /* Ensure consistent font rendering for character width calculation */
+  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+  letter-spacing: 0;
+  font-feature-settings: 'liga' off, 'calt' off; /* Disable ligatures */
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .xterm-viewport {
