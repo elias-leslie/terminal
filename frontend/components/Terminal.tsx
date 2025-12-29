@@ -155,27 +155,29 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         macOptionClickForcesSelection: true,
         altClickMovesCursor: false,
         theme: {
-          background: "#0f172a", // slate-900
-          foreground: "#e2e8f0", // slate-200
-          cursor: "#4ade80", // green-400
-          cursorAccent: "#0f172a",
-          selectionBackground: "#334155", // slate-700
-          black: "#1e293b",
-          red: "#f87171",
-          green: "#4ade80",
-          yellow: "#facc15",
-          blue: "#60a5fa",
-          magenta: "#c084fc",
-          cyan: "#22d3ee",
-          white: "#f1f5f9",
-          brightBlack: "#475569",
-          brightRed: "#fca5a5",
-          brightGreen: "#86efac",
-          brightYellow: "#fde047",
-          brightBlue: "#93c5fd",
-          brightMagenta: "#d8b4fe",
-          brightCyan: "#67e8f9",
-          brightWhite: "#f8fafc",
+          // Phosphor Terminal Theme
+          background: "#0a0e14", // --term-bg-deep
+          foreground: "#e6edf3", // --term-text-primary
+          cursor: "#00ff9f", // --term-accent (phosphor green)
+          cursorAccent: "#0a0e14",
+          selectionBackground: "rgba(0, 255, 159, 0.2)", // phosphor green selection
+          selectionForeground: "#e6edf3",
+          black: "#0f1419",
+          red: "#f85149", // --term-error
+          green: "#00ff9f", // --term-accent
+          yellow: "#d29922", // --term-warning
+          blue: "#58a6ff",
+          magenta: "#bc8cff",
+          cyan: "#39c5cf",
+          white: "#e6edf3",
+          brightBlack: "#7d8590", // --term-text-muted
+          brightRed: "#ffa198",
+          brightGreen: "#56d364", // --term-success
+          brightYellow: "#e3b341",
+          brightBlue: "#79c0ff",
+          brightMagenta: "#d2a8ff",
+          brightCyan: "#56d4dd",
+          brightWhite: "#ffffff",
         },
       });
 
@@ -547,7 +549,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       {/* Terminal container - no min-height to prevent overflow */}
       <div
         ref={containerRef}
-        className="w-full h-full bg-slate-900 overflow-hidden"
+        className="w-full h-full overflow-hidden"
+        style={{ backgroundColor: "#0a0e14" }}
       />
     </div>
   );
