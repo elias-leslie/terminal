@@ -131,6 +131,20 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       WebLinksAddon = webLinksModule.WebLinksAddon;
       ClipboardAddon = clipboardModule.ClipboardAddon;
 
+      // Wait for fonts to be ready before creating terminal
+      // This prevents character width miscalculation and selection misalignment
+      await document.fonts.ready;
+
+      // Explicitly load the configured font to ensure it's available
+      try {
+        await document.fonts.load(`${fontSize}px ${fontFamily}`);
+      } catch {
+        // Font load failed, continue anyway - browser will use fallback
+        console.warn(`Failed to load font: ${fontFamily}`);
+      }
+
+      if (!mounted) return;
+
       // Create terminal
       const term = new Terminal({
         cursorBlink: true,
@@ -287,13 +301,22 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         };
       }
 
-      // Fit immediately and again after a short delay to ensure proper sizing
+      // Fit terminal after creation
+      // We already waited for fonts, but do multiple fits to handle:
+      // 1. Initial layout calculation
+      // 2. After browser has painted the terminal element
+      // 3. After any async font rendering is complete
       fitAddon.fit();
       setTimeout(() => {
         if (mounted && fitAddonRef.current) {
           fitAddonRef.current.fit();
         }
       }, 100);
+      setTimeout(() => {
+        if (mounted && fitAddonRef.current) {
+          fitAddonRef.current.fit();
+        }
+      }, 500);
 
       // Connect to WebSocket with timeout and auto-retry
       const CONNECTION_TIMEOUT = 10000; // 10 seconds
