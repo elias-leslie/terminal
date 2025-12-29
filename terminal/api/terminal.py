@@ -311,7 +311,12 @@ async def _read_output(websocket: WebSocket, master_fd: int) -> None:
                 try:
                     output = os.read(master_fd, 4096)
                     if output:
-                        await websocket.send_text(output.decode("utf-8", errors="replace"))
+                        decoded = output.decode("utf-8", errors="replace")
+                        await websocket.send_text(decoded)
+                        # Detect tmux session exit - triggers reconnect to original session
+                        if "[exited]" in decoded:
+                            logger.info("tmux_session_exited_detected")
+                            break
                 except OSError:
                     break
             else:
