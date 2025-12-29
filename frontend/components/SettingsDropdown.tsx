@@ -67,30 +67,61 @@ export function SettingsDropdown({
         ref={buttonRef}
         onClick={() => setShowSettings(!showSettings)}
         title="Terminal settings"
-        className={clsx(
-          "p-1.5 rounded transition-colors",
-          showSettings
-            ? "bg-slate-700 text-phosphor-400"
-            : "text-slate-400 hover:text-white hover:bg-slate-700/50"
-        )}
+        className="p-1.5 rounded-md transition-all duration-150"
+        style={{
+          backgroundColor: showSettings ? "var(--term-bg-elevated)" : "transparent",
+          color: showSettings ? "var(--term-accent)" : "var(--term-text-muted)",
+          boxShadow: showSettings ? "0 0 8px var(--term-accent-glow)" : "none",
+        }}
+        onMouseEnter={(e) => {
+          if (!showSettings) {
+            e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
+            e.currentTarget.style.color = "var(--term-text-primary)";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!showSettings) {
+            e.currentTarget.style.backgroundColor = "transparent";
+            e.currentTarget.style.color = "var(--term-text-muted)";
+          }
+        }}
       >
         <Settings2 className="w-4 h-4" />
       </button>
 
-      {/* Settings dropdown - fixed position to escape overflow */}
+      {/* Settings dropdown - glass-morphism style */}
       {showSettings && (
         <div
           ref={dropdownRef}
-          style={getDropdownStyle()}
-          className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 min-w-[200px]"
+          style={{
+            ...getDropdownStyle(),
+            backgroundColor: "rgba(21, 27, 35, 0.85)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            border: "1px solid var(--term-border-active)",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.1)",
+          }}
+          className="rounded-lg p-4 min-w-[220px] animate-in fade-in slide-in-from-top-2 duration-150"
         >
           {/* Font family */}
-          <div className="mb-3">
-            <label className="block text-xs text-slate-400 mb-1">Font</label>
+          <div className="mb-4">
+            <label
+              className="block text-xs font-medium mb-1.5"
+              style={{ color: "var(--term-text-muted)" }}
+            >
+              Font Family
+            </label>
             <select
               value={fontId}
               onChange={(e) => setFontId(e.target.value as TerminalFontId)}
-              className="w-full px-2 py-1.5 text-sm bg-slate-900 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-phosphor-500"
+              className="w-full px-2.5 py-2 text-sm rounded-md transition-colors focus:outline-none"
+              style={{
+                backgroundColor: "var(--term-bg-deep)",
+                border: "1px solid var(--term-border)",
+                color: "var(--term-text-primary)",
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--term-accent)"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--term-border)"; }}
             >
               {TERMINAL_FONTS.map((font) => (
                 <option key={font.id} value={font.id}>
@@ -101,14 +132,26 @@ export function SettingsDropdown({
           </div>
 
           {/* Font size */}
-          <div className={isMobile && keyboardSize !== undefined ? "mb-3" : ""}>
-            <label className="block text-xs text-slate-400 mb-1">Size</label>
+          <div className={isMobile && keyboardSize !== undefined ? "mb-4" : ""}>
+            <label
+              className="block text-xs font-medium mb-1.5"
+              style={{ color: "var(--term-text-muted)" }}
+            >
+              Font Size
+            </label>
             <select
               value={fontSize}
               onChange={(e) =>
                 setFontSize(Number(e.target.value) as TerminalFontSize)
               }
-              className="w-full px-2 py-1.5 text-sm bg-slate-900 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-phosphor-500"
+              className="w-full px-2.5 py-2 text-sm rounded-md transition-colors focus:outline-none"
+              style={{
+                backgroundColor: "var(--term-bg-deep)",
+                border: "1px solid var(--term-border)",
+                color: "var(--term-text-primary)",
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--term-accent)"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--term-border)"; }}
             >
               {TERMINAL_FONT_SIZES.map((size) => (
                 <option key={size} value={size}>
@@ -121,25 +164,32 @@ export function SettingsDropdown({
           {/* Keyboard size - only on mobile */}
           {isMobile && keyboardSize !== undefined && setKeyboardSize && (
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
+              <label
+                className="block text-xs font-medium mb-1.5"
+                style={{ color: "var(--term-text-muted)" }}
+              >
                 Keyboard Size
               </label>
-              <div className="flex gap-1">
-                {(["small", "medium", "large"] as const).map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => setKeyboardSize(size)}
-                    className={clsx(
-                      "flex-1 px-2 py-1.5 text-xs rounded transition-colors capitalize",
-                      keyboardSize === size
-                        ? "bg-phosphor-600 text-white"
-                        : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-                    )}
-                  >
-                    {size}
-                  </button>
-                ))}
+              <div className="flex gap-1.5">
+                {(["small", "medium", "large"] as const).map((size) => {
+                  const isActive = keyboardSize === size;
+                  return (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setKeyboardSize(size)}
+                      className="flex-1 px-2 py-1.5 text-xs rounded-md transition-all duration-150 capitalize"
+                      style={{
+                        backgroundColor: isActive ? "var(--term-accent)" : "var(--term-bg-deep)",
+                        color: isActive ? "var(--term-bg-deep)" : "var(--term-text-muted)",
+                        border: `1px solid ${isActive ? "var(--term-accent)" : "var(--term-border)"}`,
+                        boxShadow: isActive ? "0 0 8px var(--term-accent-glow)" : "none",
+                      }}
+                    >
+                      {size}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
