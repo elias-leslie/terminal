@@ -181,6 +181,16 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Open terminal in container
       term.open(containerRef.current);
 
+      // Force local mouse handling (selection, right-click menu) instead of
+      // sending mouse events to tmux/apps. xterm.js uses shiftKey to decide
+      // whether to handle locally - we override it to always be true.
+      const forceLocalMouseHandling = (e: MouseEvent) => {
+        Object.defineProperty(e, 'shiftKey', { value: true });
+      };
+      containerRef.current.addEventListener('mousedown', forceLocalMouseHandling, { capture: true });
+      containerRef.current.addEventListener('mouseup', forceLocalMouseHandling, { capture: true });
+      containerRef.current.addEventListener('mousemove', forceLocalMouseHandling, { capture: true });
+
       terminalRef.current = term;
       fitAddonRef.current = fitAddon;
 
