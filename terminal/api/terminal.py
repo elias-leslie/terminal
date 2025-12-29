@@ -314,8 +314,9 @@ async def terminal_websocket(
         logger.info("terminal_cleanup_complete", session_id=session_id)
 
 
-# Pattern to detect tclaude startup: "🚀 Starting Claude in /path/to/project"
-_TCLAUDE_PATTERN = re.compile(r"🚀 Starting Claude in (/\S+)")
+# Patterns to detect tclaude - both new session and reattach
+_TCLAUDE_START_PATTERN = re.compile(r"🚀 Starting Claude in (/\S+)")
+_TCLAUDE_REATTACH_PATTERN = re.compile(r"🔄 Reattaching to (claude-\S+)")
 
 
 async def _read_output(websocket: WebSocket, master_fd: int, session_id: str) -> None:
@@ -343,12 +344,25 @@ async def _read_output(websocket: WebSocket, master_fd: int, session_id: str) ->
                         decoded = output.decode("utf-8", errors="replace")
                         await websocket.send_text(decoded)
 
-                        # Detect tclaude startup and update stored claude session
-                        match = _TCLAUDE_PATTERN.search(decoded)
-                        if match:
-                            project_path = match.group(1)
+                        # Detect tclaude startup (new session or reattach)
+                        claude_session = None
+                        project_name = None
+
+                        # Check for new session: "🚀 Starting Claude in /path"
+                        start_match = _TCLAUDE_START_PATTERN.search(decoded)
+                        if start_match:
+                            project_path = start_match.group(1)
                             project_name = os.path.basename(project_path.rstrip("/"))
                             claude_session = f"claude-{project_name}"
+
+                        # Check for reattach: "🔄 Reattaching to claude-project..."
+                        reattach_match = _TCLAUDE_REATTACH_PATTERN.search(decoded)
+                        if reattach_match:
+                            claude_session = reattach_match.group(1).rstrip(".")
+                            # Extract project name from session name
+                            project_name = claude_session.replace("claude-", "", 1)
+
+                        if claude_session:
                             logger.info("tclaude_detected", project=project_name, session=claude_session)
                             terminal_store.update_claude_session(session_id, claude_session)
                             # Send tab name update to frontend
