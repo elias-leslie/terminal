@@ -75,22 +75,75 @@ def _create_tmux_session(session_id: str, working_dir: str | None = None) -> str
     return session_name
 
 
-def _spawn_pty_for_tmux(session_name: str) -> tuple[int, int]:
+def _get_claude_session_for_project(working_dir: str | None, session_name: str | None) -> str | None:
+    """Find the claude-* tmux session matching a project.
+
+    Tries working_dir first, then falls back to session_name.
+
+    Args:
+        working_dir: Working directory (e.g., /home/user/portfolio-ai)
+        session_name: Terminal session name (e.g., "Portfolio-AI")
+
+    Returns:
+        Claude session name if found and exists, None otherwise
+    """
+    project_name = None
+
+    # Try working_dir first
+    if working_dir:
+        project_name = os.path.basename(working_dir.rstrip("/"))
+
+    # Fall back to session name (convert to lowercase, replace spaces with hyphens)
+    if not project_name and session_name:
+        # "Portfolio-AI" -> "portfolio-ai"
+        project_name = session_name.lower().replace(" ", "-")
+
+    if not project_name:
+        return None
+
+    claude_session = f"claude-{project_name}"
+
+    # Check if this session exists
+    result = subprocess.run(
+        ["tmux", "has-session", "-t", claude_session],
+        capture_output=True,
+    )
+
+    if result.returncode == 0:
+        logger.info("claude_session_found", project=project_name, session=claude_session)
+        return claude_session
+
+    return None
+
+
+def _spawn_pty_for_tmux(tmux_session: str, working_dir: str | None = None, terminal_name: str | None = None) -> tuple[int, int]:
     """Spawn a PTY attached to a tmux session.
 
     Args:
-        session_name: tmux session name
+        tmux_session: tmux session name
+        working_dir: Working directory to determine which claude session to auto-switch to
+        terminal_name: Terminal display name (fallback for project detection)
 
     Returns:
         Tuple of (master_fd, pid)
     """
+    # Check for matching claude session based on project
+    claude_session = _get_claude_session_for_project(working_dir, terminal_name)
+
     # Fork a PTY
     pid, master_fd = pty.fork()
 
     if pid == 0:
         # Child process - set TERM and attach to tmux
         os.environ["TERM"] = "xterm-256color"
-        os.execvp("tmux", ["tmux", "attach-session", "-t", session_name])
+        if claude_session:
+            # Attach to summitflow session then immediately switch to claude session
+            os.execvp(
+                "bash",
+                ["bash", "-c", f"tmux attach-session -t {tmux_session} \\; switch-client -t {claude_session}"],
+            )
+        else:
+            os.execvp("tmux", ["tmux", "attach-session", "-t", tmux_session])
     else:
         # Parent process - configure the master FD
         # Set non-blocking
@@ -157,21 +210,22 @@ async def terminal_websocket(
         # Touch session to update last_accessed_at
         terminal_store.touch_session(session_id)
 
-        # Get session info for working directory (if we need to recreate)
+        # Get session info for working directory and name
         session = terminal_store.get_session(session_id)
         session_working_dir = session.get("working_dir") if session else working_dir
+        terminal_name = session.get("name") if session else None
 
         # Create or attach to tmux session (should exist now due to ensure_session_alive)
-        session_name = _create_tmux_session(session_id, session_working_dir)
+        tmux_session_name = _create_tmux_session(session_id, session_working_dir)
 
-        # Spawn PTY for tmux
-        master_fd, pid = _spawn_pty_for_tmux(session_name)
+        # Spawn PTY for tmux (pass working_dir and name for auto-switching to claude session)
+        master_fd, pid = _spawn_pty_for_tmux(tmux_session_name, session_working_dir, terminal_name)
 
         # Store session info
         _sessions[session_id] = {
             "master_fd": master_fd,
             "pid": pid,
-            "session_name": session_name,
+            "session_name": tmux_session_name,
         }
 
         # Start output reader task

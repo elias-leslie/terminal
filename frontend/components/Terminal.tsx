@@ -181,11 +181,51 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Open terminal in container
       term.open(containerRef.current);
 
-      // Force local mouse handling (selection, right-click menu) instead of
-      // sending mouse events to tmux/apps. xterm.js uses shiftKey to decide
-      // whether to handle locally - we override it to always be true.
+      // Force local mouse handling only when mouse reporting is enabled.
+      // When apps like Claude Code enable mouse reporting, xterm.js sends
+      // mouse events to the app instead of handling selection locally.
+      // We intercept and re-dispatch with shiftKey=true to force local handling.
+      // When mouse reporting is OFF (regular bash), we let events pass through.
       const forceLocalMouseHandling = (e: MouseEvent) => {
-        Object.defineProperty(e, 'shiftKey', { value: true });
+        if (e.shiftKey) return; // Already has shift, let it through
+
+        // Check if mouse reporting is enabled (internal xterm.js API)
+        // mouseTrackingMode: 0=off, 1+=various mouse modes enabled
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const core = (term as any)._core;
+        // Try both possible paths (varies by xterm.js version)
+        const mouseMode = core?._coreService?.decPrivateModes?.mouseTrackingMode
+          ?? core?.coreService?.decPrivateModes?.mouseTrackingMode;
+
+        if (!mouseMode || mouseMode === 0) {
+          // Mouse reporting not enabled, let event pass through normally
+          return;
+        }
+
+        // Mouse reporting is enabled - intercept and force local handling
+        e.stopPropagation();
+        e.preventDefault();
+
+        // Create new event with shiftKey=true
+        const newEvent = new MouseEvent(e.type, {
+          bubbles: e.bubbles,
+          cancelable: e.cancelable,
+          view: e.view,
+          detail: e.detail,
+          screenX: e.screenX,
+          screenY: e.screenY,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          ctrlKey: e.ctrlKey,
+          altKey: e.altKey,
+          shiftKey: true, // Force shiftKey for local selection
+          metaKey: e.metaKey,
+          button: e.button,
+          buttons: e.buttons,
+          relatedTarget: e.relatedTarget,
+        });
+
+        e.target?.dispatchEvent(newEvent);
       };
       containerRef.current.addEventListener('mousedown', forceLocalMouseHandling, { capture: true });
       containerRef.current.addEventListener('mouseup', forceLocalMouseHandling, { capture: true });
