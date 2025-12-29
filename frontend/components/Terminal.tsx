@@ -141,6 +141,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         rightClickSelectsWord: true,
         macOptionClickForcesSelection: true,
         altClickMovesCursor: false,
+        // Enable window options that tmux sends on attach
+        // Without these, escape sequences like \x1b[22t appear as garbage
+        windowOptions: {
+          pushTitle: true,
+          popTitle: true,
+        },
         theme: {
           // Phosphor Terminal Theme
           background: "#0a0e14",
