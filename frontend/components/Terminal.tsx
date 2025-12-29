@@ -302,6 +302,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           clearTimeout(timeoutId);
           if (!mounted) return;
           setStatus("connected");
+          term.writeln("Connected to terminal session: " + sessionId);
+          term.writeln("");
 
           // Send initial size
           const dims = fitAddon.proposeDimensions();
