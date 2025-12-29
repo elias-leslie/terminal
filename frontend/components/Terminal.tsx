@@ -180,6 +180,29 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Open terminal in container
       term.open(containerRef.current);
 
+      // Linux-style copy: automatically copy selection to clipboard
+      term.onSelectionChange(() => {
+        const selection = term.getSelection();
+        if (selection) {
+          navigator.clipboard.writeText(selection);
+        }
+      });
+
+      // Paste: Ctrl+Shift+V or right-click
+      // Note: Middle-click paste not supported in browsers without extensions
+      term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        // Ctrl+Shift+V or Cmd+Shift+V - paste
+        if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === "V") {
+          navigator.clipboard.readText().then((text) => {
+            if (text && wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(text);
+            }
+          });
+          return false;
+        }
+        return true;
+      });
+
       terminalRef.current = term;
       fitAddonRef.current = fitAddon;
 
@@ -332,8 +355,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           clearTimeout(timeoutId);
           if (!mounted) return;
           setStatus("connected");
-          term.writeln("Connected to terminal session: " + sessionId);
-          term.writeln("");
 
           // Send initial size
           const dims = fitAddon.proposeDimensions();

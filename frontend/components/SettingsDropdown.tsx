@@ -49,14 +49,14 @@ export function SettingsDropdown({
   // Close dropdown when clicking outside
   useClickOutside(clickOutsideRefs, closeDropdown, showSettings);
 
-  // Calculate dropdown position
+  // Calculate dropdown position - opens downward from button
   const getDropdownStyle = (): React.CSSProperties => {
     if (!buttonRef.current) return {};
     const rect = buttonRef.current.getBoundingClientRect();
     return {
       position: "fixed",
       right: window.innerWidth - rect.right,
-      bottom: window.innerHeight - rect.top + 4,
+      top: rect.bottom + 4,
       zIndex: 9999,
     };
   };

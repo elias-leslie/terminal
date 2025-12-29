@@ -61,6 +61,15 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, []);
 
+  // Auto-create terminal when visiting with URL params and no sessions
+  const hasAutoCreated = useRef(false);
+  useEffect(() => {
+    if (!isLoading && sessions.length === 0 && !hasAutoCreated.current && !isCreating) {
+      hasAutoCreated.current = true;
+      create("Terminal 1", projectPath);
+    }
+  }, [isLoading, sessions.length, isCreating, create, projectPath]);
+
   // Save keyboard size to localStorage
   const handleKeyboardSizeChange = useCallback((size: KeyboardSizePreset) => {
     setKeyboardSize(size);
