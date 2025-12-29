@@ -7,7 +7,7 @@ import { clsx } from "clsx";
 let Terminal: typeof import("@xterm/xterm").Terminal;
 let FitAddon: typeof import("@xterm/addon-fit").FitAddon;
 let WebLinksAddon: typeof import("@xterm/addon-web-links").WebLinksAddon;
-// ClipboardAddon removed - conflicts with manual clipboard handling
+let ClipboardAddon: typeof import("@xterm/addon-clipboard").ClipboardAddon;
 
 interface TerminalProps {
   sessionId: string;
@@ -122,63 +122,44 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       const xtermModule = await import("@xterm/xterm");
       const fitModule = await import("@xterm/addon-fit");
       const webLinksModule = await import("@xterm/addon-web-links");
+      const clipboardModule = await import("@xterm/addon-clipboard");
+
       if (!mounted) return;
 
       Terminal = xtermModule.Terminal;
       FitAddon = fitModule.FitAddon;
       WebLinksAddon = webLinksModule.WebLinksAddon;
+      ClipboardAddon = clipboardModule.ClipboardAddon;
 
-      // Wait for fonts to be ready before creating terminal
-      // This prevents character width miscalculation and selection misalignment
-      await document.fonts.ready;
-
-      // Explicitly load the exact font family that xterm will use
-      // This must match what xterm.js uses for character width calculation
-      const exactFontFamily = "'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace";
-      try {
-        await document.fonts.load(`${fontSize}px JetBrains Mono`);
-      } catch {
-        // Font load failed, continue anyway - browser will use fallback
-        console.warn(`Failed to load font: JetBrains Mono`);
-      }
-
-      // Additional delay to ensure font metrics are stable
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      if (!mounted) return;
-
-      // Create terminal with exact font settings to match CSS rendering
+      // Create terminal with Phosphor theme
       const term = new Terminal({
         cursorBlink: true,
         fontSize: fontSize,
-        fontFamily: exactFontFamily,  // Must match CSS exactly for proper character width
-        letterSpacing: 0,  // Prevent character width miscalculation
-        scrollback: 5000, // Enable scrollback buffer (5000 lines)
-        // Force selection to work even if shell has mouse mode enabled
+        fontFamily: fontFamily,
+        scrollback: 5000,
         allowProposedApi: true,
         rightClickSelectsWord: true,
-        // Alt+click forces selection on Windows/Linux, Option+click on Mac
         macOptionClickForcesSelection: true,
         altClickMovesCursor: false,
         theme: {
           // Phosphor Terminal Theme
-          background: "#0a0e14", // --term-bg-deep
-          foreground: "#e6edf3", // --term-text-primary
-          cursor: "#00ff9f", // --term-accent (phosphor green)
+          background: "#0a0e14",
+          foreground: "#e6edf3",
+          cursor: "#00ff9f",
           cursorAccent: "#0a0e14",
-          selectionBackground: "rgba(0, 255, 159, 0.2)", // phosphor green selection
+          selectionBackground: "rgba(0, 255, 159, 0.3)",
           selectionForeground: "#e6edf3",
           black: "#0f1419",
-          red: "#f85149", // --term-error
-          green: "#00ff9f", // --term-accent
-          yellow: "#d29922", // --term-warning
+          red: "#f85149",
+          green: "#00ff9f",
+          yellow: "#d29922",
           blue: "#58a6ff",
           magenta: "#bc8cff",
           cyan: "#39c5cf",
           white: "#e6edf3",
-          brightBlack: "#7d8590", // --term-text-muted
+          brightBlack: "#7d8590",
           brightRed: "#ffa198",
-          brightGreen: "#56d364", // --term-success
+          brightGreen: "#56d364",
           brightYellow: "#e3b341",
           brightBlue: "#79c0ff",
           brightMagenta: "#d2a8ff",
@@ -187,83 +168,17 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         },
       });
 
-      // Create addons
+      // Create and load addons
       const fitAddon = new FitAddon();
       const webLinksAddon = new WebLinksAddon();
+      const clipboardAddon = new ClipboardAddon();
 
       term.loadAddon(fitAddon);
       term.loadAddon(webLinksAddon);
+      term.loadAddon(clipboardAddon);
 
       // Open terminal in container
       term.open(containerRef.current);
-
-      // Linux-style copy: automatically copy selection to clipboard
-      term.onSelectionChange(() => {
-        const selection = term.getSelection();
-        if (selection && selection.length > 0) {
-          // Use clipboard API with fallback
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(selection).catch((err) => {
-              console.warn("Clipboard write failed, trying fallback:", err);
-              // Fallback: use deprecated execCommand
-              try {
-                const textarea = document.createElement('textarea');
-                textarea.value = selection;
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-              } catch (e) {
-                console.warn("Fallback copy also failed:", e);
-              }
-            });
-          }
-        }
-      });
-
-      // Paste: Ctrl+V, Ctrl+Shift+V, or Cmd+V
-      // Note: Middle-click paste not supported in browsers without extensions
-      term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
-        // Only handle keydown, not keyup
-        if (event.type !== 'keydown') return true;
-
-        // Ctrl+V or Ctrl+Shift+V or Cmd+V - paste
-        // Use event.code for reliable key detection regardless of Shift state
-        if ((event.ctrlKey || event.metaKey) && event.code === "KeyV") {
-          event.preventDefault();
-          event.stopPropagation();
-
-          // Try async clipboard API first
-          if (navigator.clipboard && navigator.clipboard.readText) {
-            navigator.clipboard.readText()
-              .then((text) => {
-                if (text && wsRef.current?.readyState === WebSocket.OPEN) {
-                  wsRef.current.send(text);
-                }
-              })
-              .catch((err) => {
-                console.warn("Clipboard read failed:", err);
-              });
-          }
-          return false;
-        }
-
-        // Ctrl+C - copy (fallback if auto-copy on selection doesn't work)
-        if ((event.ctrlKey || event.metaKey) && event.code === "KeyC") {
-          const selection = term.getSelection();
-          if (selection && selection.length > 0) {
-            event.preventDefault();
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(selection).catch(console.warn);
-            }
-            return false;
-          }
-        }
-
-        return true;
-      });
 
       terminalRef.current = term;
       fitAddonRef.current = fitAddon;
@@ -284,64 +199,46 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         let touchStartY = 0;
         let lastSentY = 0;
         let inCopyMode = false;
-        const SCROLL_THRESHOLD = 50; // pixels per scroll command
+        const SCROLL_THRESHOLD = 50;
         const container = containerRef.current;
 
         const handleTouchStart = (e: TouchEvent) => {
-          // Only handle touches inside our container
           if (!container.contains(e.target as Node)) return;
-
           touchStartY = e.touches[0].clientY;
           lastSentY = touchStartY;
-
-          // Enter tmux copy-mode immediately on touch
           if (!inCopyMode && wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send('\x02['); // Ctrl+b [
+            wsRef.current.send('\x02[');
             inCopyMode = true;
           }
         };
 
         const handleTouchMove = (e: TouchEvent) => {
-          // Only handle touches inside our container
           if (!container.contains(e.target as Node)) return;
-
-          e.preventDefault(); // Prevent pull-to-refresh
+          e.preventDefault();
           e.stopPropagation();
-
           const currentY = e.touches[0].clientY;
           const deltaY = lastSentY - currentY;
-
-          // Only scroll if we've moved enough
           if (Math.abs(deltaY) >= SCROLL_THRESHOLD) {
-            // Send scroll commands using Ctrl+U (half page up) and Ctrl+D (half page down)
-            // Natural scrolling: swipe up = see older content (scroll up), swipe down = see newer content
             if (wsRef.current?.readyState === WebSocket.OPEN) {
               if (deltaY > 0) {
-                // Finger moving up - natural scroll: go down in history (Ctrl+D)
-                wsRef.current.send('\x04'); // Ctrl+D
+                wsRef.current.send('\x04');
               } else {
-                // Finger moving down - natural scroll: go up in history (Ctrl+U)
-                wsRef.current.send('\x15'); // Ctrl+U
+                wsRef.current.send('\x15');
               }
             }
-
             lastSentY = currentY;
           }
         };
 
         const handleTouchEnd = () => {
-          // Reset for next touch
           touchStartY = 0;
           lastSentY = 0;
-          // Keep copy mode active so user can continue scrolling
         };
 
-        // Use document-level listeners with capture to intercept before browser
         document.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
         document.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
         document.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
 
-        // Store cleanup
         (term as unknown as { _touchCleanup?: () => void })._touchCleanup = () => {
           document.removeEventListener('touchstart', handleTouchStart, { capture: true });
           document.removeEventListener('touchmove', handleTouchMove, { capture: true });
@@ -349,43 +246,28 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         };
       }
 
-      // Fit terminal after creation
-      // We already waited for fonts, but do multiple fits to handle:
-      // 1. Initial layout calculation
-      // 2. After browser has painted the terminal element
-      // 3. After any async font rendering is complete
+      // Fit immediately and again after a short delay to ensure proper sizing
       fitAddon.fit();
       setTimeout(() => {
         if (mounted && fitAddonRef.current) {
           fitAddonRef.current.fit();
         }
       }, 100);
-      setTimeout(() => {
-        if (mounted && fitAddonRef.current) {
-          fitAddonRef.current.fit();
-        }
-      }, 500);
 
       // Connect to WebSocket with timeout and auto-retry
-      const CONNECTION_TIMEOUT = 10000; // 10 seconds
-      const RETRY_BACKOFF = 2000; // 2 seconds
+      const CONNECTION_TIMEOUT = 10000;
+      const RETRY_BACKOFF = 2000;
       let hasRetried = false;
 
       function connectWebSocket() {
-        // WebSocket needs to connect directly to backend, not through Next.js
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         let wsHost: string;
 
-        // Map frontend hosts to their backend WebSocket endpoints
-        // Standalone terminal app: frontend on 3002, backend on 8002
         if (window.location.host === "terminal.summitflow.dev") {
-          // Production: frontend on terminal.summitflow.dev → backend on terminalapi.summitflow.dev
           wsHost = "terminalapi.summitflow.dev";
         } else if (window.location.host.includes("localhost")) {
-          // Local development: connect to terminal backend on port 8002
           wsHost = "localhost:8002";
         } else {
-          // Default: same host (for local dev or other setups)
           wsHost = window.location.host;
         }
 
@@ -397,33 +279,24 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
-        // Connection timeout
         const timeoutId = setTimeout(() => {
           if (ws.readyState === WebSocket.CONNECTING) {
             ws.close();
             if (!mounted) return;
-
             if (!hasRetried) {
-              // Auto-retry once with backoff
               hasRetried = true;
               term.writeln("\x1b[33mConnection timeout, retrying...\x1b[0m");
               setStatus("connecting");
               setTimeout(() => {
-                if (mounted) {
-                  connectWebSocket();
-                }
+                if (mounted) connectWebSocket();
               }, RETRY_BACKOFF);
             } else {
-              // Second timeout - give up
               setStatus("timeout");
               term.writeln("\r\n\x1b[31mConnection timeout\x1b[0m");
               onDisconnect?.();
             }
           }
         }, CONNECTION_TIMEOUT);
-
-        // Track if this is a fresh connection to clear garbage on first output
-        let isFirstMessage = true;
 
         ws.onopen = () => {
           clearTimeout(timeoutId);
@@ -433,45 +306,18 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           // Send initial size
           const dims = fitAddon.proposeDimensions();
           if (dims) {
-            ws.send(
-              JSON.stringify({
-                resize: { cols: dims.cols, rows: dims.rows },
-              })
-            );
+            ws.send(JSON.stringify({ resize: { cols: dims.cols, rows: dims.rows } }));
           }
-
-          // Clear the terminal to remove any garbage from initialization
-          // Small delay to allow resize to take effect
-          setTimeout(() => {
-            if (mounted) {
-              term.clear();
-              // Tell tmux to redraw by sending Ctrl+L (form feed / clear screen)
-              ws.send('\x0c');  // Ctrl+L
-            }
-          }, 100);
         };
 
         ws.onmessage = (event) => {
           if (!mounted) return;
-          // Skip the first message if it contains garbage escape sequences
-          // This happens when tmux sends capability queries before proper resize
-          if (isFirstMessage) {
-            isFirstMessage = false;
-            // Check if this looks like garbage (contains high density of escape sequences)
-            const data = event.data;
-            if (data.length > 50 && (data.match(/\x1b/g) || []).length > 10) {
-              // Likely initialization garbage, skip it
-              return;
-            }
-          }
           term.write(event.data);
         };
 
         ws.onclose = (event) => {
           clearTimeout(timeoutId);
           if (!mounted) return;
-
-          // Check for session_dead error (code 4000)
           if (event.code === 4000) {
             setStatus("session_dead");
             try {
@@ -484,7 +330,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
             setStatus("disconnected");
             term.writeln("\r\n\x1b[31mDisconnected from terminal\x1b[0m");
           }
-
           onDisconnect?.();
         };
 
@@ -495,7 +340,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           term.writeln("\r\n\x1b[31mConnection error\x1b[0m");
         };
 
-        // Handle terminal input
         term.onData((data) => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(data);
@@ -503,11 +347,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         });
       }
 
-      // Store reference for reconnection
       connectWebSocketRef.current = connectWebSocket;
       connectWebSocket();
-
-      // Handle window resize
       window.addEventListener("resize", handleResize);
     }
 
@@ -516,54 +357,39 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
     return () => {
       mounted = false;
       window.removeEventListener("resize", handleResize);
-
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
       }
-
       if (terminalRef.current) {
-        // Clean up touch handlers
         const touchCleanup = (terminalRef.current as unknown as { _touchCleanup?: () => void })._touchCleanup;
         if (touchCleanup) touchCleanup();
-
         terminalRef.current.dispose();
         terminalRef.current = null;
       }
     };
-    // NOTE: fontFamily/fontSize intentionally omitted - they're handled by separate effect (line 239-249)
-    // Including them here would cause terminal to reinitialize on font changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, workingDir, handleResize, onDisconnect]);
 
-  // Handle container resize with debounce to prevent loops
+  // Handle container resize with debounce
   useEffect(() => {
     if (!containerRef.current) return;
-
     let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
     let lastWidth = 0;
     let lastHeight = 0;
 
     const resizeObserver = new ResizeObserver((entries) => {
-      // Only process if size actually changed (prevents loops)
       const entry = entries[0];
       if (!entry) return;
-
       const { width, height } = entry.contentRect;
       if (width === lastWidth && height === lastHeight) return;
-
       lastWidth = width;
       lastHeight = height;
-
-      // Debounce resize to prevent rapid firing
       if (resizeTimeout) clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        handleResize();
-      }, 50);
+      resizeTimeout = setTimeout(() => handleResize(), 50);
     });
 
     resizeObserver.observe(containerRef.current);
-
     return () => {
       if (resizeTimeout) clearTimeout(resizeTimeout);
       resizeObserver.disconnect();
@@ -573,46 +399,17 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   // Update font settings when they change
   useEffect(() => {
     if (terminalRef.current) {
-      // Ensure full fallback chain for consistent character width calculation
-      // This must match the CSS in globals.css
-      const standardFallbacks = ", 'Consolas', 'Monaco', 'Courier New', monospace";
-      const fullFontFamily = fontFamily.endsWith("monospace")
-        ? fontFamily.replace(/, ?monospace$/, standardFallbacks)
-        : fontFamily + standardFallbacks;
-
-      terminalRef.current.options.fontFamily = fullFontFamily;
+      terminalRef.current.options.fontFamily = fontFamily;
       terminalRef.current.options.fontSize = fontSize;
-      terminalRef.current.options.letterSpacing = 0;
-
-      // Wait for new font to load before refitting
-      const primaryFont = fontFamily.replace(/['"]/g, '').split(',')[0].trim();
-      document.fonts.load(`${fontSize}px ${primaryFont}`).then(() => {
-        // Small delay to ensure font metrics are stable
-        setTimeout(() => {
-          if (fitAddonRef.current) {
-            fitAddonRef.current.fit();
-            // Second fit after browser paint
-            setTimeout(() => {
-              if (fitAddonRef.current) {
-                fitAddonRef.current.fit();
-              }
-            }, 100);
-          }
-        }, 50);
-      }).catch(() => {
-        // Font load failed, fit anyway
-        if (fitAddonRef.current) {
-          fitAddonRef.current.fit();
-        }
-      });
+      if (fitAddonRef.current) {
+        fitAddonRef.current.fit();
+      }
     }
   }, [fontFamily, fontSize]);
 
   return (
     <div className={clsx("relative overflow-hidden", className)}>
-      {/* Status indicator removed - now integrated into tab buttons (TerminalTabs.tsx) */}
-
-      {/* Terminal container - no min-height to prevent overflow */}
+      {/* Terminal container */}
       <div
         ref={containerRef}
         className="w-full h-full overflow-hidden"
