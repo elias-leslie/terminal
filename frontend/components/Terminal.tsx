@@ -228,44 +228,40 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       containerRef.current.addEventListener('mouseup', forceLocalMouseHandling, { capture: true });
       containerRef.current.addEventListener('mousemove', forceLocalMouseHandling, { capture: true });
 
-      // Fix: xterm.js doesn't auto-sync scroll-area height with buffer length
-      // Manually sync on each write to enable proper scrollbar behavior
-      const syncScrollArea = () => {
-        const scrollArea = containerRef.current?.querySelector('.xterm-scroll-area') as HTMLElement | null;
-        if (scrollArea && term.buffer?.active) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const lineHeight = (term as any)._core?.dimensions?.css?.cell?.height || 18;
-          const bufferLength = term.buffer.active.length;
-          const expectedHeight = bufferLength * lineHeight;
-          if (parseInt(scrollArea.style.height) !== expectedHeight) {
-            scrollArea.style.height = expectedHeight + 'px';
+      // Fix: xterm.js 6.x doesn't auto-sync scroll dimensions when buffer grows
+      // The viewport only syncs on resize/scroll events, not on write.
+      // Solution: Call resize() with current dimensions to force a full sync.
+      // This triggers bufferService.onResize -> Viewport._sync() with correct dimensions.
+      //
+      // We debounce this to avoid excessive sync calls during rapid writes.
+      let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+      const triggerViewportSync = () => {
+        if (syncTimeout) return; // Already scheduled
+        syncTimeout = setTimeout(() => {
+          syncTimeout = null;
+          // resize() with current dimensions forces a full viewport sync
+          // This is more reliable than scrollLines(0) which may be a no-op
+          if (term.cols && term.rows) {
+            term.resize(term.cols, term.rows);
           }
+        }, 100); // Debounce at 100ms to batch rapid writes
+      };
+
+      // Sync viewport after data is written
+      term.onWriteParsed(() => triggerViewportSync());
+
+      // Store sync cleanup
+      (term as unknown as { _syncCleanup?: () => void })._syncCleanup = () => {
+        if (syncTimeout) {
+          clearTimeout(syncTimeout);
+          syncTimeout = null;
         }
       };
 
-      // Sync scroll area when data is written
-      term.onWriteParsed(() => syncScrollArea());
-
-      // Handle wheel events - intercept to scroll xterm viewport
-      // Must intercept because xterm sends arrow keys when buffer is empty
-      const handleWheel = (e: WheelEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-
-        // Scroll the xterm viewport directly
-        const viewport = containerRef.current?.querySelector('.xterm-viewport') as HTMLElement | null;
-        if (viewport) {
-          viewport.scrollTop += e.deltaY;
-        }
-      };
-
-      const wheelContainer = containerRef.current;
-      wheelContainer.addEventListener('wheel', handleWheel, { capture: true, passive: false });
-
-      // Store wheel cleanup
-      (term as unknown as { _wheelCleanup?: () => void })._wheelCleanup = () => {
-        wheelContainer.removeEventListener('wheel', handleWheel, { capture: true });
-      };
+      // Wheel events: Let xterm.js handle natively
+      // xterm.js converts wheel to arrow keys ONLY in alternate scroll mode (alt buffer)
+      // With smcup@:rmcup@ in tmux.conf, alternate screen is disabled, so this won't happen.
+      // No custom wheel handler needed - xterm.js default behavior is correct.
 
       terminalRef.current = term;
       fitAddonRef.current = fitAddon;
@@ -453,8 +449,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       if (terminalRef.current) {
         const touchCleanup = (terminalRef.current as unknown as { _touchCleanup?: () => void })._touchCleanup;
         if (touchCleanup) touchCleanup();
-        const wheelCleanup = (terminalRef.current as unknown as { _wheelCleanup?: () => void })._wheelCleanup;
-        if (wheelCleanup) wheelCleanup();
+        const syncCleanup = (terminalRef.current as unknown as { _syncCleanup?: () => void })._syncCleanup;
+        if (syncCleanup) syncCleanup();
         terminalRef.current.dispose();
         terminalRef.current = null;
       }

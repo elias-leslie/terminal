@@ -15,3 +15,27 @@ Use the field name `active_mode` instead of `default_mode` for all terminal proj
 *Rationale: A significant refactoring was performed to align architectural clarity and state representation across backend and frontend.*
 
 <!-- Pattern ID: fd36c90d-c8c3-4ba5-80f5-21adf88a59d9 | Applied: 2025-12-30T01:19:56.788404 -->
+
+## Safe Remote History Modification
+
+Always use `git push --force-with-lease` instead of a standard force push when updating the main branch after squashing development checkpoints. This prevents overwriting remote changes that were not fetched locally.
+
+*Rationale: Identified as the safe operational practice for pushing significant architectural changes and squashed commits.*
+
+<!-- Pattern ID: 64c9547b-b233-4594-84fc-9a0d572e0bd2 | Applied: 2025-12-30T03:35:29.576775 -->
+
+## Tmux-based Claude Process Verification
+
+Verify background Claude processes using `pane_current_command` within a specific tmux session. Call `_is_claude_running_in_session(tmux_session)` and `_verify_claude_started(tmux_session)` without passing a generic `session_id` to ensure state is synchronized with the actual terminal environment.
+
+*Rationale: Refactoring simplified the detection logic and removed redundant parameters, moving toward direct tmux state inspection.*
+
+<!-- Pattern ID: e084251f-59aa-4fc1-b586-88cc478c9760 | Applied: 2025-12-30T03:35:29.610323 -->
+
+## Terminal Resource Disposal and Event Cleanup
+
+Explicitly call `wheelCleanup()` and `touchCleanup()` on the terminal instance before calling `terminal.dispose()`. This pattern prevents event listener leaks in React environments during component re-renders or unmounting.
+
+*Rationale: A specific refactor was required to fix event listener leaks, establishing a manual cleanup pattern for the custom wheel interception logic.*
+
+<!-- Pattern ID: 3e46d647-9084-4bf4-abae-26ca4e30b4ec | Applied: 2025-12-30T03:35:29.645035 -->

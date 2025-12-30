@@ -230,19 +230,10 @@ async def terminal_websocket(
             "session_name": tmux_session_name,
         }
 
-        # Send scrollback history to client for proper scrollbar
-        try:
-            scrollback = subprocess.run(
-                ["tmux", "capture-pane", "-t", tmux_session_name, "-p", "-S", "-1000"],
-                capture_output=True,
-                text=True,
-            )
-            if scrollback.returncode == 0 and scrollback.stdout:
-                # Send history followed by a marker to scroll to bottom
-                await websocket.send_text(scrollback.stdout)
-                logger.info("scrollback_sent", session_id=session_id, lines=scrollback.stdout.count('\n'))
-        except Exception as e:
-            logger.warning("scrollback_capture_failed", session_id=session_id, error=str(e))
+        # NOTE: We intentionally do NOT send tmux scrollback here.
+        # Sending scrollback causes display corruption when tmux width != frontend width.
+        # Users can scroll through tmux history using copy-mode (Ctrl+B [).
+        # The xterm.js scrollback buffer handles new content correctly.
 
         # Start output reader task
         output_task = asyncio.create_task(_read_output(websocket, master_fd))
