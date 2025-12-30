@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
-# tclaude - Claude Code session manager synced with SummitFlow Web Terminal
+# tclaude - Claude Code local session manager
+#
+# Option B Architecture: Completely independent from web terminal.
+# Uses local tmux sessions (claude-{project}), no API sync.
 #
 # Usage:
 #   tclaude              # Interactive project selector
 #   tclaude <project>    # Direct attach to project
-#
-# Features:
-#   - Syncs with Web Terminal API (localhost:8002)
-#   - Creates sessions visible in both CLI and web UI
-#   - Falls back to local tmux if API unavailable
+#   tclaude -l           # List active claude sessions
 
 set -euo pipefail
-
-TERMINAL_API="${TERMINAL_API:-http://localhost:8002}"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -31,55 +28,10 @@ discover_projects() {
   done
 }
 
-# Get web terminal session for project (returns "id:claude_state" or empty)
-get_web_session() {
-  local project="$1"
-  local mode="${2:-claude}"
-  curl -s "$TERMINAL_API/api/terminal/sessions" 2>/dev/null | \
-    python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    for s in d.get('items', []):
-        if s.get('project_id') == '$project' and s.get('mode') == '$mode' and s.get('is_alive'):
-            print(s['id'] + ':' + s.get('claude_state', 'not_started'))
-            break
-except: pass
-" 2>/dev/null || true
-}
-
-# Create web terminal session via API (returns session ID or empty)
-create_web_session() {
-  local project="$1"
-  local project_dir="$2"
-  curl -s -X POST "$TERMINAL_API/api/terminal/sessions" \
-    -H "Content-Type: application/json" \
-    -d "{\"name\": \"Project: $project\", \"project_id\": \"$project\", \"working_dir\": \"$project_dir\", \"mode\": \"claude\"}" 2>/dev/null | \
-    python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    print(d.get('id', ''))
-except: pass
-" 2>/dev/null || true
-}
-
-# Start Claude in a web terminal session via API
-start_claude() {
-  local session_id="$1"
-  curl -s -X POST "$TERMINAL_API/api/terminal/sessions/$session_id/start-claude" 2>/dev/null | \
-    python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    print(d.get('claude_state', 'error'))
-except: print('error')
-" 2>/dev/null || echo "error"
-}
-
-# Check if terminal API is available
-api_available() {
-  curl -sf "$TERMINAL_API/health" >/dev/null 2>&1
+# List active claude sessions
+list_sessions() {
+  echo "Active Claude sessions:"
+  tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^claude-" | sed 's/^claude-/  /' || echo "  (none)"
 }
 
 # Attach or switch to tmux session
@@ -92,16 +44,16 @@ attach_session() {
   fi
 }
 
-# Create and attach to local tmux session (fallback)
-create_local_session() {
+# Create new tmux session with Claude
+create_session() {
   local session_name="$1"
   local project_dir="$2"
 
   if [ -n "${TMUX:-}" ]; then
-    tmux new-session -d -s "$session_name" "cd '$project_dir' && claude --dangerously-skip-permissions"
+    tmux new-session -d -s "$session_name" -c "$project_dir" "claude --dangerously-skip-permissions"
     tmux switch-client -t "$session_name"
   else
-    tmux new -s "$session_name" "cd '$project_dir' && claude --dangerously-skip-permissions"
+    tmux new -s "$session_name" -c "$project_dir" "claude --dangerously-skip-permissions"
   fi
 }
 
@@ -110,6 +62,12 @@ create_local_session() {
 main() {
   local selected="${1:-}"
 
+  # Handle -l flag
+  if [ "$selected" = "-l" ]; then
+    list_sessions
+    exit 0
+  fi
+
   # Discover projects
   local projects=()
   while IFS= read -r proj; do
@@ -117,7 +75,7 @@ main() {
   done < <(discover_projects)
 
   if [ ${#projects[@]} -eq 0 ]; then
-    echo "❌ No projects found (need .git + project indicator)" >&2
+    echo "No projects found (need .git + project indicator)" >&2
     exit 1
   fi
 
@@ -126,15 +84,8 @@ main() {
     # Build display list with session markers
     local display=()
     for proj in "${projects[@]}"; do
-      local session_info
-      session_info=$(get_web_session "$proj" "claude")
-      if [ -n "$session_info" ]; then
-        local state="${session_info##*:}"
-        if [ "$state" = "running" ]; then
-          display+=("$proj [running]")
-        else
-          display+=("$proj [ready]")
-        fi
+      if tmux has-session -t "claude-$proj" 2>/dev/null; then
+        display+=("$proj [active]")
       else
         display+=("$proj")
       fi
@@ -143,78 +94,31 @@ main() {
     selected=$(printf '%s\n' "${display[@]}" | fzf --height=10 --reverse --prompt="Select project: ") || true
 
     if [ -z "$selected" ]; then
-      echo "❌ No project selected" >&2
+      echo "No project selected" >&2
       exit 1
     fi
 
-    # Strip markers if present
-    selected="${selected% \[running\]}"
-    selected="${selected% \[ready\]}"
+    # Strip marker if present
+    selected="${selected% \[active\]}"
   fi
 
   # Validate project exists
   local project_dir="$HOME/$selected"
   if [ ! -d "$project_dir" ]; then
-    echo "❌ Project '$selected' not found" >&2
+    echo "Project '$selected' not found" >&2
     exit 1
   fi
 
-  # Check if API is available
-  if ! api_available; then
-    echo "⚠️  Web terminal API unavailable, using local session"
-    local session_name="claude-$selected"
-    if tmux has-session -t "$session_name" 2>/dev/null; then
-      echo "🔄 Reattaching to $session_name..."
-      attach_session "$session_name"
-    else
-      echo "🚀 Starting Claude in $project_dir"
-      create_local_session "$session_name" "$project_dir"
-    fi
-    exit 0
-  fi
+  local session_name="claude-$selected"
 
-  # Get or create web terminal session
-  local session_info
-  session_info=$(get_web_session "$selected" "claude")
-  local session_id=""
-  local claude_state=""
-
-  if [ -n "$session_info" ]; then
-    session_id="${session_info%%:*}"
-    claude_state="${session_info##*:}"
+  # Attach if exists, create if not
+  if tmux has-session -t "$session_name" 2>/dev/null; then
+    echo "Attaching to $session_name..."
+    attach_session "$session_name"
   else
-    # Create new session via API
-    echo "📡 Creating session via web terminal API..."
-    session_id=$(create_web_session "$selected" "$project_dir")
-    if [ -z "$session_id" ]; then
-      echo "❌ Failed to create session via API" >&2
-      exit 1
-    fi
-    claude_state="not_started"
+    echo "Starting Claude in $selected..."
+    create_session "$session_name" "$project_dir"
   fi
-
-  local tmux_session="summitflow-$session_id"
-
-  # Verify tmux session exists
-  if ! tmux has-session -t "$tmux_session" 2>/dev/null; then
-    echo "❌ tmux session $tmux_session not found" >&2
-    exit 1
-  fi
-
-  # Start Claude if not running
-  if [ "$claude_state" != "running" ] && [ "$claude_state" != "starting" ]; then
-    echo "🚀 Starting Claude in $selected..."
-    local new_state
-    new_state=$(start_claude "$session_id")
-    if [ "$new_state" = "error" ]; then
-      echo "⚠️  Warning: Claude may not have started correctly"
-    fi
-  else
-    echo "🔄 Attaching to Claude session ($selected)..."
-  fi
-
-  # Attach to the session
-  attach_session "$tmux_session"
 }
 
 main "$@"
