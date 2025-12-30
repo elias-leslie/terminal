@@ -102,33 +102,11 @@ def _determine_legacy_claude_state(
         return "idle", last_claude_session
 
 
-def _is_claude_running_in_session(tmux_session: str, session_id: str | None = None) -> bool:
-    """Check if Claude Code is already running.
-
-    First checks if there's a separate Claude session for this terminal.
-    Falls back to checking the main tmux session.
+def _is_claude_running_in_session(tmux_session: str) -> bool:
+    """Check if Claude Code is already running in a tmux session.
 
     Uses tmux's pane_current_command to check if 'claude' is the foreground process.
-    This is more reliable than string matching on pane content.
     """
-    # If we have a session_id, check for the dedicated Claude session
-    if session_id:
-        claude_session_name = f"claude-{session_id}"
-        result = subprocess.run(
-            ["tmux", "has-session", "-t", claude_session_name],
-            capture_output=True,
-        )
-        if result.returncode == 0:
-            # Claude session exists, check if claude is running in it
-            pane_result = subprocess.run(
-                ["tmux", "list-panes", "-t", claude_session_name, "-F", "#{pane_current_command}"],
-                capture_output=True,
-                text=True,
-            )
-            if pane_result.returncode == 0 and pane_result.stdout.strip() == "claude":
-                return True
-
-    # Fallback: check the main session
     result = subprocess.run(
         ["tmux", "list-panes", "-t", tmux_session, "-F", "#{pane_current_command}"],
         capture_output=True,
@@ -138,21 +116,17 @@ def _is_claude_running_in_session(tmux_session: str, session_id: str | None = No
     if result.returncode != 0:
         return False
 
-    # pane_current_command returns the foreground process name (e.g., "claude", "bash")
     current_command = result.stdout.strip()
     return current_command == "claude"
 
 
-def _verify_claude_started(session_id: str) -> bool:
-    """Verify Claude Code has started by checking if 'claude' is the foreground process.
-
-    Checks the dedicated Claude session (claude-{session_id}) first.
+def _verify_claude_started(tmux_session: str) -> bool:
+    """Verify Claude Code has started.
 
     Returns:
         True if Claude process is running, False otherwise
     """
-    claude_session_name = f"claude-{session_id}"
-    return _is_claude_running_in_session(claude_session_name, session_id)
+    return _is_claude_running_in_session(tmux_session)
 
 
 async def _background_verify_claude_start(session_id: str, tmux_session: str) -> None:
@@ -162,8 +136,8 @@ async def _background_verify_claude_start(session_id: str, tmux_session: str) ->
     """
     await asyncio.sleep(3)  # Give Claude enough time to start
 
-    # Verify Claude started by checking the dedicated Claude session
-    if _verify_claude_started(session_id):
+    # Verify Claude started
+    if _verify_claude_started(tmux_session):
         # Only update if still in 'starting' state (handles race conditions)
         updated = terminal_store.update_claude_state(
             session_id, "running", expected_state="starting"
@@ -285,7 +259,7 @@ async def start_claude(
 
     # Fallback: Check if Claude is already running via pane content
     # This handles cases where state got out of sync
-    if _is_claude_running_in_session(tmux_session, session_id):
+    if _is_claude_running_in_session(tmux_session):
         # Update state to match reality
         terminal_store.update_claude_state(session_id, "running")
         return StartClaudeResponse(
@@ -311,56 +285,20 @@ async def start_claude(
                 claude_state=new_state or "not_started",
             )
 
-    # Get the working directory for the session
-    working_dir = session.get("working_dir") or "/tmp"
-
-    # Create a separate Claude session with the command directly
-    # This avoids showing the command in the terminal since it's passed to new-session
-    claude_session_name = f"claude-{session_id}"
-
-    # First, kill any existing Claude session for this terminal
-    subprocess.run(
-        ["tmux", "kill-session", "-t", claude_session_name],
-        capture_output=True,
-        text=True,
-    )
-
-    # Create new Claude session with command directly (no shell prompt visible)
+    # Send the claude command via send-keys
+    # The command will be visible but the overlay hides it during startup
     result = subprocess.run(
         [
             "tmux",
-            "new-session",
-            "-d",
-            "-s",
-            claude_session_name,
-            "-c",
-            working_dir,
-            "-x",
-            "200",  # Wide enough for Claude's UI
-            "-y",
-            "50",
-            "claude",
-            "--dangerously-skip-permissions",
+            "send-keys",
+            "-t",
+            tmux_session,
+            "claude --dangerously-skip-permissions",
+            "Enter",
         ],
         capture_output=True,
         text=True,
     )
-
-    if result.returncode == 0:
-        # Store the Claude session name so WebSocket can switch to it
-        terminal_store.update_claude_session(session_id, claude_session_name)
-
-        # Switch any attached clients to the Claude session
-        subprocess.run(
-            [
-                "tmux",
-                "switch-client",
-                "-t",
-                claude_session_name,
-            ],
-            capture_output=True,
-            text=True,
-        )
 
     if result.returncode != 0:
         # Command failed - set state to error
