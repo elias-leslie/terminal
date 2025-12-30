@@ -225,14 +225,31 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // - Mobile: Touch gestures already send tmux copy-mode commands
       //
       // We handle wheel events to enter tmux copy-mode and scroll within it.
-      // User exits copy-mode manually by pressing 'q' or typing (matches mobile behavior).
-      // Helper: Enter tmux copy-mode
-      // Always send the command - tmux handles it gracefully if already in copy-mode.
-      // We can't track copy-mode state in JS because user can exit with 'q' directly in tmux.
+      // User exits copy-mode manually by pressing 'q' or typing.
+      //
+      // Copy-mode tracking: We can't detect when user exits via 'q', so we use a timeout.
+      // After 10 seconds of no scroll activity, assume user has exited copy-mode.
+      let inCopyMode = false;
+      let copyModeTimeout: ReturnType<typeof setTimeout> | null = null;
+      const COPY_MODE_TIMEOUT_MS = 10000; // 10 seconds
+
       const enterCopyMode = () => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
+        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+
+        // Clear existing timeout
+        if (copyModeTimeout) clearTimeout(copyModeTimeout);
+
+        // Enter copy-mode if not already in it
+        if (!inCopyMode) {
           wsRef.current.send('\x02['); // Ctrl+B [
+          inCopyMode = true;
         }
+
+        // Reset timeout - assume exit after inactivity
+        copyModeTimeout = setTimeout(() => {
+          inCopyMode = false;
+          copyModeTimeout = null;
+        }, COPY_MODE_TIMEOUT_MS);
       };
 
       // Helper: Send scroll command in copy-mode (Ctrl+U up, Ctrl+D down)
@@ -253,9 +270,13 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       const wheelContainer = containerRef.current;
       wheelContainer.addEventListener('wheel', handleWheel, { capture: true, passive: false });
 
-      // Store wheel cleanup
+      // Store wheel cleanup (includes copy-mode timeout cleanup)
       (term as unknown as { _wheelCleanup?: () => void })._wheelCleanup = () => {
         wheelContainer.removeEventListener('wheel', handleWheel, { capture: true });
+        if (copyModeTimeout) {
+          clearTimeout(copyModeTimeout);
+          copyModeTimeout = null;
+        }
       };
 
       terminalRef.current = term;
@@ -420,6 +441,14 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         term.onData((data) => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(data);
+            // Typing exits tmux copy-mode, reset our tracking
+            if (inCopyMode) {
+              inCopyMode = false;
+              if (copyModeTimeout) {
+                clearTimeout(copyModeTimeout);
+                copyModeTimeout = null;
+              }
+            }
           }
         });
       }

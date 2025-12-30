@@ -269,6 +269,8 @@ async def _read_output(websocket: WebSocket, master_fd: int) -> None:
         master_fd: Master file descriptor
     """
     loop = asyncio.get_event_loop()
+    # Buffer for incomplete UTF-8 sequences at end of reads
+    utf8_buffer = b""
 
     try:
         while True:
@@ -282,13 +284,32 @@ async def _read_output(websocket: WebSocket, master_fd: int) -> None:
                 try:
                     output = os.read(master_fd, 4096)
                     if output:
-                        decoded = output.decode("utf-8", errors="replace")
-                        await websocket.send_text(decoded)
+                        # Prepend any buffered incomplete sequence
+                        output = utf8_buffer + output
+                        utf8_buffer = b""
 
-                        # Detect tmux session exit - triggers disconnect for reconnect
-                        if "[exited]" in decoded:
-                            logger.info("tmux_session_exited_detected")
-                            break
+                        # Try to decode, handling incomplete sequences at the end
+                        try:
+                            decoded = output.decode("utf-8")
+                        except UnicodeDecodeError as e:
+                            # Check if error is at the end (incomplete sequence)
+                            if e.start >= len(output) - 3:
+                                # Buffer the incomplete bytes for next read
+                                utf8_buffer = output[e.start :]
+                                decoded = output[: e.start].decode(
+                                    "utf-8", errors="replace"
+                                )
+                            else:
+                                # Error in middle, replace and continue
+                                decoded = output.decode("utf-8", errors="replace")
+
+                        if decoded:
+                            await websocket.send_text(decoded)
+
+                            # Detect tmux session exit - triggers disconnect for reconnect
+                            if "[exited]" in decoded:
+                                logger.info("tmux_session_exited_detected")
+                                break
                 except OSError:
                     break
             else:
