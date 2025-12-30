@@ -282,7 +282,7 @@ async def _read_output(websocket: WebSocket, master_fd: int) -> None:
 
             if ready:
                 try:
-                    output = os.read(master_fd, 4096)
+                    output = os.read(master_fd, 8192)
                     if output:
                         # Prepend any buffered incomplete sequence
                         output = utf8_buffer + output

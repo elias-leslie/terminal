@@ -20,7 +20,7 @@ export const FIT_DELAY_MS = 100;
 export const WS_CLOSE_CODE_SESSION_DEAD = 4000;
 
 /** ResizeObserver debounce delay in milliseconds */
-export const RESIZE_DEBOUNCE_MS = 50;
+export const RESIZE_DEBOUNCE_MS = 150;
 
 /** Phosphor terminal theme colors */
 export const PHOSPHOR_THEME = {
