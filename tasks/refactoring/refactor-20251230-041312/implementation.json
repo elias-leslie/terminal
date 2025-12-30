@@ -90,7 +90,7 @@
           ],
           "files_affected": ["terminal/storage/terminal.py", "terminal/services/lifecycle.py"],
           "verification": "cd terminal && python -c 'from terminal.storage import terminal; terminal.list_sessions()'",
-          "passes": false
+          "passes": true
         }
       ]
     },
