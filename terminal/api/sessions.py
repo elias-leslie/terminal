@@ -37,6 +37,7 @@ class TerminalSessionResponse(BaseModel):
     project_id: str | None
     working_dir: str | None
     display_order: int
+    mode: str
     is_alive: bool
     created_at: str | None
     last_accessed_at: str | None
@@ -78,6 +79,7 @@ def _session_to_response(session: dict[str, Any]) -> TerminalSessionResponse:
         project_id=session.get("project_id"),
         working_dir=session.get("working_dir"),
         display_order=session["display_order"],
+        mode=session.get("mode", "shell"),
         is_alive=session["is_alive"],
         created_at=session["created_at"].isoformat() if session.get("created_at") else None,
         last_accessed_at=(
@@ -178,3 +180,31 @@ async def delete_session(session_id: str) -> dict[str, Any]:
     """
     lifecycle.delete_session(session_id)
     return {"deleted": True, "id": session_id}
+
+
+@router.post("/api/terminal/sessions/{session_id}/reset", response_model=TerminalSessionResponse)
+async def reset_session(session_id: str) -> TerminalSessionResponse:
+    """Reset a terminal session.
+
+    Deletes the session and creates a new one with the same parameters.
+    Returns the new session data.
+    """
+    new_session_id = lifecycle.reset_session(session_id)
+    if not new_session_id:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found") from None
+
+    session = terminal_store.get_session(new_session_id)
+    if not session:
+        raise HTTPException(status_code=500, detail="Session reset but not found") from None
+
+    return _session_to_response(session)
+
+
+@router.post("/api/terminal/reset-all")
+async def reset_all_sessions() -> dict[str, Any]:
+    """Reset all terminal sessions.
+
+    Resets every active session. Returns count of sessions reset.
+    """
+    count = lifecycle.reset_all_sessions()
+    return {"reset_count": count}
