@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProjectSettings } from "./use-project-settings";
 import { useTerminalSessions, TerminalSession } from "./use-terminal-sessions";
 
@@ -69,6 +70,8 @@ export interface UseProjectTerminalsResult {
  * ```
  */
 export function useProjectTerminals(): UseProjectTerminalsResult {
+  const queryClient = useQueryClient();
+
   const {
     enabledProjects,
     switchMode: switchProjectMode,
@@ -79,6 +82,7 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
 
   const {
     sessions,
+    setActiveId,
     isLoading: sessionsLoading,
     isError: sessionsError,
   } = useTerminalSessions();
@@ -122,6 +126,12 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
 
   // Reset project sessions via API
   const resetProject = useCallback(async (projectId: string) => {
+    // Get current project info to know active mode
+    const project = projectTerminals.find((p) => p.projectId === projectId);
+    const activeMode = project?.activeMode || "shell";
+    const oldShellId = project?.shellSessionId;
+    const oldClaudeId = project?.claudeSessionId;
+
     const res = await fetch(`/api/terminal/projects/${projectId}/reset`, {
       method: "POST",
     });
@@ -129,7 +139,28 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
       const error = await res.json().catch(() => ({ detail: "Failed to reset project" }));
       throw new Error(error.detail || "Failed to reset project");
     }
-  }, []);
+
+    const result = await res.json();
+    const newSessionId = activeMode === "claude"
+      ? result.claude_session_id
+      : result.shell_session_id;
+
+    // Optimistically update sessions cache
+    queryClient.setQueryData<TerminalSession[]>(["terminal-sessions"], (old) => {
+      if (!old) return old;
+      // Remove old sessions
+      let updated = old.filter((s) => s.id !== oldShellId && s.id !== oldClaudeId);
+      return updated;
+    });
+
+    // Switch to new session if available
+    if (newSessionId) {
+      setActiveId(newSessionId);
+    }
+
+    // Refetch to get fresh data
+    await queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
+  }, [projectTerminals, queryClient, setActiveId]);
 
   // Disable project terminal via API
   const disableProject = useCallback(

@@ -411,8 +411,50 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               {/* Mode dropdown */}
               <TabModeDropdown
                 value={pt.activeMode}
-                onChange={(mode) => {
-                  switchMode(pt.projectId, mode);
+                onChange={async (mode) => {
+                  // Update the mode in settings
+                  await switchMode(pt.projectId, mode);
+
+                  // Get session ID for the new mode
+                  const newSessionId = mode === "claude" ? pt.claudeSessionId : pt.shellSessionId;
+
+                  if (newSessionId) {
+                    // Session exists, switch to it
+                    setActiveId(newSessionId);
+                  } else {
+                    // Session doesn't exist, create it
+                    try {
+                      const res = await fetch("/api/terminal/sessions", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          name: `Project: ${pt.projectId}`,
+                          project_id: pt.projectId,
+                          working_dir: pt.rootPath,
+                          mode: mode,
+                        }),
+                      });
+                      if (!res.ok) throw new Error("Failed to create session");
+                      const newSession = await res.json();
+                      setActiveId(newSession.id);
+
+                      // If switching to claude mode, start Claude
+                      if (mode === "claude") {
+                        setTimeout(async () => {
+                          try {
+                            await fetch(`/api/terminal/sessions/${newSession.id}/start-claude`, {
+                              method: "POST",
+                            });
+                          } catch (e) {
+                            console.error("Failed to auto-start Claude:", e);
+                          }
+                        }, 500);
+                      }
+                    } catch (e) {
+                      console.error("Failed to create session for mode switch:", e);
+                    }
+                  }
+
                   // Scroll tab into view after mode switch
                   setTimeout(() => {
                     projectTabRefs.current.get(pt.projectId)?.scrollIntoView({

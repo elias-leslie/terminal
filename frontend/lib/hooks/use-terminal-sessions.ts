@@ -197,10 +197,23 @@ export function useTerminalSessions(projectId?: string) {
   // Mutation: reset session
   const resetMutation = useMutation({
     mutationFn: resetSession,
-    onSuccess: (newSession) => {
-      queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
+    onMutate: async (oldSessionId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["terminal-sessions"] });
+      // Return context with the old session ID for rollback
+      return { oldSessionId };
+    },
+    onSuccess: (newSession, oldSessionId) => {
+      // Optimistically update the cache with the new session
+      queryClient.setQueryData<TerminalSession[]>(["terminal-sessions"], (old) => {
+        if (!old) return [newSession];
+        // Remove old session, add new one
+        return [...old.filter((s) => s.id !== oldSessionId), newSession];
+      });
       // Switch to the new (reset) session
       setActiveId(newSession.id);
+      // Also refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
     },
   });
 
