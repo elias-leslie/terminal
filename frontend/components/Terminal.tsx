@@ -228,16 +228,37 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       containerRef.current.addEventListener('mouseup', forceLocalMouseHandling, { capture: true });
       containerRef.current.addEventListener('mousemove', forceLocalMouseHandling, { capture: true });
 
-      // Handle wheel events - always use local scrollback for xterm.js buffer
-      // This prevents wheel events from being sent to the terminal as key sequences
+      // Fix: xterm.js doesn't auto-sync scroll-area height with buffer length
+      // Manually sync on each write to enable proper scrollbar behavior
+      const syncScrollArea = () => {
+        const scrollArea = containerRef.current?.querySelector('.xterm-scroll-area') as HTMLElement | null;
+        if (scrollArea && term.buffer?.active) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const lineHeight = (term as any)._core?.dimensions?.css?.cell?.height || 18;
+          const bufferLength = term.buffer.active.length;
+          const expectedHeight = bufferLength * lineHeight;
+          if (parseInt(scrollArea.style.height) !== expectedHeight) {
+            scrollArea.style.height = expectedHeight + 'px';
+          }
+        }
+      };
+
+      // Sync scroll area when data is written
+      term.onWriteParsed(() => syncScrollArea());
+
+      // Handle wheel events - intercept to scroll xterm viewport
+      // Must intercept because xterm sends arrow keys when buffer is empty
       const handleWheel = (e: WheelEvent) => {
         e.stopPropagation();
         e.preventDefault();
 
-        // Scroll xterm.js buffer directly
-        const lines = Math.round(e.deltaY / 20); // Convert delta to line count
-        term.scrollLines(lines);
+        // Scroll the xterm viewport directly
+        const viewport = containerRef.current?.querySelector('.xterm-viewport') as HTMLElement | null;
+        if (viewport) {
+          viewport.scrollTop += e.deltaY;
+        }
       };
+
       const wheelContainer = containerRef.current;
       wheelContainer.addEventListener('wheel', handleWheel, { capture: true, passive: false });
 
