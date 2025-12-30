@@ -200,19 +200,29 @@ export function useTerminalSessions(projectId?: string) {
     onMutate: async (oldSessionId) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["terminal-sessions"] });
-      // Return context with the old session ID for rollback
-      return { oldSessionId };
+      // Snapshot for rollback
+      const previousSessions = queryClient.getQueryData<TerminalSession[]>(["terminal-sessions"]);
+      // Return context for rollback
+      return { oldSessionId, previousSessions };
     },
     onSuccess: (newSession, oldSessionId) => {
-      // Optimistically update the cache with the new session
+      // Update the cache with the new session BEFORE setting activeId
       queryClient.setQueryData<TerminalSession[]>(["terminal-sessions"], (old) => {
         if (!old) return [newSession];
         // Remove old session, add new one
         return [...old.filter((s) => s.id !== oldSessionId), newSession];
       });
-      // Switch to the new (reset) session
+      // NOW switch to the new session - it's already in the cache
       setActiveId(newSession.id);
-      // Also refetch to ensure consistency
+    },
+    onError: (err, oldSessionId, context) => {
+      // Rollback cache to previous state
+      if (context?.previousSessions) {
+        queryClient.setQueryData(["terminal-sessions"], context.previousSessions);
+      }
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency with server
       queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
     },
   });

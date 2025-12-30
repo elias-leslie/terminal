@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useState, useRef, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { clsx } from "clsx";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { TerminalComponent, TerminalHandle, ConnectionStatus } from "./Terminal";
 import { Plus, X, Terminal as TerminalIcon, Loader2, RefreshCw } from "lucide-react";
 import { LayoutModeButtons, LayoutMode } from "./LayoutModeButton";
 import { useTerminalSessions } from "@/lib/hooks/use-terminal-sessions";
+import { useActiveSession } from "@/lib/hooks/use-active-session";
 import { useTerminalSettings } from "@/lib/hooks/use-terminal-settings";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { useProjectTerminals, ProjectTerminal } from "@/lib/hooks/use-project-terminals";
@@ -61,28 +63,40 @@ interface TerminalTabsProps {
 }
 
 export function TerminalTabs({ projectId, projectPath, className }: TerminalTabsProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // URL-based active session (single source of truth)
   const {
+    activeSessionId,
+    switchToSession,
     sessions,
-    activeId,
-    setActiveId,
+    projectTerminals,
+    adHocSessions,
+    isLoading: activeSessionLoading,
+  } = useActiveSession();
+
+  // Session mutations (create, update, delete, reset)
+  const {
     create,
     update,
     remove,
     reset,
     resetAll,
-    isLoading,
+    isLoading: sessionsLoading,
     isCreating,
   } = useTerminalSessions(projectId);
 
-  // Project terminals data
+  // Project terminal operations (mode switch, reset, disable)
   const {
-    projectTerminals,
-    adHocSessions,
-    isLoading: projectsLoading,
     switchMode,
     resetProject,
     disableProject,
+    isLoading: projectsLoading,
   } = useProjectTerminals();
+
+  // Combined loading state
+  const isLoading = activeSessionLoading || sessionsLoading || projectsLoading;
 
   // Standalone app uses local state for layout (no embedded panel)
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("single");
@@ -162,16 +176,16 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   const projectTabRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Get active terminal status for showing reconnect button
-  const activeStatus = activeId ? terminalStatuses.get(activeId) : undefined;
+  const activeStatus = activeSessionId ? terminalStatuses.get(activeSessionId) : undefined;
   const showReconnect = activeStatus && ["disconnected", "error", "timeout"].includes(activeStatus);
 
   // Handle reconnect for active terminal
   const handleReconnect = useCallback(() => {
-    if (activeId) {
-      const terminalRef = terminalRefs.current.get(activeId);
+    if (activeSessionId) {
+      const terminalRef = terminalRefs.current.get(activeSessionId);
       terminalRef?.reconnect();
     }
-  }, [activeId]);
+  }, [activeSessionId]);
 
   // Handle status change from terminal
   const handleStatusChange = useCallback((sessionId: string, status: ConnectionStatus) => {
@@ -184,11 +198,11 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
   // Handle input from keyboard bar
   const handleKeyboardInput = useCallback((data: string) => {
-    if (activeId) {
-      const terminalRef = terminalRefs.current.get(activeId);
+    if (activeSessionId) {
+      const terminalRef = terminalRefs.current.get(activeSessionId);
       terminalRef?.sendInput(data);
     }
-  }, [activeId]);
+  }, [activeSessionId]);
 
   // Number of panes to show in split mode (1:1 with slots, capped)
   const splitPaneCount = Math.min(terminalSlots.length, MAX_SPLIT_PANES);
@@ -227,12 +241,19 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     return pt.activeMode === "claude" ? pt.claudeSessionId : pt.shellSessionId;
   }, []);
 
+  // Helper to update URL with session param
+  const navigateToSession = useCallback((sessionId: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("session", sessionId);
+    router.push(`?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+
   // Handle clicking a project tab - create session if needed
   const handleProjectTabClick = useCallback(async (pt: ProjectTerminal) => {
     const currentSessionId = getProjectSessionId(pt);
     if (currentSessionId) {
-      // Session exists, just switch to it
-      setActiveId(currentSessionId);
+      // Session exists, just switch to it via URL
+      navigateToSession(currentSessionId);
     } else {
       // Create session for this project via direct API call (includes project_id and mode)
       try {
@@ -248,7 +269,9 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         });
         if (!res.ok) throw new Error("Failed to create session");
         const newSession = await res.json();
-        setActiveId(newSession.id);
+
+        // Switch to new session via URL
+        navigateToSession(newSession.id);
 
         // If mode is claude, start Claude after a brief delay
         if (pt.activeMode === "claude") {
@@ -266,7 +289,81 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         console.error("Failed to create project session:", e);
       }
     }
-  }, [setActiveId, getProjectSessionId]);
+  }, [navigateToSession, getProjectSessionId]);
+
+  // Helper to start Claude in a session and wait for confirmation
+  const startClaudeInSession = useCallback(async (sessionId: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/terminal/sessions/${sessionId}/start-claude`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        console.error("Failed to start Claude:", await res.text());
+        return false;
+      }
+      const data = await res.json();
+      // Return true if started or already running
+      return data.started || data.message?.includes("already running");
+    } catch (e) {
+      console.error("Failed to start Claude:", e);
+      return false;
+    }
+  }, []);
+
+  // Atomic mode switch handler for project tabs
+  // Encapsulates: 1) Update backend mode, 2) Get/create session, 3) Start Claude if needed, 4) Switch via URL
+  const handleProjectModeChange = useCallback(async (
+    projectId: string,
+    newMode: "shell" | "claude",
+    currentShellSessionId: string | null,
+    currentClaudeSessionId: string | null,
+    rootPath: string | null
+  ): Promise<void> => {
+    // 1. Update mode in backend (optimistic update happens in switchMode)
+    await switchMode(projectId, newMode);
+
+    // 2. Determine which session to use
+    let targetSessionId = newMode === "claude" ? currentClaudeSessionId : currentShellSessionId;
+
+    // 3. Create session if it doesn't exist
+    if (!targetSessionId) {
+      const res = await fetch("/api/terminal/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `Project: ${projectId}`,
+          project_id: projectId,
+          working_dir: rootPath,
+          mode: newMode,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to create session");
+      }
+      const newSession = await res.json();
+      targetSessionId = newSession.id;
+    }
+
+    // 4. If switching to Claude mode, start Claude (with small delay for terminal init)
+    if (newMode === "claude" && targetSessionId) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await startClaudeInSession(targetSessionId);
+    }
+
+    // 5. Switch to the session via URL
+    if (targetSessionId) {
+      navigateToSession(targetSessionId);
+    }
+
+    // 6. Scroll tab into view after mode switch
+    setTimeout(() => {
+      projectTabRefs.current.get(projectId)?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    }, 100);
+  }, [switchMode, startClaudeInSession, navigateToSession]);
 
   // Close terminal session
   const handleCloseTab = useCallback(
@@ -355,7 +452,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         {projectTerminals.map((pt) => {
           const currentSessionId = getProjectSessionId(pt);
           const sessionStatus = currentSessionId ? terminalStatuses.get(currentSessionId) : undefined;
-          const isActive = currentSessionId === activeId;
+          const isActive = currentSessionId === activeSessionId;
 
           return (
             <div
@@ -389,71 +486,13 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               <div onClick={(e) => e.stopPropagation()}>
                 <TabModeDropdown
                   value={pt.activeMode}
-                  onChange={async (mode) => {
-                  // Update the mode in settings
-                  await switchMode(pt.projectId, mode);
-
-                  // Get session ID for the new mode
-                  const newSessionId = mode === "claude" ? pt.claudeSessionId : pt.shellSessionId;
-
-                  if (newSessionId) {
-                    // Session exists, switch to it
-                    setActiveId(newSessionId);
-                    // If switching to Claude mode, ensure Claude is started
-                    if (mode === "claude") {
-                      setTimeout(async () => {
-                        try {
-                          await fetch(`/api/terminal/sessions/${newSessionId}/start-claude`, {
-                            method: "POST",
-                          });
-                        } catch (e) {
-                          console.error("Failed to start Claude:", e);
-                        }
-                      }, 500);
-                    }
-                  } else {
-                    // Session doesn't exist, create it
-                    try {
-                      const res = await fetch("/api/terminal/sessions", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          name: `Project: ${pt.projectId}`,
-                          project_id: pt.projectId,
-                          working_dir: pt.rootPath,
-                          mode: mode,
-                        }),
-                      });
-                      if (!res.ok) throw new Error("Failed to create session");
-                      const newSession = await res.json();
-                      setActiveId(newSession.id);
-
-                      // If switching to claude mode, start Claude
-                      if (mode === "claude") {
-                        setTimeout(async () => {
-                          try {
-                            await fetch(`/api/terminal/sessions/${newSession.id}/start-claude`, {
-                              method: "POST",
-                            });
-                          } catch (e) {
-                            console.error("Failed to auto-start Claude:", e);
-                          }
-                        }, 500);
-                      }
-                    } catch (e) {
-                      console.error("Failed to create session for mode switch:", e);
-                    }
-                  }
-
-                  // Scroll tab into view after mode switch
-                  setTimeout(() => {
-                    projectTabRefs.current.get(pt.projectId)?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "nearest",
-                      inline: "nearest",
-                    });
-                  }, 100);
-                }}
+                  onChange={(mode) => handleProjectModeChange(
+                    pt.projectId,
+                    mode,
+                    pt.shellSessionId,
+                    pt.claudeSessionId,
+                    pt.rootPath
+                  )}
                   isMobile={isMobile}
                 />
               </div>
@@ -481,12 +520,12 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         {/* Ad-hoc session tabs */}
         {adHocSessions.map((session) => {
           const sessionStatus = terminalStatuses.get(session.id);
-          const isActive = session.id === activeId;
+          const isActive = session.id === activeSessionId;
 
           return (
             <div
               key={session.id}
-              onClick={() => setActiveId(session.id)}
+              onClick={() => switchToSession(session.id)}
               className={clsx(
                 "flex items-center rounded-md transition-all duration-200 cursor-pointer",
                 "group min-w-0 flex-shrink-0",
@@ -679,7 +718,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               key={session.id}
               className={clsx(
                 "absolute inset-0 overflow-hidden",
-                session.id === activeId ? "z-10 visible" : "z-0 invisible"
+                session.id === activeSessionId ? "z-10 visible" : "z-0 invisible"
               )}
             >
               <TerminalComponent
@@ -724,7 +763,9 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                     }
                   }}
                   onStatusChange={(sessionId, status) => handleStatusChange(sessionId, status)}
-                  onModeChange={(projectId, mode) => switchMode(projectId, mode)}
+                  onModeChange={(projectId, mode, shellId, claudeId, rootPath) =>
+                    handleProjectModeChange(projectId, mode, shellId, claudeId, rootPath)
+                  }
                 />
               );
             })}
@@ -764,7 +805,13 @@ interface SplitPaneProps {
   fontSize: number;
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
-  onModeChange?: (projectId: string, mode: "shell" | "claude") => void;
+  onModeChange?: (
+    projectId: string,
+    mode: "shell" | "claude",
+    shellSessionId: string | null,
+    claudeSessionId: string | null,
+    rootPath: string | null
+  ) => void;
 }
 
 function SplitPane({
@@ -842,7 +889,13 @@ function SplitPane({
           {slot.type === "project" && onModeChange && (
             <TabModeDropdown
               value={slot.activeMode}
-              onChange={(mode) => onModeChange(slot.projectId, mode)}
+              onChange={(mode) => onModeChange(
+                slot.projectId,
+                mode,
+                slot.shellSessionId,
+                slot.claudeSessionId,
+                slot.rootPath
+              )}
             />
           )}
           {!sessionId && (

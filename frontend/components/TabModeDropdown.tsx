@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { ChevronDown, Terminal, Sparkles } from "lucide-react";
+import { ChevronDown, Terminal, Sparkles, Loader2 } from "lucide-react";
 import { useClickOutside } from "@/lib/hooks/useClickOutside";
 
 export type TerminalMode = "shell" | "claude";
 
 interface TabModeDropdownProps {
   value: TerminalMode;
-  onChange: (mode: TerminalMode) => void;
+  onChange: (mode: TerminalMode) => void | Promise<void>;
   disabled?: boolean;
   isMobile?: boolean;
+  /** External loading state - when true, dropdown is disabled and shows spinner */
+  isLoading?: boolean;
 }
 
 /**
@@ -22,11 +24,19 @@ export function TabModeDropdown({
   onChange,
   disabled = false,
   isMobile = false,
+  isLoading = false,
 }: TabModeDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [internalLoading, setInternalLoading] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  // Combined loading state - either external or internal
+  const isCurrentlyLoading = isLoading || internalLoading;
+
+  // Combined disabled state
+  const isDisabled = disabled || isCurrentlyLoading;
 
   const closeDropdown = useCallback(() => setIsOpen(false), []);
   const clickOutsideRefs = useMemo(() => [buttonRef, dropdownRef], []);
@@ -50,9 +60,24 @@ export function TabModeDropdown({
     });
   }, [isOpen]);
 
-  const handleSelect = (mode: TerminalMode) => {
-    onChange(mode);
+  const handleSelect = async (mode: TerminalMode) => {
+    // Prevent selection if already loading or selecting same mode
+    if (isCurrentlyLoading || mode === value) {
+      setIsOpen(false);
+      return;
+    }
+
     setIsOpen(false);
+    setInternalLoading(true);
+
+    try {
+      // onChange may be async (mode switch with session creation/Claude start)
+      await onChange(mode);
+    } catch (error) {
+      console.error("Failed to switch mode:", error);
+    } finally {
+      setInternalLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -73,10 +98,10 @@ export function TabModeDropdown({
         ref={buttonRef}
         onClick={(e) => {
           e.stopPropagation();
-          if (!disabled) setIsOpen(!isOpen);
+          if (!isDisabled) setIsOpen(!isOpen);
         }}
         onKeyDown={handleKeyDown}
-        disabled={disabled}
+        disabled={isDisabled}
         className={`
           flex items-center gap-1 rounded transition-all duration-150
           ${isMobile ? "px-2 py-2" : "px-1.5 py-1"}
@@ -84,32 +109,38 @@ export function TabModeDropdown({
         `}
         style={{
           backgroundColor: isOpen ? "var(--term-bg-deep)" : "transparent",
-          color: disabled ? "var(--term-text-muted)" : "var(--term-text-primary)",
+          color: isDisabled ? "var(--term-text-muted)" : "var(--term-text-primary)",
           border: isOpen ? "1px solid var(--term-border-active)" : "1px solid transparent",
-          opacity: disabled ? 0.5 : 1,
-          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: isDisabled ? 0.5 : 1,
+          cursor: isDisabled ? "not-allowed" : "pointer",
         }}
         onMouseEnter={(e) => {
-          if (!disabled && !isOpen) {
+          if (!isDisabled && !isOpen) {
             e.currentTarget.style.backgroundColor = "var(--term-bg-deep)";
             e.currentTarget.style.borderColor = "var(--term-border)";
           }
         }}
         onMouseLeave={(e) => {
-          if (!disabled && !isOpen) {
+          if (!isDisabled && !isOpen) {
             e.currentTarget.style.backgroundColor = "transparent";
             e.currentTarget.style.borderColor = "transparent";
           }
         }}
-        title={`Current mode: ${value}`}
+        title={isCurrentlyLoading ? "Switching mode..." : `Current mode: ${value}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-busy={isCurrentlyLoading}
       >
-        {/* Mode indicator icon */}
-        {value === "claude" ? (
-          <Sparkles className="w-3 h-3" style={{ color: "var(--term-accent)" }} />
+        {/* Loading spinner when switching modes */}
+        {isCurrentlyLoading ? (
+          <Loader2 className="w-3 h-3 animate-spin" style={{ color: "var(--term-accent)" }} />
         ) : (
-          <Terminal className="w-3 h-3" style={{ color: "var(--term-text-muted)" }} />
+          /* Mode indicator icon */
+          value === "claude" ? (
+            <Sparkles className="w-3 h-3" style={{ color: "var(--term-accent)" }} />
+          ) : (
+            <Terminal className="w-3 h-3" style={{ color: "var(--term-text-muted)" }} />
+          )
         )}
         <ChevronDown
           className={`w-3 h-3 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}

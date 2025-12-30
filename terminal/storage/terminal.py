@@ -34,7 +34,8 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           mode, is_alive, created_at, last_accessed_at, last_claude_session
+                           mode, is_alive, created_at, last_accessed_at, last_claude_session,
+                           claude_state
                     FROM terminal_sessions
                     WHERE user_id = %s
                     ORDER BY display_order, created_at
@@ -45,7 +46,8 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           mode, is_alive, created_at, last_accessed_at, last_claude_session
+                           mode, is_alive, created_at, last_accessed_at, last_claude_session,
+                           claude_state
                     FROM terminal_sessions
                     WHERE user_id = %s AND is_alive = true
                     ORDER BY display_order, created_at
@@ -57,7 +59,8 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           mode, is_alive, created_at, last_accessed_at, last_claude_session
+                           mode, is_alive, created_at, last_accessed_at, last_claude_session,
+                           claude_state
                     FROM terminal_sessions
                     ORDER BY display_order, created_at
                     """
@@ -66,7 +69,8 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           mode, is_alive, created_at, last_accessed_at, last_claude_session
+                           mode, is_alive, created_at, last_accessed_at, last_claude_session,
+                           claude_state
                     FROM terminal_sessions
                     WHERE is_alive = true
                     ORDER BY display_order, created_at
@@ -90,7 +94,8 @@ def get_session(session_id: str | UUID) -> dict[str, Any] | None:
         cur.execute(
             """
             SELECT id, name, user_id, project_id, working_dir, display_order,
-                   mode, is_alive, created_at, last_accessed_at, last_claude_session
+                   mode, is_alive, created_at, last_accessed_at, last_claude_session,
+                   claude_state
             FROM terminal_sessions
             WHERE id = %s
             """,
@@ -171,7 +176,8 @@ def update_session(session_id: str | UUID, **fields: Any) -> dict[str, Any] | No
         SET {}
         WHERE id = %s
         RETURNING id, name, user_id, project_id, working_dir, display_order,
-                  mode, is_alive, created_at, last_accessed_at
+                  mode, is_alive, created_at, last_accessed_at, last_claude_session,
+                  claude_state
     """).format(psycopg.sql.SQL(", ").join(set_clauses))
 
     with get_connection() as conn, conn.cursor() as cur:
@@ -238,7 +244,8 @@ def touch_session(session_id: str | UUID) -> dict[str, Any] | None:
             SET last_accessed_at = NOW()
             WHERE id = %s
             RETURNING id, name, user_id, project_id, working_dir, display_order,
-                      mode, is_alive, created_at, last_accessed_at
+                      mode, is_alive, created_at, last_accessed_at, last_claude_session,
+                      claude_state
             """,
             (str(session_id),),
         )
@@ -267,7 +274,8 @@ def list_orphaned(older_than_days: int = 30) -> list[dict[str, Any]]:
         cur.execute(
             """
             SELECT id, name, user_id, project_id, working_dir, display_order,
-                   mode, is_alive, created_at, last_accessed_at
+                   mode, is_alive, created_at, last_accessed_at, last_claude_session,
+                   claude_state
             FROM terminal_sessions
             WHERE last_accessed_at < %s
             ORDER BY last_accessed_at
@@ -293,6 +301,7 @@ def _row_to_dict(row: tuple) -> dict[str, Any]:
         "created_at": row[8],
         "last_accessed_at": row[9],
         "last_claude_session": row[10] if len(row) > 10 else None,
+        "claude_state": row[11] if len(row) > 11 else "not_started",
     }
 
 
@@ -312,7 +321,8 @@ def get_session_by_project(project_id: str, mode: str = "shell") -> dict[str, An
         cur.execute(
             """
             SELECT id, name, user_id, project_id, working_dir, display_order,
-                   mode, is_alive, created_at, last_accessed_at, last_claude_session
+                   mode, is_alive, created_at, last_accessed_at, last_claude_session,
+                   claude_state
             FROM terminal_sessions
             WHERE project_id = %s AND mode = %s AND is_alive = true
             ORDER BY created_at DESC
@@ -340,7 +350,8 @@ def get_project_sessions(project_id: str) -> dict[str, dict[str, Any] | None]:
         cur.execute(
             """
             SELECT id, name, user_id, project_id, working_dir, display_order,
-                   mode, is_alive, created_at, last_accessed_at, last_claude_session
+                   mode, is_alive, created_at, last_accessed_at, last_claude_session,
+                   claude_state
             FROM terminal_sessions
             WHERE project_id = %s AND is_alive = true
             ORDER BY mode
@@ -393,3 +404,75 @@ def update_claude_session(session_id: str | UUID, claude_session: str | None) ->
             (claude_session or "", str(session_id)),
         )
         conn.commit()
+
+
+def update_claude_state(
+    session_id: str | UUID,
+    state: str,
+    expected_state: str | None = None,
+) -> bool:
+    """Update the Claude state for a terminal session.
+
+    Uses conditional update when expected_state is provided to handle
+    race conditions (e.g., two simultaneous start requests).
+
+    Args:
+        session_id: Session UUID
+        state: New state value (not_started, starting, running, stopped, error)
+        expected_state: If provided, only update if current state matches this
+
+    Returns:
+        True if update was applied, False if conditional check failed
+    """
+    with get_connection() as conn, conn.cursor() as cur:
+        if expected_state is not None:
+            # Conditional update - prevents race conditions
+            cur.execute(
+                """
+                UPDATE terminal_sessions
+                SET claude_state = %s
+                WHERE id = %s AND claude_state = %s
+                RETURNING id
+                """,
+                (state, str(session_id), expected_state),
+            )
+        else:
+            # Unconditional update
+            cur.execute(
+                """
+                UPDATE terminal_sessions
+                SET claude_state = %s
+                WHERE id = %s
+                RETURNING id
+                """,
+                (state, str(session_id)),
+            )
+        result = cur.fetchone()
+        conn.commit()
+
+    return result is not None
+
+
+def get_claude_state(session_id: str | UUID) -> str | None:
+    """Get the current Claude state for a session.
+
+    Args:
+        session_id: Session UUID
+
+    Returns:
+        Current claude_state or None if session not found
+    """
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT claude_state
+            FROM terminal_sessions
+            WHERE id = %s
+            """,
+            (str(session_id),),
+        )
+        row = cur.fetchone()
+
+    if not row:
+        return None
+    return row[0] or "not_started"

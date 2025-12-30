@@ -41,6 +41,7 @@ class TerminalSessionResponse(BaseModel):
     is_alive: bool
     created_at: str | None
     last_accessed_at: str | None
+    claude_state: str | None = None  # not_started, starting, running, stopped, error
 
 
 class TerminalSessionListResponse(BaseModel):
@@ -86,6 +87,7 @@ def _session_to_response(session: dict[str, Any]) -> TerminalSessionResponse:
         last_accessed_at=(
             session["last_accessed_at"].isoformat() if session.get("last_accessed_at") else None
         ),
+        claude_state=session.get("claude_state", "not_started"),
     )
 
 

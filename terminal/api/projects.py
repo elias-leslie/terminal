@@ -32,7 +32,7 @@ class ProjectResponse(BaseModel):
     root_path: str | None
     # Terminal-specific settings
     terminal_enabled: bool = False
-    terminal_mode: Literal["shell", "claude"] = "shell"
+    mode: Literal["shell", "claude"] = "shell"  # Active mode (shell or claude)
     display_order: int = 0
 
 
@@ -86,7 +86,7 @@ async def list_projects() -> list[ProjectResponse]:
                 name=project.get("name", project_id),
                 root_path=project.get("root_path"),
                 terminal_enabled=settings["enabled"] if settings else False,
-                terminal_mode=settings["active_mode"] if settings else "shell",
+                mode=settings["active_mode"] if settings else "shell",
                 display_order=settings["display_order"] if settings else 0,
             )
         )
@@ -123,7 +123,7 @@ async def update_project_settings(
         name=project_info.get("name", project_id) if project_info else project_id,
         root_path=project_info.get("root_path") if project_info else None,
         terminal_enabled=settings["enabled"],
-        terminal_mode=settings["active_mode"],
+        mode=settings["active_mode"],
         display_order=settings["display_order"],
     )
 
@@ -191,5 +191,5 @@ async def set_project_mode(project_id: str, request: SetModeRequest) -> dict[str
 
     return {
         "project_id": project_id,
-        "active_mode": result["active_mode"],
+        "mode": result["active_mode"],
     }

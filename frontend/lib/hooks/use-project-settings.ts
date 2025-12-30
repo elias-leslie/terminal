@@ -12,7 +12,7 @@ export interface ProjectSetting {
   name: string;
   root_path: string | null;
   terminal_enabled: boolean;
-  terminal_mode: "shell" | "claude";  // Backend field name
+  mode: "shell" | "claude";  // Active mode (shell or claude)
   display_order: number;
 }
 
@@ -154,7 +154,7 @@ export function useProjectSettings() {
       // Optimistically update to the new mode
       queryClient.setQueryData<ProjectSetting[]>(["terminal-projects"], (old) =>
         old?.map((p) =>
-          p.id === projectId ? { ...p, terminal_mode: mode } : p
+          p.id === projectId ? { ...p, mode: mode } : p
         )
       );
       return { previousProjects };

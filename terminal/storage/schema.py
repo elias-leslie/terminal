@@ -4,6 +4,9 @@ This file documents the database schema and provides initialization functions.
 Tables are created in the shared 'summitflow' PostgreSQL database.
 """
 
+# Claude state enum values
+CLAUDE_STATES = ("not_started", "starting", "running", "stopped", "error")
+
 # SQL to create terminal_sessions table (existing)
 TERMINAL_SESSIONS_TABLE = """
 CREATE TABLE IF NOT EXISTS terminal_sessions (
@@ -17,7 +20,9 @@ CREATE TABLE IF NOT EXISTS terminal_sessions (
     is_alive BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
-    last_claude_session VARCHAR(255)
+    last_claude_session VARCHAR(255),
+    claude_state VARCHAR(16) DEFAULT 'not_started'
+        CHECK (claude_state IN ('not_started', 'starting', 'running', 'stopped', 'error'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_terminal_sessions_alive
