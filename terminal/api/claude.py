@@ -136,6 +136,7 @@ async def _background_verify_claude_start(session_id: str, tmux_session: str) ->
     """Background task to verify Claude started after 2 seconds.
 
     Updates the claude_state to 'running' or 'error' based on verification.
+    Also clears the pane history once Claude is running to remove the command line from scrollback.
     """
     await asyncio.sleep(2)
 
@@ -146,6 +147,13 @@ async def _background_verify_claude_start(session_id: str, tmux_session: str) ->
             session_id, "running", expected_state="starting"
         )
         if updated:
+            # Clear the pane history now that Claude is running
+            # This removes the "claude --dangerously-skip-permissions" command from scrollback
+            subprocess.run(
+                ["tmux", "clear-history", "-t", tmux_session],
+                capture_output=True,
+                text=True,
+            )
             logger.info(
                 "claude_verified_running",
                 session_id=session_id,
@@ -287,15 +295,6 @@ async def start_claude(
                 message=f"Claude state changed to {new_state}",
                 claude_state=new_state or "not_started",
             )
-
-    # Clear the terminal first so the command isn't visible in scrollback
-    subprocess.run(
-        ["tmux", "send-keys", "-t", tmux_session, "clear", "Enter"],
-        capture_output=True,
-        text=True,
-    )
-    # Small delay to let clear complete
-    time.sleep(0.1)
 
     # Send the claude command with skip-permissions flag
     result = subprocess.run(
