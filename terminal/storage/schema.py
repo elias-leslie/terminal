@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS terminal_sessions (
     project_id VARCHAR(64),
     working_dir TEXT,
     display_order INTEGER DEFAULT 0,
+    mode VARCHAR(16) DEFAULT 'shell' CHECK (mode IN ('shell', 'claude')),
     is_alive BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
@@ -23,6 +24,8 @@ CREATE INDEX IF NOT EXISTS idx_terminal_sessions_alive
     ON terminal_sessions(is_alive) WHERE is_alive = true;
 CREATE INDEX IF NOT EXISTS idx_terminal_sessions_project
     ON terminal_sessions(project_id) WHERE project_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_terminal_sessions_project_mode
+    ON terminal_sessions(project_id, mode) WHERE project_id IS NOT NULL;
 """
 
 # SQL to create terminal_project_settings table (new)
