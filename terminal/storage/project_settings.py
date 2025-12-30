@@ -80,34 +80,33 @@ def upsert_settings(
         Updated settings dict
     """
     # Build the update SET clause dynamically based on provided fields
-    update_parts = ["updated_at = NOW()"]
+    update_parts = [psycopg.sql.SQL("updated_at = NOW()")]
     if enabled is not None:
-        update_parts.append("enabled = EXCLUDED.enabled")
+        update_parts.append(psycopg.sql.SQL("enabled = EXCLUDED.enabled"))
     if active_mode is not None:
-        update_parts.append("active_mode = EXCLUDED.active_mode")
+        update_parts.append(psycopg.sql.SQL("active_mode = EXCLUDED.active_mode"))
     if display_order is not None:
-        update_parts.append("display_order = EXCLUDED.display_order")
+        update_parts.append(psycopg.sql.SQL("display_order = EXCLUDED.display_order"))
 
-    update_clause = ", ".join(update_parts)
+    update_clause = psycopg.sql.SQL(", ").join(update_parts)
 
     # Use defaults for None values in the INSERT
     insert_enabled = enabled if enabled is not None else False
     insert_mode = active_mode if active_mode is not None else "shell"
     insert_order = display_order if display_order is not None else 0
 
+    query = psycopg.sql.SQL("""
+        INSERT INTO terminal_project_settings
+            (project_id, enabled, active_mode, display_order)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (project_id) DO UPDATE SET
+            {}
+        RETURNING project_id, enabled, active_mode, display_order,
+                  created_at, updated_at
+    """).format(update_clause)
+
     with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            f"""
-            INSERT INTO terminal_project_settings
-                (project_id, enabled, active_mode, display_order)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (project_id) DO UPDATE SET
-                {update_clause}
-            RETURNING project_id, enabled, active_mode, display_order,
-                      created_at, updated_at
-            """,
-            (project_id, insert_enabled, insert_mode, insert_order),
-        )
+        cur.execute(query, (project_id, insert_enabled, insert_mode, insert_order))
         row = cur.fetchone()
         conn.commit()
 
@@ -129,20 +128,24 @@ def bulk_update_order(project_ids: list[str]) -> None:
 
     with get_connection() as conn, conn.cursor() as cur:
         # Use a single query with CASE for efficiency
-        cases = " ".join(
-            f"WHEN project_id = %s THEN {i}" for i in range(len(project_ids))
-        )
-        placeholders = ", ".join(["%s"] * len(project_ids))
+        # Build CASE clauses: WHEN project_id = %s THEN 0, WHEN project_id = %s THEN 1, ...
+        case_parts = [
+            psycopg.sql.SQL("WHEN project_id = %s THEN {}").format(psycopg.sql.Literal(i))
+            for i in range(len(project_ids))
+        ]
+        cases = psycopg.sql.SQL(" ").join(case_parts)
 
-        cur.execute(
-            f"""
+        # Build IN clause placeholders
+        placeholders = psycopg.sql.SQL(", ").join([psycopg.sql.SQL("%s")] * len(project_ids))
+
+        query = psycopg.sql.SQL("""
             UPDATE terminal_project_settings
-            SET display_order = CASE {cases} END,
+            SET display_order = CASE {} END,
                 updated_at = NOW()
-            WHERE project_id IN ({placeholders})
-            """,
-            (*project_ids, *project_ids),
-        )
+            WHERE project_id IN ({})
+        """).format(cases, placeholders)
+
+        cur.execute(query, (*project_ids, *project_ids))
         conn.commit()
 
 
