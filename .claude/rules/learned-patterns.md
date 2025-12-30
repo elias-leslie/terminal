@@ -63,3 +63,11 @@ Use `psycopg.sql` for constructing dynamic SQL queries. Avoid Python f-strings o
 *Rationale: Identified as a core focus of security hardening during recent refactoring tasks.*
 
 <!-- Pattern ID: 557c9bc8-6482-43b7-89ce-edfe2081c2e5 | Applied: 2025-12-30T09:59:25.616656 -->
+
+## Terminal Architecture Documentation Reference
+
+Refer to `/home/kasadis/terminal/ARCHITECTURE_REDESIGN.md` for core architectural details of the terminal system. This file contains the primary design principles for scrolling and session management, distinct from library licensing files.
+
+*Rationale: Found to be the key source of truth for the terminal's redesigned architecture.*
+
+<!-- Pattern ID: dae3940d-bcb6-4e98-85df-0b8da6b1cca6 | Applied: 2025-12-30T13:09:10.409901 -->
