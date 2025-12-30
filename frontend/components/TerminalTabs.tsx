@@ -13,6 +13,8 @@ import { useProjectTerminals, ProjectTerminal } from "@/lib/hooks/use-project-te
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { SettingsDropdown, KeyboardSizePreset } from "./SettingsDropdown";
 import { ClaudeIndicator } from "./ClaudeIndicator";
+import { TabModeDropdown } from "./TabModeDropdown";
+import { TabActionMenu } from "./TabActionMenu";
 
 // Maximum number of split panes
 const MAX_SPLIT_PANES = 4;
@@ -53,6 +55,9 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     projectTerminals,
     adHocSessions,
     isLoading: projectsLoading,
+    switchMode,
+    resetProject,
+    disableProject,
   } = useProjectTerminals();
 
   // Standalone app uses local state for layout (no embedded panel)
@@ -159,13 +164,19 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     await create(name, projectPath);
   }, [sessions, create, projectPath]);
 
+  // Get current session ID for a project based on activeMode
+  const getProjectSessionId = useCallback((pt: ProjectTerminal): string | null => {
+    return pt.activeMode === "claude" ? pt.claudeSessionId : pt.shellSessionId;
+  }, []);
+
   // Handle clicking a project tab - create session if needed
   const handleProjectTabClick = useCallback(async (pt: ProjectTerminal) => {
-    if (pt.sessionId) {
+    const currentSessionId = getProjectSessionId(pt);
+    if (currentSessionId) {
       // Session exists, just switch to it
-      setActiveId(pt.sessionId);
+      setActiveId(currentSessionId);
     } else {
-      // Create session for this project via direct API call (includes project_id)
+      // Create session for this project via direct API call (includes project_id and mode)
       try {
         const res = await fetch("/api/terminal/sessions", {
           method: "POST",
@@ -174,6 +185,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
             name: `Project: ${pt.projectId}`,
             project_id: pt.projectId,
             working_dir: pt.rootPath,
+            mode: pt.activeMode,
           }),
         });
         if (!res.ok) throw new Error("Failed to create session");
@@ -181,7 +193,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         setActiveId(newSession.id);
 
         // If mode is claude, start Claude after a brief delay
-        if (pt.mode === "claude") {
+        if (pt.activeMode === "claude") {
           setTimeout(async () => {
             try {
               await fetch(`/api/terminal/sessions/${newSession.id}/start-claude`, {
@@ -196,7 +208,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         console.error("Failed to create project session:", e);
       }
     }
-  }, [setActiveId]);
+  }, [setActiveId, getProjectSessionId]);
 
   // Close terminal session
   const handleCloseTab = useCallback(
@@ -271,19 +283,19 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
       >
         {/* Project tabs first */}
         {projectTerminals.map((pt) => {
-          const sessionStatus = pt.sessionId ? terminalStatuses.get(pt.sessionId) : undefined;
-          const isActive = pt.sessionId === activeId;
+          const currentSessionId = getProjectSessionId(pt);
+          const sessionStatus = currentSessionId ? terminalStatuses.get(currentSessionId) : undefined;
+          const isActive = currentSessionId === activeId;
 
           return (
-            <button
+            <div
               key={pt.projectId}
-              onClick={() => handleProjectTabClick(pt)}
               className={clsx(
                 "flex items-center rounded-md transition-all duration-200",
                 "group min-w-0 flex-shrink-0",
                 isMobile
-                  ? "gap-1.5 px-2 py-1 text-xs min-h-[36px]"
-                  : "gap-2 px-3 py-1.5 text-sm",
+                  ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
+                  : "gap-1.5 px-2 py-1.5 text-sm",
                 isActive
                   ? "text-white"
                   : "hover:text-white"
@@ -310,26 +322,29 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               }}
             >
               {/* Claude indicator for project tabs */}
-              <ClaudeIndicator state={pt.mode === "claude" ? "idle" : "none"} />
-              <span className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[120px]")}>
+              <ClaudeIndicator state={pt.activeMode === "claude" ? "idle" : "none"} />
+              {/* Clickable name area */}
+              <button
+                onClick={() => handleProjectTabClick(pt)}
+                className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[100px]")}
+                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }}
+              >
                 {pt.projectName}
-              </span>
-              {pt.sessionId && (
-                <button
-                  onClick={(e) => handleCloseTab(pt.sessionId!, e)}
-                  className={clsx(
-                    "p-0.5 rounded transition-all duration-150",
-                    isActive ? "opacity-60 hover:opacity-100" : "opacity-0 group-hover:opacity-60 hover:!opacity-100"
-                  )}
-                  style={{ color: "var(--term-text-muted)" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                  title="Close terminal"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </button>
+              </button>
+              {/* Mode dropdown */}
+              <TabModeDropdown
+                value={pt.activeMode}
+                onChange={(mode) => switchMode(pt.projectId, mode)}
+                isMobile={isMobile}
+              />
+              {/* Action menu */}
+              <TabActionMenu
+                tabType="project"
+                onReset={() => resetProject(pt.projectId)}
+                onClose={() => disableProject(pt.projectId)}
+                isMobile={isMobile}
+              />
+            </div>
           );
         })}
 
