@@ -39,3 +39,27 @@ Explicitly call `wheelCleanup()` and `touchCleanup()` on the terminal instance b
 *Rationale: A specific refactor was required to fix event listener leaks, establishing a manual cleanup pattern for the custom wheel interception logic.*
 
 <!-- Pattern ID: 3e46d647-9084-4bf4-abae-26ca4e30b4ec | Applied: 2025-12-30T03:35:29.645035 -->
+
+## Terminal Service Lifecycle Management
+
+Restart terminal services via `sudo systemctl restart summitflow-terminal` (backend) and `sudo systemctl restart summitflow-terminal-frontend` (frontend). Verify they are 'active (running)' using `systemctl status` after any configuration or binary changes.
+
+*Rationale: Standardizes the deployment and verification process for local service updates.*
+
+<!-- Pattern ID: 666cddbc-e474-471d-b613-3f1bdea7270b | Applied: 2025-12-30T09:59:25.546392 -->
+
+## Standardized Terminal Dimensions
+
+Import terminal dimensions from the configuration module: `from terminal.config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS`. Avoid hardcoding row and column counts in components or storage modules.
+
+*Rationale: Ensures UI and backend consistency for terminal viewport calculations.*
+
+<!-- Pattern ID: d1f6810a-8fda-4018-97f2-7aab5be78a9b | Applied: 2025-12-30T09:59:25.581534 -->
+
+## Secure SQL Parameterization
+
+Use `psycopg.sql` for constructing dynamic SQL queries. Avoid Python f-strings or manual string formatting for SQL statements to prevent security vulnerabilities and ensure compatibility with parameterized execution.
+
+*Rationale: Identified as a core focus of security hardening during recent refactoring tasks.*
+
+<!-- Pattern ID: 557c9bc8-6482-43b7-89ce-edfe2081c2e5 | Applied: 2025-12-30T09:59:25.616656 -->
