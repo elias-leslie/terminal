@@ -35,9 +35,6 @@ class ClaudeStateResponse(BaseModel):
 
     session_id: str
     claude_state: ClaudeState
-    # Legacy fields for backward compatibility
-    state: Literal["none", "active", "idle"] | None = None
-    claude_session_name: str | None = None
 
 
 class StartClaudeResponse(BaseModel):
@@ -52,54 +49,6 @@ class StartClaudeResponse(BaseModel):
 # ============================================================================
 # Helpers
 # ============================================================================
-
-
-def _get_current_tmux_client_session(tmux_session_name: str) -> str | None:
-    """Get the session that the client is currently attached to.
-
-    This checks if any client is attached and what session they're viewing.
-
-    Returns:
-        Current session name or None if no client attached
-    """
-    result = subprocess.run(
-        ["tmux", "list-clients", "-t", tmux_session_name, "-F", "#{client_session}"],
-        capture_output=True,
-        text=True,
-    )
-
-    if result.returncode != 0:
-        return None
-
-    sessions = result.stdout.strip().split("\n")
-    return sessions[0] if sessions and sessions[0] else None
-
-
-def _determine_legacy_claude_state(
-    session_id: str, last_claude_session: str | None
-) -> tuple[Literal["none", "active", "idle"], str | None]:
-    """Determine legacy Claude state for backward compatibility.
-
-    Returns:
-        Tuple of (state, claude_session_name)
-    """
-    if not last_claude_session:
-        return "none", None
-
-    # Check if the claude session still exists
-    if not _tmux_session_exists_by_name(last_claude_session):
-        # Claude session was destroyed - clear it
-        terminal_store.update_claude_session(session_id, None)
-        return "none", None
-
-    # Claude session exists - check if client is in it
-    base_session_name = _get_tmux_session_name(session_id)
-    current_session = _get_current_tmux_client_session(base_session_name)
-
-    if current_session == last_claude_session:
-        return "active", last_claude_session
-    else:
-        return "idle", last_claude_session
 
 
 def _is_claude_running_in_session(tmux_session: str) -> bool:
@@ -185,26 +134,16 @@ async def get_claude_state_endpoint(session_id: str) -> ClaudeStateResponse:
     - running: Claude is running and ready
     - stopped: Claude was running but exited
     - error: Claude failed to start
-
-    Also includes legacy state fields for backward compatibility.
     """
     session = terminal_store.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
-    # Get state machine state
     claude_state: ClaudeState = session.get("claude_state", "not_started")
-
-    # Get legacy state for backward compatibility
-    legacy_state, claude_session = _determine_legacy_claude_state(
-        session_id, session.get("last_claude_session")
-    )
 
     return ClaudeStateResponse(
         session_id=session_id,
         claude_state=claude_state,
-        state=legacy_state,
-        claude_session_name=claude_session,
     )
 
 
