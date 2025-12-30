@@ -158,6 +158,9 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   const terminalRefs = useRef<Map<string, TerminalHandle>>(new Map());
   const [terminalStatuses, setTerminalStatuses] = useState<Map<string, ConnectionStatus>>(new Map());
 
+  // Tab refs for scroll into view
+  const projectTabRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
   // Get active terminal status for showing reconnect button
   const activeStatus = activeId ? terminalStatuses.get(activeId) : undefined;
   const showReconnect = activeStatus && ["disconnected", "error", "timeout"].includes(activeStatus);
@@ -357,6 +360,13 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           return (
             <div
               key={pt.projectId}
+              ref={(el) => {
+                if (el) {
+                  projectTabRefs.current.set(pt.projectId, el);
+                } else {
+                  projectTabRefs.current.delete(pt.projectId);
+                }
+              }}
               className={clsx(
                 "flex items-center rounded-md transition-all duration-200",
                 "group min-w-0 flex-shrink-0",
@@ -401,7 +411,17 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               {/* Mode dropdown */}
               <TabModeDropdown
                 value={pt.activeMode}
-                onChange={(mode) => switchMode(pt.projectId, mode)}
+                onChange={(mode) => {
+                  switchMode(pt.projectId, mode);
+                  // Scroll tab into view after mode switch
+                  setTimeout(() => {
+                    projectTabRefs.current.get(pt.projectId)?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "nearest",
+                      inline: "nearest",
+                    });
+                  }, 100);
+                }}
                 isMobile={isMobile}
               />
               {/* Action menu */}
