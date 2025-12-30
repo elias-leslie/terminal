@@ -320,7 +320,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
             }
           }
-        }, 500);
+        }, CLAUDE_POLL_INTERVAL_MS);
       }
 
       // Return true if started or already running
@@ -358,8 +358,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
         // If mode is claude, start Claude after a brief delay
         if (pt.activeMode === "claude") {
-          // Small delay for tmux session initialization
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise(resolve => setTimeout(resolve, TMUX_INIT_DELAY_MS));
           await startClaudeInSession(newSession.id);
         }
       } catch (e) {
@@ -420,7 +419,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     if (newMode === "claude" && targetSessionId && needsClaudeStart) {
       // Delay for new sessions to let tmux initialize
       if (isNewSession) {
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, TMUX_INIT_DELAY_MS));
       }
       await startClaudeInSession(targetSessionId);
     }

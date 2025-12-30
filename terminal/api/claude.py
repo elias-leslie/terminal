@@ -24,6 +24,9 @@ logger = get_logger(__name__)
 # Type alias for Claude state
 ClaudeState = Literal["not_started", "starting", "running", "stopped", "error"]
 
+# Delay before verifying Claude started (Claude needs time to initialize)
+CLAUDE_STARTUP_VERIFY_DELAY_SECONDS = 3
+
 
 # ============================================================================
 # Request/Response Models
@@ -86,11 +89,11 @@ def _verify_claude_started(tmux_session: str) -> bool:
 
 
 async def _background_verify_claude_start(session_id: str, tmux_session: str) -> None:
-    """Background task to verify Claude started after 3 seconds.
+    """Background task to verify Claude started.
 
     Updates the claude_state to 'running' or 'error' based on verification.
     """
-    await asyncio.sleep(3)  # Give Claude enough time to start
+    await asyncio.sleep(CLAUDE_STARTUP_VERIFY_DELAY_SECONDS)
 
     # Verify Claude started
     if _verify_claude_started(tmux_session):
