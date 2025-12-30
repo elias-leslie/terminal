@@ -15,67 +15,28 @@ import psycopg.sql
 from .connection import get_connection
 
 
-def list_sessions(
-    user_id: str | None = None,
-    include_dead: bool = False,
-) -> list[dict[str, Any]]:
+def list_sessions(include_dead: bool = False) -> list[dict[str, Any]]:
     """List terminal sessions.
 
     Args:
-        user_id: Optional user ID filter (for future auth support)
         include_dead: Include sessions marked as dead (default False)
 
     Returns:
         List of session dicts ordered by display_order
     """
+    base_query = """
+        SELECT id, name, user_id, project_id, working_dir, display_order,
+               mode, is_alive, created_at, last_accessed_at, last_claude_session,
+               claude_state
+        FROM terminal_sessions
+    """
+    if include_dead:
+        query = base_query + " ORDER BY display_order, created_at"
+    else:
+        query = base_query + " WHERE is_alive = true ORDER BY display_order, created_at"
+
     with get_connection() as conn, conn.cursor() as cur:
-        if user_id:
-            if include_dead:
-                cur.execute(
-                    """
-                    SELECT id, name, user_id, project_id, working_dir, display_order,
-                           mode, is_alive, created_at, last_accessed_at, last_claude_session,
-                           claude_state
-                    FROM terminal_sessions
-                    WHERE user_id = %s
-                    ORDER BY display_order, created_at
-                    """,
-                    (user_id,),
-                )
-            else:
-                cur.execute(
-                    """
-                    SELECT id, name, user_id, project_id, working_dir, display_order,
-                           mode, is_alive, created_at, last_accessed_at, last_claude_session,
-                           claude_state
-                    FROM terminal_sessions
-                    WHERE user_id = %s AND is_alive = true
-                    ORDER BY display_order, created_at
-                    """,
-                    (user_id,),
-                )
-        else:
-            if include_dead:
-                cur.execute(
-                    """
-                    SELECT id, name, user_id, project_id, working_dir, display_order,
-                           mode, is_alive, created_at, last_accessed_at, last_claude_session,
-                           claude_state
-                    FROM terminal_sessions
-                    ORDER BY display_order, created_at
-                    """
-                )
-            else:
-                cur.execute(
-                    """
-                    SELECT id, name, user_id, project_id, working_dir, display_order,
-                           mode, is_alive, created_at, last_accessed_at, last_claude_session,
-                           claude_state
-                    FROM terminal_sessions
-                    WHERE is_alive = true
-                    ORDER BY display_order, created_at
-                    """
-                )
+        cur.execute(query)
         rows = cur.fetchall()
 
     return [_row_to_dict(row) for row in rows]
