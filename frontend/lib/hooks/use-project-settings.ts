@@ -12,9 +12,12 @@ export interface ProjectSetting {
   name: string;
   root_path: string | null;
   terminal_enabled: boolean;
-  active_mode: "shell" | "claude";
+  terminal_mode: "shell" | "claude";  // Backend field name
   display_order: number;
 }
+
+// Alias for backward compatibility
+export type ProjectSettingWithMode = ProjectSetting & { active_mode: "shell" | "claude" };
 
 interface ProjectSettingsUpdate {
   enabled?: boolean;
@@ -143,7 +146,27 @@ export function useProjectSettings() {
   const switchModeMutation = useMutation({
     mutationFn: ({ projectId, mode }: { projectId: string; mode: "shell" | "claude" }) =>
       switchProjectMode(projectId, mode),
-    onSuccess: () => {
+    onMutate: async ({ projectId, mode }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["terminal-projects"] });
+      // Snapshot the previous value
+      const previousProjects = queryClient.getQueryData<ProjectSetting[]>(["terminal-projects"]);
+      // Optimistically update to the new mode
+      queryClient.setQueryData<ProjectSetting[]>(["terminal-projects"], (old) =>
+        old?.map((p) =>
+          p.id === projectId ? { ...p, terminal_mode: mode } : p
+        )
+      );
+      return { previousProjects };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousProjects) {
+        queryClient.setQueryData(["terminal-projects"], context.previousProjects);
+      }
+    },
+    onSettled: () => {
+      // Always refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["terminal-projects"] });
     },
   });

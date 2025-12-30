@@ -385,10 +385,11 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               <span className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[100px]")}>
                 {pt.projectName}
               </span>
-              {/* Mode dropdown */}
-              <TabModeDropdown
-                value={pt.activeMode}
-                onChange={async (mode) => {
+              {/* Mode dropdown - stop propagation to prevent tab click */}
+              <div onClick={(e) => e.stopPropagation()}>
+                <TabModeDropdown
+                  value={pt.activeMode}
+                  onChange={async (mode) => {
                   // Update the mode in settings
                   await switchMode(pt.projectId, mode);
 
@@ -441,15 +442,18 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                     });
                   }, 100);
                 }}
-                isMobile={isMobile}
-              />
-              {/* Action menu */}
-              <TabActionMenu
-                tabType="project"
-                onReset={() => resetProject(pt.projectId)}
-                onClose={() => disableProject(pt.projectId)}
-                isMobile={isMobile}
-              />
+                  isMobile={isMobile}
+                />
+              </div>
+              {/* Action menu - stop propagation to prevent tab click */}
+              <div onClick={(e) => e.stopPropagation()}>
+                <TabActionMenu
+                  tabType="project"
+                  onReset={() => resetProject(pt.projectId)}
+                  onClose={() => disableProject(pt.projectId)}
+                  isMobile={isMobile}
+                />
+              </div>
             </div>
           );
         })}
@@ -470,36 +474,17 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           return (
             <div
               key={session.id}
+              onClick={() => setActiveId(session.id)}
               className={clsx(
-                "flex items-center rounded-md transition-all duration-200",
+                "flex items-center rounded-md transition-all duration-200 cursor-pointer",
                 "group min-w-0 flex-shrink-0",
                 isMobile
                   ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
                   : "gap-1.5 px-2 py-1.5 text-sm",
                 isActive
-                  ? "text-white"
-                  : "hover:text-white"
+                  ? "tab-active"
+                  : "tab-inactive"
               )}
-              style={{
-                backgroundColor: isActive ? "var(--term-bg-elevated)" : "transparent",
-                color: isActive ? "var(--term-text-primary)" : "var(--term-text-muted)",
-                boxShadow: isActive
-                  ? "0 0 12px var(--term-accent-glow), inset 0 1px 0 rgba(255,255,255,0.05)"
-                  : "none",
-                border: isActive ? "1px solid var(--term-border-active)" : "1px solid transparent",
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
-                  e.currentTarget.style.boxShadow = "0 0 8px rgba(0, 255, 159, 0.08)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.boxShadow = "none";
-                }
-              }}
             >
               {/* Status dot for ad-hoc tabs */}
               <span
@@ -517,12 +502,8 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                 }}
                 title={sessionStatus || "unknown"}
               />
-              {/* Clickable area for tab selection */}
-              <button
-                onClick={() => setActiveId(session.id)}
-                className="flex items-center"
-                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }}
-              >
+              {/* Tab content */}
+              <div className="flex items-center">
                 {editingId === session.id ? (
                   <input
                     ref={editInputRef}
@@ -551,14 +532,16 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                     {!session.is_alive && " (dead)"}
                   </span>
                 )}
-              </button>
-              {/* Action menu */}
-              <TabActionMenu
-                tabType="adhoc"
-                onReset={() => reset(session.id)}
-                onClose={() => remove(session.id)}
-                isMobile={isMobile}
-              />
+              </div>
+              {/* Action menu - stop propagation to prevent tab click */}
+              <div onClick={(e) => e.stopPropagation()}>
+                <TabActionMenu
+                  tabType="adhoc"
+                  onReset={() => reset(session.id)}
+                  onClose={() => remove(session.id)}
+                  isMobile={isMobile}
+                />
+              </div>
             </div>
           );
         })}

@@ -71,3 +71,24 @@ body {
 .xterm-viewport {
   overflow-y: auto !important;
 }
+
+/* Terminal tab styling */
+.tab-active {
+  background-color: var(--term-bg-elevated);
+  color: var(--term-text-primary);
+  border: 1px solid var(--term-border-active);
+  box-shadow: 0 0 12px var(--term-accent-glow), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.tab-inactive {
+  background-color: transparent;
+  color: var(--term-text-muted);
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+
+.tab-inactive:hover {
+  background-color: var(--term-bg-elevated);
+  color: var(--term-text-primary);
+  box-shadow: 0 0 8px rgba(0, 255, 159, 0.08);
+}
