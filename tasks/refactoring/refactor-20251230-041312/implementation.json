@@ -73,7 +73,7 @@
           ],
           "files_affected": ["terminal/api/claude.py"],
           "verification": "curl -s http://localhost:8002/api/terminal/sessions/test/claude-state | jq .",
-          "passes": false
+          "passes": true
         },
         {
           "id": "1.5",

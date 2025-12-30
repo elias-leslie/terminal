@@ -60,9 +60,16 @@ def _is_claude_running_in_session(tmux_session: str) -> bool:
         ["tmux", "list-panes", "-t", tmux_session, "-F", "#{pane_current_command}"],
         capture_output=True,
         text=True,
+        timeout=10,
     )
 
     if result.returncode != 0:
+        logger.warning(
+            "tmux_list_panes_failed",
+            tmux_session=tmux_session,
+            stderr=result.stderr,
+            returncode=result.returncode,
+        )
         return False
 
     current_command = result.stdout.strip()
