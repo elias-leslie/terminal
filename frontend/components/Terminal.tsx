@@ -226,13 +226,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       //
       // We handle wheel events to enter tmux copy-mode and scroll within it.
       // User exits copy-mode manually by pressing 'q' or typing (matches mobile behavior).
-      let inCopyMode = false;
-
-      // Helper: Enter tmux copy-mode if not already in it
+      // Helper: Enter tmux copy-mode
+      // Always send the command - tmux handles it gracefully if already in copy-mode.
+      // We can't track copy-mode state in JS because user can exit with 'q' directly in tmux.
       const enterCopyMode = () => {
-        if (!inCopyMode && wsRef.current?.readyState === WebSocket.OPEN) {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send('\x02['); // Ctrl+B [
-          inCopyMode = true;
         }
       };
 
