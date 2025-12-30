@@ -258,7 +258,7 @@
           ],
           "files_affected": ["frontend/components/ClaudeLoadingOverlay.tsx", "frontend/components/TerminalTabs.tsx"],
           "verification": "npm run build --prefix frontend",
-          "passes": false
+          "passes": true
         },
         {
           "id": "3.6",
