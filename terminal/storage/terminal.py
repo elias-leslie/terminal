@@ -20,7 +20,7 @@ SessionId = str | UUID
 
 def _to_str(session_id: SessionId) -> str:
     """Normalize session ID to string for SQL queries."""
-    return _to_str(session_id)
+    return str(session_id)
 
 
 # Standard SELECT field list for terminal_sessions queries
