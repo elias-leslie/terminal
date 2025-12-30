@@ -65,6 +65,9 @@ def create_session(
 ) -> str:
     """Create a new terminal session atomically.
 
+    If a dead session exists for the same project_id+mode, resurrects it
+    instead of creating a new one (to avoid unique constraint violations).
+
     Creates DB record first, then tmux session. If tmux creation fails,
     rolls back the DB record.
 
@@ -81,6 +84,40 @@ def create_session(
     Raises:
         TmuxError: If tmux session creation fails (after rollback)
     """
+    # Step 0: Check for dead session to resurrect (unique constraint workaround)
+    if project_id:
+        dead_session = terminal_store.get_dead_session_by_project(project_id, mode)
+        if dead_session:
+            session_id = dead_session["id"]
+            logger.info(
+                "resurrecting_dead_session",
+                session_id=session_id,
+                project_id=project_id,
+                mode=mode,
+            )
+            # Update the session record
+            terminal_store.update_session(
+                session_id,
+                name=name,
+                working_dir=working_dir,
+                is_alive=True,
+            )
+            # Create new tmux session
+            try:
+                create_tmux_session(session_id, working_dir)
+            except TmuxError as e:
+                # Mark dead again on failure
+                terminal_store.mark_dead(session_id)
+                raise
+            logger.info(
+                "session_resurrected",
+                session_id=session_id,
+                name=name,
+                project_id=project_id,
+                mode=mode,
+            )
+            return session_id
+
     # Step 1: Create DB record
     session_id = terminal_store.create_session(
         name=name,

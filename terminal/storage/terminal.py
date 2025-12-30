@@ -303,6 +303,37 @@ def get_session_by_project(project_id: str, mode: str = "shell") -> dict[str, An
     return _row_to_dict(row)
 
 
+def get_dead_session_by_project(project_id: str, mode: str = "shell") -> dict[str, Any] | None:
+    """Get a dead session for a project and mode (for resurrection).
+
+    The unique constraint covers all sessions including dead ones.
+    This function finds dead sessions that can be resurrected.
+
+    Args:
+        project_id: Project identifier
+        mode: Session mode - 'shell' or 'claude' (default: 'shell')
+
+    Returns:
+        Dead session dict or None if not found
+    """
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT {TERMINAL_SESSION_FIELDS}
+            FROM terminal_sessions
+            WHERE project_id = %s AND mode = %s AND is_alive = false
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (project_id, mode),
+        )
+        row = cur.fetchone()
+
+    if not row:
+        return None
+    return _row_to_dict(row)
+
+
 def get_project_sessions(project_id: str) -> dict[str, dict[str, Any] | None]:
     """Get both shell and claude sessions for a project.
 
