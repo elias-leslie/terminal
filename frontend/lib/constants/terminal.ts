@@ -10,8 +10,8 @@ export const SCROLL_THRESHOLD = 50;
 /** Terminal scrollback buffer size */
 export const SCROLLBACK = 5000;
 
-/** Copy mode exit timeout in milliseconds */
-export const COPY_MODE_TIMEOUT = 2000;
+/** Copy mode exit timeout in milliseconds (0 = never auto-exit) */
+export const COPY_MODE_TIMEOUT = 0;
 
 /** Mobile device width threshold in pixels */
 export const MOBILE_WIDTH_THRESHOLD = 768;
@@ -29,8 +29,8 @@ export const RESIZE_DEBOUNCE_MS = 50;
 export const PHOSPHOR_THEME = {
   background: "#0a0e14",
   foreground: "#e6edf3",
-  cursor: "#00ff9f",
-  cursorAccent: "#0a0e14",
+  cursor: "#ffffff",
+  cursorAccent: "#000000",
   selectionBackground: "rgba(0, 255, 159, 0.3)",
   selectionForeground: "#e6edf3",
   black: "#0f1419",

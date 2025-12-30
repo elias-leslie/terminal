@@ -72,6 +72,15 @@ body {
   overflow-y: auto !important;
 }
 
+/* Make cursor highly visible with glow effect */
+.xterm-cursor-block {
+  box-shadow: 0 0 8px #ffffff, 0 0 16px rgba(255, 255, 255, 0.5);
+}
+
+.xterm-cursor-outline {
+  box-shadow: 0 0 6px #ffffff, 0 0 12px rgba(255, 255, 255, 0.4);
+}
+
 /* Terminal tab styling */
 .tab-active {
   background-color: var(--term-bg-elevated);

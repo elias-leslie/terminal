@@ -147,6 +147,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Create terminal with Phosphor theme
       const term = new Terminal({
         cursorBlink: true,
+        cursorStyle: "block",
+        cursorInactiveStyle: "outline",
         fontSize: fontSize,
         fontFamily: fontFamily,
         scrollback: SCROLLBACK,
@@ -243,9 +245,11 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         wsRef.current.send(direction === 'up' ? '\x15' : '\x04');
       };
 
-      // Helper: Reset copy-mode exit timeout
+      // Helper: Reset copy-mode exit timeout (skipped if timeout is 0)
       const resetCopyModeTimeout = () => {
         if (copyModeTimeout) clearTimeout(copyModeTimeout);
+        // If timeout is 0, never auto-exit - user must press 'q' or scroll to bottom
+        if (COPY_MODE_TIMEOUT === 0) return;
         copyModeTimeout = setTimeout(() => {
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send('q'); // 'q' exits copy-mode
@@ -396,17 +400,10 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
 
         ws.onmessage = (event) => {
           if (!mounted) return;
-
-          // Preserve scroll position if user is viewing history
-          const buffer = term.buffer.active;
-          const distanceFromBottom = buffer.baseY - buffer.viewportY;
-
+          // Note: Scroll preservation is handled by tmux copy-mode, not xterm.js.
+          // When user scrolls (wheel), we enter tmux copy-mode which freezes the view.
+          // User presses 'q' to exit copy-mode and return to live output.
           term.write(event.data);
-
-          // Restore scroll position if user wasn't at bottom
-          if (distanceFromBottom > 0) {
-            term.scrollLines(-distanceFromBottom);
-          }
         };
 
         ws.onclose = (event) => {
