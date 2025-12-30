@@ -384,37 +384,6 @@ def reconcile_on_startup() -> dict[str, int]:
     return stats
 
 
-def cleanup_abandoned(days: int = 30) -> int:
-    """Clean up abandoned sessions.
-
-    Deletes sessions not accessed in N days (both DB and tmux).
-
-    Args:
-        days: Days since last access threshold
-
-    Returns:
-        Number of sessions cleaned up
-    """
-    logger.info("cleanup_starting", older_than_days=days)
-
-    orphaned = terminal_store.list_orphaned(older_than_days=days)
-
-    count = 0
-    for session in orphaned:
-        session_id = session["id"]
-        delete_session(session_id)
-        count += 1
-        logger.info(
-            "orphaned_session_cleaned",
-            session_id=session_id,
-            last_accessed=session.get("last_accessed_at"),
-        )
-
-    logger.info("cleanup_complete", sessions_cleaned=count)
-
-    return count
-
-
 def get_or_create_project_session(
     project_id: str, root_path: str | None = None, mode: str = "shell"
 ) -> str:

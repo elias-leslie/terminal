@@ -9,6 +9,11 @@ import {
   SCROLL_THRESHOLD,
   SCROLLBACK,
   COPY_MODE_TIMEOUT,
+  MOBILE_WIDTH_THRESHOLD,
+  FIT_DELAY_MS,
+  WS_CLOSE_CODE_SESSION_DEAD,
+  RESIZE_DEBOUNCE_MS,
+  PHOSPHOR_THEME,
 } from "../lib/constants/terminal";
 
 // Dynamic imports for xterm (client-side only)
@@ -41,7 +46,7 @@ function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false;
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
-  ) || window.innerWidth < 768;
+  ) || window.innerWidth < MOBILE_WIDTH_THRESHOLD;
 }
 
 export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(function TerminalComponent({
@@ -149,31 +154,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         rightClickSelectsWord: true,
         macOptionClickForcesSelection: true,
         altClickMovesCursor: false,
-        theme: {
-          // Phosphor Terminal Theme
-          background: "#0a0e14",
-          foreground: "#e6edf3",
-          cursor: "#00ff9f",
-          cursorAccent: "#0a0e14",
-          selectionBackground: "rgba(0, 255, 159, 0.3)",
-          selectionForeground: "#e6edf3",
-          black: "#0f1419",
-          red: "#f85149",
-          green: "#00ff9f",
-          yellow: "#d29922",
-          blue: "#58a6ff",
-          magenta: "#bc8cff",
-          cyan: "#39c5cf",
-          white: "#e6edf3",
-          brightBlack: "#7d8590",
-          brightRed: "#ffa198",
-          brightGreen: "#56d364",
-          brightYellow: "#e3b341",
-          brightBlue: "#79c0ff",
-          brightMagenta: "#d2a8ff",
-          brightCyan: "#56d4dd",
-          brightWhite: "#ffffff",
-        },
+        theme: PHOSPHOR_THEME,
       });
 
       // Create and load addons
@@ -355,7 +336,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         if (mounted && fitAddonRef.current) {
           fitAddonRef.current.fit();
         }
-      }, 100);
+      }, FIT_DELAY_MS);
 
       // Connect to WebSocket with timeout and auto-retry
       let hasRetried = false;
@@ -415,7 +396,17 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
 
         ws.onmessage = (event) => {
           if (!mounted) return;
+
+          // Preserve scroll position if user is viewing history
+          const buffer = term.buffer.active;
+          const distanceFromBottom = buffer.baseY - buffer.viewportY;
+
           term.write(event.data);
+
+          // Restore scroll position if user wasn't at bottom
+          if (distanceFromBottom > 0) {
+            term.scrollLines(-distanceFromBottom);
+          }
         };
 
         ws.onclose = (event) => {

@@ -332,26 +332,6 @@ def get_project_sessions(project_id: str) -> dict[str, dict[str, Any] | None]:
     return result
 
 
-def delete_project_sessions(project_id: str) -> int:
-    """Delete all sessions for a project (hard delete).
-
-    Args:
-        project_id: Project identifier
-
-    Returns:
-        Number of sessions deleted
-    """
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            "DELETE FROM terminal_sessions WHERE project_id = %s",
-            (project_id,),
-        )
-        count = cur.rowcount
-        conn.commit()
-
-    return count
-
-
 def update_claude_session(session_id: SessionId, claude_session: str | None) -> None:
     """Update the last active claude session for a terminal.
 

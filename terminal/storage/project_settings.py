@@ -34,32 +34,6 @@ def get_all_settings() -> dict[str, dict[str, Any]]:
     return {row[0]: _row_to_dict(row) for row in rows}
 
 
-def get_settings(project_id: str) -> dict[str, Any] | None:
-    """Get settings for a specific project.
-
-    Args:
-        project_id: Project identifier
-
-    Returns:
-        Settings dict or None if not found
-    """
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT project_id, enabled, active_mode, display_order,
-                   created_at, updated_at
-            FROM terminal_project_settings
-            WHERE project_id = %s
-            """,
-            (project_id,),
-        )
-        row = cur.fetchone()
-
-    if not row:
-        return None
-    return _row_to_dict(row)
-
-
 def upsert_settings(
     project_id: str,
     enabled: bool | None = None,
