@@ -7,8 +7,8 @@ export const RETRY_BACKOFF = 2000;
 /** Scroll threshold for scroll handling */
 export const SCROLL_THRESHOLD = 50;
 
-/** Terminal scrollback buffer size */
-export const SCROLLBACK = 5000;
+/** Terminal scrollback buffer size (minimal - tmux handles scrollback) */
+export const SCROLLBACK = 100;
 
 /** Copy mode exit timeout in milliseconds (0 = never auto-exit) */
 export const COPY_MODE_TIMEOUT = 0;

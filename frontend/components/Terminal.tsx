@@ -387,9 +387,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           // Note: Scroll preservation is handled by tmux copy-mode, not xterm.js.
           // When user scrolls (wheel), we enter tmux copy-mode which freezes the view.
           // User presses 'q' to exit copy-mode and return to live output.
-          // Always scroll xterm.js to bottom since tmux controls the viewport.
           term.write(event.data);
-          term.scrollToBottom();
         };
 
         ws.onclose = (event) => {
