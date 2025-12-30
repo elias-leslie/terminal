@@ -335,6 +335,27 @@ def reset_project_sessions(project_id: str) -> dict[str, str | None]:
     return result
 
 
+def reset_all_sessions() -> int:
+    """Reset all terminal sessions.
+
+    Lists all active sessions and resets each one.
+
+    Returns:
+        Count of sessions reset
+    """
+    sessions = terminal_store.list_sessions()
+
+    count = 0
+    for session in sessions:
+        new_id = reset_session(session["id"])
+        if new_id:
+            count += 1
+
+    logger.info("all_sessions_reset", count=count)
+
+    return count
+
+
 def ensure_session_alive(session_id: str) -> bool:
     """Ensure a session is alive, recreating tmux if necessary.
 
