@@ -293,6 +293,36 @@ def _row_to_dict(row: tuple) -> dict[str, Any]:
     }
 
 
+def get_session_by_project(project_id: str) -> dict[str, Any] | None:
+    """Get the active session for a project.
+
+    Each project should have at most one active session.
+
+    Args:
+        project_id: Project identifier
+
+    Returns:
+        Session dict or None if not found
+    """
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, name, user_id, project_id, working_dir, display_order,
+                   is_alive, created_at, last_accessed_at, last_claude_session
+            FROM terminal_sessions
+            WHERE project_id = %s AND is_alive = true
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (project_id,),
+        )
+        row = cur.fetchone()
+
+    if not row:
+        return None
+    return _row_to_dict(row)
+
+
 def update_claude_session(session_id: str | UUID, claude_session: str | None) -> None:
     """Update the last active claude session for a terminal.
 
