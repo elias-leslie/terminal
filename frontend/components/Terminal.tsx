@@ -396,17 +396,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
 
         ws.onmessage = (event) => {
           if (!mounted) return;
-
-          // Preserve scroll position if user is viewing history
-          const buffer = term.buffer.active;
-          const distanceFromBottom = buffer.baseY - buffer.viewportY;
-
+          // Scrollback is handled by tmux copy-mode, not xterm.js.
+          // Just write the data - tmux controls what's displayed.
           term.write(event.data);
-
-          // Restore scroll position if user wasn't at bottom
-          if (distanceFromBottom > 0) {
-            term.scrollLines(-distanceFromBottom);
-          }
         };
 
         ws.onclose = (event) => {
