@@ -25,6 +25,11 @@ import { GlobalActionMenu } from "./GlobalActionMenu";
 // Maximum number of split panes
 const MAX_SPLIT_PANES = 4;
 
+// Claude polling constants
+const CLAUDE_POLL_INTERVAL_MS = 500;  // Poll interval for Claude state check
+const CLAUDE_POLL_TIMEOUT_MS = 10000; // Max time to poll before giving up
+const TMUX_INIT_DELAY_MS = 300;       // Delay for tmux session initialization
+
 // Helper to get next terminal name (Terminal 1, Terminal 2, etc.)
 function getNextTerminalName(sessions: Array<{ name: string }>): string {
   // Find the highest "Terminal N" number
@@ -292,10 +297,10 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           clearInterval(claudePollIntervalRef.current);
         }
 
-        // Poll every 500ms until Claude is running (max 10 seconds)
+        // Poll until Claude is running (or timeout)
         const pollStart = Date.now();
         claudePollIntervalRef.current = setInterval(async () => {
-          if (Date.now() - pollStart > 10000) {
+          if (Date.now() - pollStart > CLAUDE_POLL_TIMEOUT_MS) {
             if (claudePollIntervalRef.current) {
               clearInterval(claudePollIntervalRef.current);
               claudePollIntervalRef.current = null;

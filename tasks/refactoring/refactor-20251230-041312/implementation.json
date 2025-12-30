@@ -437,13 +437,15 @@
           "parallelizable": true,
           "description": "Add text=True parameter to subprocess calls in terminal.py",
           "steps": [
-            "Read terminal/api/terminal.py",
-            "Add text=True to subprocess.run calls on lines 82-92, 95-97, 102-104",
-            "This ensures consistent string output handling"
+            "SKIPPED: No subprocess.run calls found in terminal/api/terminal.py",
+            "- subprocess is imported but not used (leftover from refactoring)",
+            "- Calls now use run_tmux_command from utils/tmux.py",
+            "- Task was based on stale code analysis"
           ],
           "files_affected": ["terminal/api/terminal.py"],
           "verification": "cd terminal && python -c 'from terminal.api import terminal'",
-          "passes": false
+          "passes": true,
+          "skipped_reason": "No subprocess.run calls - code was refactored to use shared utility"
         },
         {
           "id": "5.3",

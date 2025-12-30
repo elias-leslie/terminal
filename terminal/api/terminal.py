@@ -16,7 +16,6 @@ import os
 import pty
 import select
 import struct
-import subprocess
 import termios
 from typing import Any
 
