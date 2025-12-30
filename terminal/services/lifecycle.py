@@ -176,6 +176,7 @@ def create_session(
     project_id: str | None = None,
     working_dir: str | None = None,
     user_id: str | None = None,
+    mode: str = "shell",
 ) -> str:
     """Create a new terminal session atomically.
 
@@ -187,6 +188,7 @@ def create_session(
         project_id: Optional project ID for context
         working_dir: Initial working directory
         user_id: Optional user ID (for future auth)
+        mode: Session mode - 'shell' or 'claude' (default: 'shell')
 
     Returns:
         Server-generated session UUID
@@ -200,6 +202,7 @@ def create_session(
         project_id=project_id,
         working_dir=working_dir,
         user_id=user_id,
+        mode=mode,
     )
 
     # Step 2: Create tmux session
@@ -220,6 +223,7 @@ def create_session(
         session_id=session_id,
         name=name,
         project_id=project_id,
+        mode=mode,
     )
 
     return session_id
@@ -373,15 +377,18 @@ def cleanup_abandoned(days: int = 30) -> int:
     return count
 
 
-def get_or_create_project_shell(project_id: str, root_path: str | None = None) -> str:
-    """Get existing project shell or create one.
+def get_or_create_project_session(
+    project_id: str, root_path: str | None = None, mode: str = "shell"
+) -> str:
+    """Get existing project session for mode or create one.
 
-    Uses deterministic naming: terminal-{project_id} for the tmux session.
-    Each project has at most one active shell session.
+    Each project can have two sessions: one shell and one claude.
+    Uses deterministic naming based on session ID.
 
     Args:
         project_id: Project identifier
         root_path: Working directory (project root path)
+        mode: Session mode - 'shell' or 'claude' (default: 'shell')
 
     Returns:
         Session ID (UUID)
@@ -389,51 +396,62 @@ def get_or_create_project_shell(project_id: str, root_path: str | None = None) -
     Raises:
         TmuxError: If tmux session creation fails
     """
-    # Check if session already exists for this project
-    existing = terminal_store.get_session_by_project(project_id)
+    # Check if session already exists for this project and mode
+    existing = terminal_store.get_session_by_project(project_id, mode=mode)
 
     if existing:
         session_id = existing["id"]
         # Check if tmux session still alive
         if _tmux_session_exists(session_id):
             logger.info(
-                "project_shell_exists",
+                "project_session_exists",
                 project_id=project_id,
                 session_id=session_id,
+                mode=mode,
             )
             return session_id
         else:
             # DB record exists but tmux died - resurrect
             logger.info(
-                "project_shell_resurrection_attempt",
+                "project_session_resurrection_attempt",
                 project_id=project_id,
                 session_id=session_id,
+                mode=mode,
             )
             try:
                 _create_tmux_session(session_id, root_path)
                 terminal_store.update_session(session_id, is_alive=True)
-                logger.info("project_shell_resurrected", session_id=session_id)
+                logger.info("project_session_resurrected", session_id=session_id)
                 return session_id
             except TmuxError:
                 # Resurrection failed - mark dead and create new
                 terminal_store.mark_dead(session_id)
                 logger.warning(
-                    "project_shell_resurrection_failed",
+                    "project_session_resurrection_failed",
                     session_id=session_id,
                 )
 
     # Create new session
+    mode_label = "Claude" if mode == "claude" else "Shell"
     session_id = create_session(
-        name=f"Project: {project_id}",
+        name=f"Project: {project_id} ({mode_label})",
         project_id=project_id,
         working_dir=root_path,
+        mode=mode,
     )
 
     logger.info(
-        "project_shell_created",
+        "project_session_created",
         project_id=project_id,
         session_id=session_id,
         working_dir=root_path,
+        mode=mode,
     )
 
     return session_id
+
+
+# Backward compatibility alias
+def get_or_create_project_shell(project_id: str, root_path: str | None = None) -> str:
+    """Backward compatible alias for get_or_create_project_session."""
+    return get_or_create_project_session(project_id, root_path, mode="shell")
