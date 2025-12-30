@@ -128,7 +128,7 @@ async def get_claude_state(session_id: str) -> ClaudeStateResponse:
 def _is_claude_running_in_session(tmux_session: str) -> bool:
     """Check if Claude Code is already running in a tmux session.
 
-    Checks the current pane content for Claude Code indicators.
+    Checks the current pane content for Claude Code specific indicators.
     """
     # Capture the current pane content
     result = subprocess.run(
@@ -141,12 +141,14 @@ def _is_claude_running_in_session(tmux_session: str) -> bool:
         return False
 
     content = result.stdout
-    # Check for Claude Code indicators
+    # Check for Claude Code specific indicators (not generic shell stuff)
     claude_indicators = [
-        "Claude Code",
-        "[Opus",
-        "~/",  # Claude's status bar shows ~/path
+        "Claude Code v",  # Version banner
+        "[Opus",  # Model indicator in status bar
+        "[Sonnet",  # Alternative model
         "> Try ",  # Claude's suggestion prompt
+        "| main |",  # Claude status bar format
+        "0/200K",  # Token counter
     ]
 
     return any(indicator in content for indicator in claude_indicators)

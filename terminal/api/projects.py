@@ -146,6 +146,7 @@ async def reset_project(project_id: str) -> dict[str, Any]:
 
     Resets both shell and claude sessions if they exist.
     Uses the current project root_path from SummitFlow settings.
+    Also resets mode back to shell.
     Returns new session IDs for each mode.
     """
     # Get current project info from SummitFlow
@@ -153,11 +154,17 @@ async def reset_project(project_id: str) -> dict[str, Any]:
     project_info = next((p for p in sf_projects if p.get("id") == project_id), None)
     working_dir = project_info.get("root_path") if project_info else None
 
+    # Reset sessions
     result = lifecycle.reset_project_sessions(project_id, working_dir=working_dir)
+
+    # Reset mode back to shell
+    settings_store.upsert_settings(project_id=project_id, active_mode="shell")
+
     return {
         "project_id": project_id,
         "shell_session_id": result["shell"],
         "claude_session_id": result["claude"],
+        "mode": "shell",
     }
 
 
