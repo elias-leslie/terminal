@@ -15,6 +15,7 @@ import { SettingsDropdown, KeyboardSizePreset } from "./SettingsDropdown";
 import { ClaudeIndicator } from "./ClaudeIndicator";
 import { TabModeDropdown } from "./TabModeDropdown";
 import { TabActionMenu } from "./TabActionMenu";
+import { TerminalManagerModal } from "./TerminalManagerModal";
 
 // Maximum number of split panes
 const MAX_SPLIT_PANES = 4;
@@ -68,6 +69,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [showSettings, setShowSettings] = useState(false);
   const [keyboardSize, setKeyboardSize] = useState<KeyboardSizePreset>("medium");
+  const [showTerminalManager, setShowTerminalManager] = useState(false);
 
   // Load keyboard size from localStorage
   useEffect(() => {
@@ -459,9 +461,9 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           );
         })}
 
-        {/* Add new terminal button */}
+        {/* Add new terminal button - opens manager modal */}
         <button
-          onClick={handleAddTab}
+          onClick={() => setShowTerminalManager(true)}
           disabled={isCreating}
           className="flex items-center justify-center w-7 h-7 rounded-md transition-all duration-150 disabled:opacity-50"
           style={{ color: "var(--term-text-muted)" }}
@@ -473,7 +475,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
             e.currentTarget.style.backgroundColor = "transparent";
             e.currentTarget.style.color = "var(--term-text-muted)";
           }}
-          title="New terminal"
+          title="Manage terminals"
         >
           {isCreating ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -635,6 +637,13 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           />
         </div>
       )}
+
+      {/* Terminal Manager Modal */}
+      <TerminalManagerModal
+        isOpen={showTerminalManager}
+        onClose={() => setShowTerminalManager(false)}
+        onCreateGenericTerminal={handleAddTab}
+      />
     </div>
   );
 }
