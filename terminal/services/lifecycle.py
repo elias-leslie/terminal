@@ -37,18 +37,6 @@ def _get_tmux_session_name(session_id: str) -> str:
     return f"summitflow-{session_id}"
 
 
-def _get_project_tmux_session_name(project_id: str) -> str:
-    """Get deterministic tmux session name for a project.
-
-    Args:
-        project_id: Project identifier
-
-    Returns:
-        tmux session name (e.g., terminal-portfolio-ai)
-    """
-    return f"terminal-{project_id}"
-
-
 def _tmux_session_exists_by_name(session_name: str) -> bool:
     """Check if a tmux session exists by its direct name.
 

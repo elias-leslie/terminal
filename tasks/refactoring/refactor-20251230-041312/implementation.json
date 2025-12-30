@@ -1,0 +1,564 @@
+{
+  "meta": {
+    "title": "Terminal Project Full Refactoring",
+    "created": "2025-12-30",
+    "project_id": "terminal",
+    "baseline_complexity": 52.41,
+    "targets_analyzed": 7
+  },
+  "phases": [
+    {
+      "id": 1,
+      "name": "Dead Code Removal",
+      "goal": "Remove unused imports, functions, and variables",
+      "tasks": [
+        {
+          "id": "1.1",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Remove unused import useCallback from TerminalManagerModal.tsx",
+          "steps": [
+            "Read frontend/components/TerminalManagerModal.tsx",
+            "Remove useCallback from import { useState, useCallback, useEffect } from 'react'",
+            "Verify no other usage of useCallback in the file"
+          ],
+          "files_affected": ["frontend/components/TerminalManagerModal.tsx"],
+          "verification": "npx tsc --noEmit",
+          "passes": false
+        },
+        {
+          "id": "1.2",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Remove unused _get_project_tmux_session_name function from lifecycle.py",
+          "steps": [
+            "Read terminal/services/lifecycle.py",
+            "Verify _get_project_tmux_session_name is not called anywhere (grep codebase)",
+            "Remove function definition (lines 40-49)",
+            "Run type check"
+          ],
+          "files_affected": ["terminal/services/lifecycle.py"],
+          "verification": "cd terminal && python -c 'from terminal.services import lifecycle'",
+          "passes": false
+        },
+        {
+          "id": "1.3",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Remove unused backward compatibility alias get_or_create_project_shell",
+          "steps": [
+            "Grep codebase for get_or_create_project_shell usage",
+            "If no usage found, remove lines 609-611 from lifecycle.py",
+            "Verify imports still work"
+          ],
+          "files_affected": ["terminal/services/lifecycle.py"],
+          "verification": "cd terminal && python -c 'from terminal.services import lifecycle'",
+          "passes": false
+        },
+        {
+          "id": "1.4",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Remove or simplify legacy Claude state code if unused",
+          "steps": [
+            "Grep frontend for 'state' and 'claude_session_name' field access",
+            "If no frontend usage found, remove _determine_legacy_claude_state function (lines 78-102)",
+            "Remove legacy fields from ClaudeStateResponse (lines 38-41)",
+            "Remove legacy field assignment in get_claude_state_endpoint (lines 198-201)",
+            "Test Claude state endpoint still works"
+          ],
+          "files_affected": ["terminal/api/claude.py"],
+          "verification": "curl -s http://localhost:8002/api/terminal/sessions/test/claude-state | jq .",
+          "passes": false
+        },
+        {
+          "id": "1.5",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Remove unused user_id parameter from storage functions",
+          "steps": [
+            "Verify no callers pass user_id to list_sessions",
+            "Simplify list_sessions to remove nested user_id conditionals",
+            "Remove user_id parameter from function signature",
+            "Update any callers if needed",
+            "Run type check"
+          ],
+          "files_affected": ["terminal/storage/terminal.py", "terminal/services/lifecycle.py"],
+          "verification": "cd terminal && python -c 'from terminal.storage import terminal; terminal.list_sessions()'",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Security Audit",
+      "goal": "Fix security issues and improve error handling",
+      "tasks": [
+        {
+          "id": "2.1",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Standardize subprocess error handling for tmux commands",
+          "steps": [
+            "Create helper function _run_tmux_command(args: list[str]) -> tuple[bool, str] in lifecycle.py",
+            "Helper should: run subprocess with timeout, capture output, log errors, return (success, output)",
+            "Update tmux subprocess calls in lifecycle.py to use the helper",
+            "Ensure consistent error logging and TmuxError raising"
+          ],
+          "files_affected": ["terminal/services/lifecycle.py"],
+          "verification": "cd terminal && python -c 'from terminal.services import lifecycle'",
+          "passes": false
+        },
+        {
+          "id": "2.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Replace f-string SQL with psycopg.sql in project_settings.py",
+          "steps": [
+            "Read terminal/storage/project_settings.py",
+            "Import psycopg.sql",
+            "Replace f-string SQL construction (lines 98-106, 136-141) with psycopg.sql.SQL() composition",
+            "Follow pattern from terminal/storage/terminal.py:169-181",
+            "Test upsert_settings and bulk_update_display_order functions"
+          ],
+          "files_affected": ["terminal/storage/project_settings.py"],
+          "verification": "cd terminal && python -c 'from terminal.storage import project_settings'",
+          "passes": false
+        },
+        {
+          "id": "2.3",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Add subprocess timeout and error logging to claude.py tmux calls",
+          "steps": [
+            "Add timeout=10 parameter to subprocess.run calls in _get_current_tmux_client_session",
+            "Add timeout=10 parameter to subprocess.run calls in _is_claude_running_in_session",
+            "Log stderr when returncode != 0 before returning None/False",
+            "Test Claude start/stop flow"
+          ],
+          "files_affected": ["terminal/api/claude.py"],
+          "verification": "cd terminal && python -c 'from terminal.api import claude'",
+          "passes": false
+        },
+        {
+          "id": "2.4",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Fix polling memory leak in TerminalTabs startClaudeInSession",
+          "steps": [
+            "Read frontend/components/TerminalTabs.tsx",
+            "Create intervalRef using useRef<NodeJS.Timeout | null>(null)",
+            "Store setInterval return value in intervalRef.current",
+            "Add cleanup in useEffect return to clear intervalRef.current",
+            "Clear interval when polling completes or errors"
+          ],
+          "files_affected": ["frontend/components/TerminalTabs.tsx"],
+          "verification": "npm run build --prefix frontend",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "DRY Consolidation",
+      "goal": "Eliminate code duplication across files",
+      "tasks": [
+        {
+          "id": "3.1",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Consolidate tmux session functions into shared module",
+          "steps": [
+            "Create terminal/utils/__init__.py if not exists",
+            "Create terminal/utils/tmux.py",
+            "Move from lifecycle.py: _get_tmux_session_name, _tmux_session_exists_by_name, _tmux_session_exists",
+            "Move _create_tmux_session from lifecycle.py (not terminal.py)",
+            "Make functions public (remove underscore prefix)",
+            "Update imports in lifecycle.py, terminal.py, claude.py",
+            "Delete duplicate _create_tmux_session from terminal.py"
+          ],
+          "files_affected": [
+            "terminal/utils/tmux.py",
+            "terminal/services/lifecycle.py",
+            "terminal/api/terminal.py",
+            "terminal/api/claude.py"
+          ],
+          "verification": "cd terminal && python -c 'from terminal.utils import tmux; print(tmux.get_tmux_session_name(\"test\"))'",
+          "passes": false
+        },
+        {
+          "id": "3.2",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Extract SQL field list constant in terminal.py",
+          "steps": [
+            "Add TERMINAL_SESSION_FIELDS constant at module level",
+            "Replace 8 hardcoded SELECT field lists with the constant",
+            "Verify queries still work"
+          ],
+          "files_affected": ["terminal/storage/terminal.py"],
+          "verification": "cd terminal && python -c 'from terminal.storage import terminal; print(terminal.list_sessions())'",
+          "passes": false
+        },
+        {
+          "id": "3.3",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Extract terminal dimension constants",
+          "steps": [
+            "Add TMUX_DEFAULT_COLS = 120 and TMUX_DEFAULT_ROWS = 30 to terminal/config.py",
+            "Update lifecycle.py line 103 to use constants",
+            "Update api/terminal.py lines 89, 261 to use constants"
+          ],
+          "files_affected": ["terminal/config.py", "terminal/services/lifecycle.py", "terminal/api/terminal.py"],
+          "verification": "cd terminal && python -c 'from terminal.config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS'",
+          "passes": false
+        },
+        {
+          "id": "3.4",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Extract copy-mode scroll logic in Terminal.tsx",
+          "steps": [
+            "Read frontend/components/Terminal.tsx",
+            "Create enterCopyMode() helper function that sends \\x02[ and sets inCopyMode",
+            "Create sendScrollCommand(direction: 'up' | 'down') helper",
+            "Update wheel handler (lines 253-256, 271-277) to use helpers",
+            "Update touch handler (lines 317-320, 330-336) to use helpers"
+          ],
+          "files_affected": ["frontend/components/Terminal.tsx"],
+          "verification": "npm run build --prefix frontend",
+          "passes": false
+        },
+        {
+          "id": "3.5",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Create reusable Claude loading overlay component",
+          "steps": [
+            "Create frontend/components/ClaudeLoadingOverlay.tsx",
+            "Accept props: variant ('normal' | 'compact'), optionally text",
+            "Move overlay JSX from TerminalTabs.tsx lines 791-822",
+            "Replace both overlay instances in TerminalTabs with component",
+            "Style variants for single pane vs split pane"
+          ],
+          "files_affected": ["frontend/components/ClaudeLoadingOverlay.tsx", "frontend/components/TerminalTabs.tsx"],
+          "verification": "npm run build --prefix frontend",
+          "passes": false
+        },
+        {
+          "id": "3.6",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Create useHoverStyle hook for repeated hover patterns",
+          "steps": [
+            "Create frontend/lib/hooks/use-hover-style.ts",
+            "Hook returns onMouseEnter and onMouseLeave handlers",
+            "Accept hover/default style objects",
+            "Update TerminalManagerModal.tsx to use hook (4 instances)",
+            "Document for use across other components"
+          ],
+          "files_affected": ["frontend/lib/hooks/use-hover-style.ts", "frontend/components/TerminalManagerModal.tsx"],
+          "verification": "npm run build --prefix frontend",
+          "passes": false
+        },
+        {
+          "id": "3.7",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Consolidate reset session logic in lifecycle.py",
+          "steps": [
+            "Read terminal/services/lifecycle.py reset_session and reset_project_sessions",
+            "Extract common reset logic into _reset_single_session helper",
+            "Helper takes session dict, returns new session_id",
+            "Update both reset functions to use helper",
+            "Test reset functionality"
+          ],
+          "files_affected": ["terminal/services/lifecycle.py"],
+          "verification": "cd terminal && python -c 'from terminal.services import lifecycle'",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Modularization",
+      "goal": "Split large functions and extract utilities",
+      "tasks": [
+        {
+          "id": "4.1",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Simplify list_sessions with dynamic WHERE clause",
+          "steps": [
+            "Read terminal/storage/terminal.py list_sessions function",
+            "Build WHERE clause dynamically using list of conditions",
+            "Replace 4 query variants with single dynamic query",
+            "Test with various parameter combinations"
+          ],
+          "files_affected": ["terminal/storage/terminal.py"],
+          "verification": "cd terminal && python -c 'from terminal.storage import terminal; print(len(terminal.list_sessions()))'",
+          "passes": false
+        },
+        {
+          "id": "4.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Extract WebSocket URL builder in Terminal.tsx",
+          "steps": [
+            "Create frontend/lib/utils/websocket.ts",
+            "Extract getWebSocketUrl(sessionId, workingDir) function from Terminal.tsx lines 371-385",
+            "Make domain mapping (terminal.summitflow.dev -> terminalapi) configurable",
+            "Update Terminal.tsx to use utility"
+          ],
+          "files_affected": ["frontend/lib/utils/websocket.ts", "frontend/components/Terminal.tsx"],
+          "verification": "npm run build --prefix frontend",
+          "passes": false
+        },
+        {
+          "id": "4.3",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Extract terminal constants in Terminal.tsx",
+          "steps": [
+            "Create frontend/lib/constants/terminal.ts",
+            "Extract: CONNECTION_TIMEOUT=10000, RETRY_BACKOFF=2000, SCROLL_THRESHOLD=50, SCROLLBACK=5000",
+            "Add descriptive comments explaining each constant",
+            "Update Terminal.tsx to import and use constants"
+          ],
+          "files_affected": ["frontend/lib/constants/terminal.ts", "frontend/components/Terminal.tsx"],
+          "verification": "npm run build --prefix frontend",
+          "passes": false
+        },
+        {
+          "id": "4.4",
+          "tier": 3,
+          "model": "opus",
+          "parallelizable": false,
+          "description": "Extract large start_claude endpoint into helpers",
+          "steps": [
+            "Read terminal/api/claude.py start_claude function (121 lines)",
+            "Extract _validate_start_preconditions(session, claude_state) -> tuple[bool, str]",
+            "Extract _send_claude_command(tmux_session) -> bool",
+            "Main function becomes orchestration only",
+            "Test Claude start flow end-to-end"
+          ],
+          "files_affected": ["terminal/api/claude.py"],
+          "verification": "curl -X POST http://localhost:8002/api/terminal/sessions/test/start-claude",
+          "passes": false
+        },
+        {
+          "id": "4.5",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Extract getNextTerminalName utility",
+          "steps": [
+            "Create frontend/lib/utils/terminal-names.ts",
+            "Move getNextTerminalName function from TerminalTabs.tsx lines 28-38",
+            "Export function for potential reuse",
+            "Update TerminalTabs.tsx import"
+          ],
+          "files_affected": ["frontend/lib/utils/terminal-names.ts", "frontend/components/TerminalTabs.tsx"],
+          "verification": "npm run build --prefix frontend",
+          "passes": false
+        },
+        {
+          "id": "4.6",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Extract session resurrection logic from get_or_create_project_session",
+          "steps": [
+            "Read terminal/services/lifecycle.py get_or_create_project_session (72 lines)",
+            "Extract _resurrect_session(session_dict) -> str helper",
+            "Helper handles tmux recreation and state update",
+            "Main function becomes: check existing -> try resurrect -> create new"
+          ],
+          "files_affected": ["terminal/services/lifecycle.py"],
+          "verification": "cd terminal && python -c 'from terminal.services import lifecycle'",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Lint Compliance",
+      "goal": "Fix linting issues and improve code quality",
+      "tasks": [
+        {
+          "id": "5.1",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Fix deprecated datetime.utcnow() usage",
+          "steps": [
+            "Read terminal/storage/terminal.py",
+            "Add timezone import: from datetime import datetime, timezone",
+            "Replace datetime.utcnow() with datetime.now(timezone.utc) on line 271"
+          ],
+          "files_affected": ["terminal/storage/terminal.py"],
+          "verification": "cd terminal && python -c 'from terminal.storage import terminal'",
+          "passes": false
+        },
+        {
+          "id": "5.2",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Add text=True parameter to subprocess calls in terminal.py",
+          "steps": [
+            "Read terminal/api/terminal.py",
+            "Add text=True to subprocess.run calls on lines 82-92, 95-97, 102-104",
+            "This ensures consistent string output handling"
+          ],
+          "files_affected": ["terminal/api/terminal.py"],
+          "verification": "cd terminal && python -c 'from terminal.api import terminal'",
+          "passes": false
+        },
+        {
+          "id": "5.3",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Extract hardcoded delay constants in TerminalTabs.tsx",
+          "steps": [
+            "Add constants at top of TerminalTabs.tsx",
+            "TMUX_INIT_DELAY_MS = 300 with comment explaining tmux needs time to initialize",
+            "CLAUDE_POLL_INTERVAL_MS = 500",
+            "CLAUDE_POLL_TIMEOUT_MS = 10000",
+            "Replace magic numbers with constants"
+          ],
+          "files_affected": ["frontend/components/TerminalTabs.tsx"],
+          "verification": "npm run build --prefix frontend",
+          "passes": false
+        },
+        {
+          "id": "5.4",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Extract claude.py verification delay constant",
+          "steps": [
+            "Add CLAUDE_STARTUP_VERIFICATION_DELAY_SECONDS = 3 at module level",
+            "Replace asyncio.sleep(3) on line 137 with constant",
+            "Add comment explaining why delay is needed"
+          ],
+          "files_affected": ["terminal/api/claude.py"],
+          "verification": "cd terminal && python -c 'from terminal.api import claude'",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Type Safety",
+      "goal": "Improve type annotations and type guards",
+      "tasks": [
+        {
+          "id": "6.1",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Create UUID helper for storage functions",
+          "steps": [
+            "Add helper function _normalize_session_id(session_id: str | UUID) -> str at top of terminal/storage/terminal.py",
+            "Replace 8 inline str(session_id) calls with helper",
+            "Add type import if needed"
+          ],
+          "files_affected": ["terminal/storage/terminal.py"],
+          "verification": "cd terminal && python -c 'from terminal.storage import terminal'",
+          "passes": false
+        },
+        {
+          "id": "6.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Fix terminal cleanup custom properties type safety",
+          "steps": [
+            "Read frontend/components/Terminal.tsx",
+            "Create WeakMap<Terminal, { wheelCleanup: () => void, touchCleanup: () => void }> at module level",
+            "Replace (terminal as any)._wheelCleanup assignments with WeakMap entries",
+            "Update cleanup code to read from WeakMap"
+          ],
+          "files_affected": ["frontend/components/Terminal.tsx"],
+          "verification": "npm run build --prefix frontend",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Final Verification",
+      "goal": "Run all tests and verify no regressions",
+      "tasks": [
+        {
+          "id": "7.1",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": false,
+          "description": "Run full frontend build",
+          "steps": [
+            "cd frontend && npm run build",
+            "Verify build succeeds with no errors",
+            "Check for any type warnings"
+          ],
+          "files_affected": [],
+          "verification": "npm run build --prefix frontend",
+          "passes": false
+        },
+        {
+          "id": "7.2",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": false,
+          "description": "Run backend type check",
+          "steps": [
+            "cd terminal && python -m pyright .",
+            "Verify no type errors",
+            "Check all imports work"
+          ],
+          "files_affected": [],
+          "verification": "cd terminal && python -c 'from terminal.main import app'",
+          "passes": false
+        },
+        {
+          "id": "7.3",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": false,
+          "description": "Restart services and smoke test",
+          "steps": [
+            "systemctl --user restart summitflow-terminal summitflow-terminal-frontend",
+            "Wait 5 seconds for startup",
+            "curl health endpoints",
+            "Verify terminal opens and Claude starts"
+          ],
+          "files_affected": [],
+          "verification": "curl -s http://localhost:8002/health | jq .",
+          "passes": false
+        }
+      ]
+    }
+  ]
+}
