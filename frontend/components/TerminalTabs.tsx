@@ -9,8 +9,10 @@ import { LayoutModeButtons, LayoutMode } from "./LayoutModeButton";
 import { useTerminalSessions } from "@/lib/hooks/use-terminal-sessions";
 import { useTerminalSettings } from "@/lib/hooks/use-terminal-settings";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
+import { useProjectTerminals, ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { SettingsDropdown, KeyboardSizePreset } from "./SettingsDropdown";
+import { ClaudeIndicator } from "./ClaudeIndicator";
 
 // Maximum number of split panes
 const MAX_SPLIT_PANES = 4;
@@ -45,6 +47,13 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     isLoading,
     isCreating,
   } = useTerminalSessions(projectId);
+
+  // Project terminals data
+  const {
+    projectTerminals,
+    adHocSessions,
+    isLoading: projectsLoading,
+  } = useProjectTerminals();
 
   // Standalone app uses local state for layout (no embedded panel)
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("single");
@@ -144,11 +153,50 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, [editingId]);
 
-  // Create new terminal session
+  // Create new terminal session (ad-hoc)
   const handleAddTab = useCallback(async () => {
     const name = getNextTerminalName(sessions);
     await create(name, projectPath);
   }, [sessions, create, projectPath]);
+
+  // Handle clicking a project tab - create session if needed
+  const handleProjectTabClick = useCallback(async (pt: ProjectTerminal) => {
+    if (pt.sessionId) {
+      // Session exists, just switch to it
+      setActiveId(pt.sessionId);
+    } else {
+      // Create session for this project via direct API call (includes project_id)
+      try {
+        const res = await fetch("/api/terminal/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: `Project: ${pt.projectId}`,
+            project_id: pt.projectId,
+            working_dir: pt.rootPath,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to create session");
+        const newSession = await res.json();
+        setActiveId(newSession.id);
+
+        // If mode is claude, start Claude after a brief delay
+        if (pt.mode === "claude") {
+          setTimeout(async () => {
+            try {
+              await fetch(`/api/terminal/sessions/${newSession.id}/start-claude`, {
+                method: "POST",
+              });
+            } catch (e) {
+              console.error("Failed to auto-start Claude:", e);
+            }
+          }, 500);
+        }
+      } catch (e) {
+        console.error("Failed to create project session:", e);
+      }
+    }
+  }, [setActiveId]);
 
   // Close terminal session
   const handleCloseTab = useCallback(
@@ -221,19 +269,20 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         )}
         style={{ backgroundColor: "var(--term-bg-surface)", borderColor: "var(--term-border)" }}
       >
-        {sessions.map((session) => {
-          const sessionStatus = terminalStatuses.get(session.id);
-          const isActive = session.id === activeId;
+        {/* Project tabs first */}
+        {projectTerminals.map((pt) => {
+          const sessionStatus = pt.sessionId ? terminalStatuses.get(pt.sessionId) : undefined;
+          const isActive = pt.sessionId === activeId;
 
           return (
             <button
-              key={session.id}
-              onClick={() => setActiveId(session.id)}
+              key={pt.projectId}
+              onClick={() => handleProjectTabClick(pt)}
               className={clsx(
                 "flex items-center rounded-md transition-all duration-200",
                 "group min-w-0 flex-shrink-0",
                 isMobile
-                  ? "gap-1.5 px-2 py-1 text-xs min-h-[36px]"  // Compact but 36px touch target
+                  ? "gap-1.5 px-2 py-1 text-xs min-h-[36px]"
                   : "gap-2 px-3 py-1.5 text-sm",
                 isActive
                   ? "text-white"
@@ -260,7 +309,79 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                 }
               }}
             >
-              {/* Status dot integrated into tab */}
+              {/* Claude indicator for project tabs */}
+              <ClaudeIndicator state={pt.mode === "claude" ? "idle" : "none"} />
+              <span className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[120px]")}>
+                {pt.projectName}
+              </span>
+              {pt.sessionId && (
+                <button
+                  onClick={(e) => handleCloseTab(pt.sessionId!, e)}
+                  className={clsx(
+                    "p-0.5 rounded transition-all duration-150",
+                    isActive ? "opacity-60 hover:opacity-100" : "opacity-0 group-hover:opacity-60 hover:!opacity-100"
+                  )}
+                  style={{ color: "var(--term-text-muted)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                  title="Close terminal"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </button>
+          );
+        })}
+
+        {/* Divider between project and ad-hoc tabs */}
+        {projectTerminals.length > 0 && adHocSessions.length > 0 && (
+          <div
+            className="w-px h-5 mx-1 flex-shrink-0"
+            style={{ backgroundColor: "var(--term-border)" }}
+          />
+        )}
+
+        {/* Ad-hoc session tabs */}
+        {adHocSessions.map((session) => {
+          const sessionStatus = terminalStatuses.get(session.id);
+          const isActive = session.id === activeId;
+
+          return (
+            <button
+              key={session.id}
+              onClick={() => setActiveId(session.id)}
+              className={clsx(
+                "flex items-center rounded-md transition-all duration-200",
+                "group min-w-0 flex-shrink-0",
+                isMobile
+                  ? "gap-1.5 px-2 py-1 text-xs min-h-[36px]"
+                  : "gap-2 px-3 py-1.5 text-sm",
+                isActive
+                  ? "text-white"
+                  : "hover:text-white"
+              )}
+              style={{
+                backgroundColor: isActive ? "var(--term-bg-elevated)" : "transparent",
+                color: isActive ? "var(--term-text-primary)" : "var(--term-text-muted)",
+                boxShadow: isActive
+                  ? "0 0 12px var(--term-accent-glow), inset 0 1px 0 rgba(255,255,255,0.05)"
+                  : "none",
+                border: isActive ? "1px solid var(--term-border-active)" : "1px solid transparent",
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
+                  e.currentTarget.style.boxShadow = "0 0 8px rgba(0, 255, 159, 0.08)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.boxShadow = "none";
+                }
+              }}
+            >
+              {/* Status dot for ad-hoc tabs */}
               <span
                 className={clsx("w-2 h-2 rounded-full flex-shrink-0", {
                   "animate-pulse": sessionStatus === "connecting",
