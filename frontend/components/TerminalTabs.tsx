@@ -399,6 +399,18 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                   if (newSessionId) {
                     // Session exists, switch to it
                     setActiveId(newSessionId);
+                    // If switching to Claude mode, ensure Claude is started
+                    if (mode === "claude") {
+                      setTimeout(async () => {
+                        try {
+                          await fetch(`/api/terminal/sessions/${newSessionId}/start-claude`, {
+                            method: "POST",
+                          });
+                        } catch (e) {
+                          console.error("Failed to start Claude:", e);
+                        }
+                      }, 500);
+                    }
                   } else {
                     // Session doesn't exist, create it
                     try {

@@ -102,7 +102,7 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
         projectId: project.id,
         projectName: project.name,
         rootPath: project.root_path,
-        activeMode: project.active_mode,
+        activeMode: project.terminal_mode,
         shellSessionId: shellSession?.id ?? null,
         claudeSessionId: claudeSession?.id ?? null,
         shellSession,

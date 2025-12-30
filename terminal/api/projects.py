@@ -145,9 +145,15 @@ async def reset_project(project_id: str) -> dict[str, Any]:
     """Reset all terminal sessions for a project.
 
     Resets both shell and claude sessions if they exist.
+    Uses the current project root_path from SummitFlow settings.
     Returns new session IDs for each mode.
     """
-    result = lifecycle.reset_project_sessions(project_id)
+    # Get current project info from SummitFlow
+    sf_projects = await summitflow_client.list_projects()
+    project_info = next((p for p in sf_projects if p.get("id") == project_id), None)
+    working_dir = project_info.get("root_path") if project_info else None
+
+    result = lifecycle.reset_project_sessions(project_id, working_dir=working_dir)
     return {
         "project_id": project_id,
         "shell_session_id": result["shell"],

@@ -304,13 +304,17 @@ def reset_session(session_id: str) -> str | None:
     return new_session_id
 
 
-def reset_project_sessions(project_id: str) -> dict[str, str | None]:
+def reset_project_sessions(
+    project_id: str, working_dir: str | None = None
+) -> dict[str, str | None]:
     """Reset all sessions for a project.
 
     Gets both shell and claude sessions for the project, resets each one.
+    If working_dir is provided, uses that instead of the old session's dir.
 
     Args:
         project_id: Project identifier
+        working_dir: Optional new working directory (e.g., from updated project settings)
 
     Returns:
         Dict with 'shell' and 'claude' keys, each containing new session ID or None
@@ -323,8 +327,29 @@ def reset_project_sessions(project_id: str) -> dict[str, str | None]:
     for mode in ["shell", "claude"]:
         session = sessions.get(mode)
         if session:
-            new_id = reset_session(session["id"])
-            result[mode] = new_id
+            # Delete old session
+            old_session_id = session["id"]
+            delete_session(old_session_id)
+
+            # Create new session with potentially updated working_dir
+            new_working_dir = working_dir or session.get("working_dir")
+            new_session_id = create_session(
+                name=session["name"],
+                project_id=project_id,
+                working_dir=new_working_dir,
+                user_id=session.get("user_id"),
+                mode=mode,
+            )
+
+            logger.info(
+                "session_reset",
+                old_session_id=old_session_id,
+                new_session_id=new_session_id,
+                project_id=project_id,
+                mode=mode,
+            )
+
+            result[mode] = new_session_id
 
     logger.info(
         "project_sessions_reset",
