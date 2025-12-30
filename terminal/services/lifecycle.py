@@ -36,6 +36,34 @@ def _get_tmux_session_name(session_id: str) -> str:
     return f"summitflow-{session_id}"
 
 
+def _get_project_tmux_session_name(project_id: str) -> str:
+    """Get deterministic tmux session name for a project.
+
+    Args:
+        project_id: Project identifier
+
+    Returns:
+        tmux session name (e.g., terminal-portfolio-ai)
+    """
+    return f"terminal-{project_id}"
+
+
+def _tmux_session_exists_by_name(session_name: str) -> bool:
+    """Check if a tmux session exists by its direct name.
+
+    Args:
+        session_name: Direct tmux session name
+
+    Returns:
+        True if tmux session exists
+    """
+    result = subprocess.run(
+        ["tmux", "has-session", "-t", session_name],
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
 def _tmux_session_exists(session_id: str) -> bool:
     """Check if a tmux session exists.
 
@@ -343,3 +371,69 @@ def cleanup_abandoned(days: int = 30) -> int:
     logger.info("cleanup_complete", sessions_cleaned=count)
 
     return count
+
+
+def get_or_create_project_shell(project_id: str, root_path: str | None = None) -> str:
+    """Get existing project shell or create one.
+
+    Uses deterministic naming: terminal-{project_id} for the tmux session.
+    Each project has at most one active shell session.
+
+    Args:
+        project_id: Project identifier
+        root_path: Working directory (project root path)
+
+    Returns:
+        Session ID (UUID)
+
+    Raises:
+        TmuxError: If tmux session creation fails
+    """
+    # Check if session already exists for this project
+    existing = terminal_store.get_session_by_project(project_id)
+
+    if existing:
+        session_id = existing["id"]
+        # Check if tmux session still alive
+        if _tmux_session_exists(session_id):
+            logger.info(
+                "project_shell_exists",
+                project_id=project_id,
+                session_id=session_id,
+            )
+            return session_id
+        else:
+            # DB record exists but tmux died - resurrect
+            logger.info(
+                "project_shell_resurrection_attempt",
+                project_id=project_id,
+                session_id=session_id,
+            )
+            try:
+                _create_tmux_session(session_id, root_path)
+                terminal_store.update_session(session_id, is_alive=True)
+                logger.info("project_shell_resurrected", session_id=session_id)
+                return session_id
+            except TmuxError:
+                # Resurrection failed - mark dead and create new
+                terminal_store.mark_dead(session_id)
+                logger.warning(
+                    "project_shell_resurrection_failed",
+                    session_id=session_id,
+                )
+
+    # Create new session
+    session_id = create_session(
+        name=f"Project: {project_id}",
+        project_id=project_id,
+        working_dir=root_path,
+    )
+
+    logger.info(
+        "project_shell_created",
+        project_id=project_id,
+        session_id=session_id,
+        working_dir=root_path,
+    )
+
+    return session_id
