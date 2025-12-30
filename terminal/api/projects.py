@@ -8,12 +8,12 @@ This module provides:
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from ..services import summitflow_client
+from ..services import lifecycle, summitflow_client
 from ..storage import project_settings as settings_store
 
 router = APIRouter(tags=["Terminal Projects"])
@@ -40,8 +40,14 @@ class ProjectSettingsUpdate(BaseModel):
     """Request to update terminal settings for a project."""
 
     enabled: bool | None = None
-    default_mode: Literal["shell", "claude"] | None = None
+    active_mode: Literal["shell", "claude"] | None = None
     display_order: int | None = None
+
+
+class SetModeRequest(BaseModel):
+    """Request to set active mode for a project."""
+
+    mode: Literal["shell", "claude"]
 
 
 class BulkOrderUpdate(BaseModel):
@@ -80,7 +86,7 @@ async def list_projects() -> list[ProjectResponse]:
                 name=project.get("name", project_id),
                 root_path=project.get("root_path"),
                 terminal_enabled=settings["enabled"] if settings else False,
-                terminal_mode=settings["default_mode"] if settings else "shell",
+                terminal_mode=settings["active_mode"] if settings else "shell",
                 display_order=settings["display_order"] if settings else 0,
             )
         )
@@ -104,7 +110,7 @@ async def update_project_settings(
     settings = settings_store.upsert_settings(
         project_id=project_id,
         enabled=update.enabled,
-        default_mode=update.default_mode,
+        active_mode=update.active_mode,
         display_order=update.display_order,
     )
 
@@ -117,7 +123,7 @@ async def update_project_settings(
         name=project_info.get("name", project_id) if project_info else project_id,
         root_path=project_info.get("root_path") if project_info else None,
         terminal_enabled=settings["enabled"],
-        terminal_mode=settings["default_mode"],
+        terminal_mode=settings["active_mode"],
         display_order=settings["display_order"],
     )
 
@@ -132,3 +138,45 @@ async def bulk_update_order(update: BulkOrderUpdate) -> list[ProjectResponse]:
 
     # Return updated project list
     return await list_projects()
+
+
+@router.post("/api/terminal/projects/{project_id}/reset")
+async def reset_project(project_id: str) -> dict[str, Any]:
+    """Reset all terminal sessions for a project.
+
+    Resets both shell and claude sessions if they exist.
+    Returns new session IDs for each mode.
+    """
+    result = lifecycle.reset_project_sessions(project_id)
+    return {
+        "project_id": project_id,
+        "shell_session_id": result["shell"],
+        "claude_session_id": result["claude"],
+    }
+
+
+@router.post("/api/terminal/projects/{project_id}/disable")
+async def disable_project(project_id: str) -> dict[str, Any]:
+    """Disable terminal for a project.
+
+    Deletes all sessions and sets enabled=false in settings.
+    """
+    lifecycle.disable_project_terminal(project_id)
+    return {"project_id": project_id, "disabled": True}
+
+
+@router.put("/api/terminal/projects/{project_id}/mode")
+async def set_project_mode(project_id: str, request: SetModeRequest) -> dict[str, Any]:
+    """Set the active mode for a project.
+
+    Updates the active_mode in project settings. This mode syncs across devices.
+    """
+    result = settings_store.set_active_mode(project_id, request.mode)
+    if not result:
+        # Create settings if they don't exist
+        result = settings_store.upsert_settings(project_id, active_mode=request.mode)
+
+    return {
+        "project_id": project_id,
+        "active_mode": result["active_mode"],
+    }
