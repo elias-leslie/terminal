@@ -29,6 +29,7 @@ interface CreateSessionRequest {
   name: string;
   project_id?: string;
   working_dir?: string;
+  mode?: "shell" | "claude";
 }
 
 interface UpdateSessionRequest {
@@ -81,6 +82,28 @@ async function deleteSession(sessionId: string): Promise<void> {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete session");
+}
+
+async function resetSession(sessionId: string): Promise<TerminalSession> {
+  const res = await fetch(`/api/terminal/sessions/${sessionId}/reset`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: "Failed to reset session" }));
+    throw new Error(error.detail || "Failed to reset session");
+  }
+  return res.json();
+}
+
+async function resetAllSessions(): Promise<{ count: number }> {
+  const res = await fetch("/api/terminal/reset-all", {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: "Failed to reset all sessions" }));
+    throw new Error(error.detail || "Failed to reset all sessions");
+  }
+  return res.json();
 }
 
 // ============================================================================
@@ -171,13 +194,32 @@ export function useTerminalSessions(projectId?: string) {
     },
   });
 
+  // Mutation: reset session
+  const resetMutation = useMutation({
+    mutationFn: resetSession,
+    onSuccess: (newSession) => {
+      queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
+      // Switch to the new (reset) session
+      setActiveId(newSession.id);
+    },
+  });
+
+  // Mutation: reset all sessions
+  const resetAllMutation = useMutation({
+    mutationFn: resetAllSessions,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
+    },
+  });
+
   // Create new session
   const create = useCallback(
-    async (name: string, workingDir?: string) => {
+    async (name: string, workingDir?: string, mode?: "shell" | "claude") => {
       return createMutation.mutateAsync({
         name,
         project_id: projectId,
         working_dir: workingDir,
+        mode,
       });
     },
     [createMutation, projectId]
@@ -199,6 +241,19 @@ export function useTerminalSessions(projectId?: string) {
     [deleteMutation]
   );
 
+  // Reset a single session (delete and recreate)
+  const reset = useCallback(
+    async (sessionId: string) => {
+      return resetMutation.mutateAsync(sessionId);
+    },
+    [resetMutation]
+  );
+
+  // Reset all sessions
+  const resetAll = useCallback(async () => {
+    return resetAllMutation.mutateAsync();
+  }, [resetAllMutation]);
+
   return {
     sessions,
     activeId,
@@ -206,10 +261,13 @@ export function useTerminalSessions(projectId?: string) {
     create,
     update,
     remove,
+    reset,
+    resetAll,
     isLoading,
     isError,
     error,
     isCreating: createMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isResetting: resetMutation.isPending || resetAllMutation.isPending,
   };
 }
