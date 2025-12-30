@@ -690,6 +690,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                     }
                   }}
                   onStatusChange={(sessionId, status) => handleStatusChange(sessionId, status)}
+                  onModeChange={(projectId, mode) => switchMode(projectId, mode)}
                 />
               );
             })}
@@ -729,6 +730,7 @@ interface SplitPaneProps {
   fontSize: number;
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
+  onModeChange?: (projectId: string, mode: "shell" | "claude") => void;
 }
 
 function SplitPane({
@@ -740,6 +742,7 @@ function SplitPane({
   fontSize,
   onTerminalRef,
   onStatusChange,
+  onModeChange,
 }: SplitPaneProps) {
   const defaultSize = 100 / paneCount;
   const minSize = `${Math.max(10, 100 / (paneCount * 2))}%`;
@@ -798,9 +801,16 @@ function SplitPane({
           {slot.type === "adhoc" && (
             <TerminalIcon className="w-3 h-3" style={{ color: "var(--term-text-muted)" }} />
           )}
-          <span className="text-xs truncate" style={{ color: "var(--term-text-muted)" }}>
+          <span className="text-xs truncate flex-1" style={{ color: "var(--term-text-muted)" }}>
             {getName()}
           </span>
+          {/* Mode dropdown for project slots */}
+          {slot.type === "project" && onModeChange && (
+            <TabModeDropdown
+              value={slot.activeMode}
+              onChange={(mode) => onModeChange(slot.projectId, mode)}
+            />
+          )}
           {!sessionId && (
             <span className="text-xs" style={{ color: "var(--term-text-muted)" }}>(no session)</span>
           )}
