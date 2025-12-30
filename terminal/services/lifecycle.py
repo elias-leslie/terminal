@@ -255,6 +255,54 @@ def delete_session(session_id: str) -> bool:
     return True
 
 
+def reset_session(session_id: str) -> str | None:
+    """Reset a terminal session - delete and recreate with same parameters.
+
+    Gets session details, deletes the session, then creates a new one
+    with the same name, project, working directory, and mode.
+
+    Args:
+        session_id: Session UUID to reset
+
+    Returns:
+        New session UUID, or None if original session not found
+    """
+    # Get session details first
+    session = terminal_store.get_session(session_id)
+    if not session:
+        logger.warning("reset_session_not_found", session_id=session_id)
+        return None
+
+    # Extract parameters for recreation
+    name = session["name"]
+    project_id = session.get("project_id")
+    working_dir = session.get("working_dir")
+    user_id = session.get("user_id")
+    mode = session.get("mode", "shell")
+
+    # Delete old session
+    delete_session(session_id)
+
+    # Create new session with same parameters
+    new_session_id = create_session(
+        name=name,
+        project_id=project_id,
+        working_dir=working_dir,
+        user_id=user_id,
+        mode=mode,
+    )
+
+    logger.info(
+        "session_reset",
+        old_session_id=session_id,
+        new_session_id=new_session_id,
+        project_id=project_id,
+        mode=mode,
+    )
+
+    return new_session_id
+
+
 def ensure_session_alive(session_id: str) -> bool:
     """Ensure a session is alive, recreating tmux if necessary.
 
