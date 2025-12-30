@@ -3,17 +3,6 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { clsx } from "clsx";
 import "@xterm/xterm/css/xterm.css";
-import {
-  CONNECTION_TIMEOUT,
-  RETRY_BACKOFF,
-  SCROLL_THRESHOLD,
-  SCROLLBACK,
-  MOBILE_WIDTH_THRESHOLD,
-  FIT_DELAY_MS,
-  WS_CLOSE_CODE_SESSION_DEAD,
-  RESIZE_DEBOUNCE_MS,
-  PHOSPHOR_THEME,
-} from "../lib/constants/terminal";
 
 // Dynamic imports for xterm (client-side only)
 let Terminal: typeof import("@xterm/xterm").Terminal;
@@ -45,7 +34,7 @@ function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false;
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
-  ) || window.innerWidth < MOBILE_WIDTH_THRESHOLD;
+  ) || window.innerWidth < 768;
 }
 
 export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(function TerminalComponent({
@@ -148,12 +137,36 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         cursorBlink: true,
         fontSize: fontSize,
         fontFamily: fontFamily,
-        scrollback: SCROLLBACK,
+        scrollback: 5000,
         allowProposedApi: true,
         rightClickSelectsWord: true,
         macOptionClickForcesSelection: true,
         altClickMovesCursor: false,
-        theme: PHOSPHOR_THEME,
+        theme: {
+          // Phosphor Terminal Theme
+          background: "#0a0e14",
+          foreground: "#e6edf3",
+          cursor: "#00ff9f",
+          cursorAccent: "#0a0e14",
+          selectionBackground: "rgba(0, 255, 159, 0.3)",
+          selectionForeground: "#e6edf3",
+          black: "#0f1419",
+          red: "#f85149",
+          green: "#00ff9f",
+          yellow: "#d29922",
+          blue: "#58a6ff",
+          magenta: "#bc8cff",
+          cyan: "#39c5cf",
+          white: "#e6edf3",
+          brightBlack: "#7d8590",
+          brightRed: "#ffa198",
+          brightGreen: "#56d364",
+          brightYellow: "#e3b341",
+          brightBlue: "#79c0ff",
+          brightMagenta: "#d2a8ff",
+          brightCyan: "#56d4dd",
+          brightWhite: "#ffffff",
+        },
       });
 
       // Create and load addons
@@ -225,42 +238,35 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // - Mobile: Touch gestures already send tmux copy-mode commands
       //
       // We handle wheel events to enter tmux copy-mode and scroll within it.
-      // User must press 'q' or Escape to exit copy-mode and return to live view.
-      // (No auto-exit timeout - this prevents the "snap back" issue where the view
-      // would jump back to the bottom every 2 seconds.)
       let inCopyMode = false;
 
-      // Helper: Enter tmux copy-mode if not already in it
-      const enterCopyMode = () => {
-        if (!inCopyMode && wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send('\x02['); // Ctrl+B [
-          inCopyMode = true;
-        }
-      };
-
-      // Helper: Send scroll command in copy-mode
-      // IMPORTANT: Use Page Up/Down escape sequences instead of Ctrl+U/Ctrl+D!
-      // Ctrl+D is EOF and will exit programs (like Claude Code) if sent when not in copy-mode.
-      // Page Up/Down are safe - they scroll in copy-mode and are ignored in normal mode.
-      const sendScrollCommand = (direction: 'up' | 'down') => {
-        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-        // Page Up: \x1b[5~  Page Down: \x1b[6~
-        wsRef.current.send(direction === 'up' ? '\x1b[5~' : '\x1b[6~');
-      };
-
       const handleWheel = (e: WheelEvent) => {
-        // CRITICAL: Always prevent default to stop xterm.js from scrolling its own buffer.
-        // If we don't, xterm.js viewport can scroll away from bottom during WS disconnects,
-        // causing all subsequent output to be invisible (appears at buffer bottom but
-        // viewport stays at old position).
+        // Only handle if WS is connected
+        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+
+        // Prevent default browser scroll
         e.preventDefault();
         e.stopPropagation();
 
-        // Only send scroll commands if WS is connected
-        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+        // Enter tmux copy-mode if not already in it
+        if (!inCopyMode) {
+          wsRef.current.send('\x02['); // Ctrl+B [
+          inCopyMode = true;
+        }
 
-        enterCopyMode();
-        sendScrollCommand(e.deltaY < 0 ? 'up' : 'down');
+        // No auto-exit timeout - user must press 'q' to exit copy-mode
+        // (Removes the 2-second snap-back issue)
+
+        // Send scroll commands to tmux copy-mode
+        // In copy-mode: Ctrl+U = half page up, Ctrl+D = half page down
+        // These actually scroll the view, not just move cursor
+        if (e.deltaY < 0) {
+          // Scroll up (see older content)
+          wsRef.current.send('\x15'); // Ctrl+U = half page up
+        } else {
+          // Scroll down (see newer content)
+          wsRef.current.send('\x04'); // Ctrl+D = half page down
+        }
       };
 
       const wheelContainer = containerRef.current;
@@ -286,16 +292,21 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         containerRef.current.style.overscrollBehavior = 'none';
         containerRef.current.style.touchAction = 'none';
 
-        // Touch scrolling - uses shared copy-mode helpers
+        // Touch scrolling - send scroll commands to tmux via WebSocket
         let touchStartY = 0;
         let lastSentY = 0;
+        let inCopyMode = false;
+        const SCROLL_THRESHOLD = 50;
         const container = containerRef.current;
 
         const handleTouchStart = (e: TouchEvent) => {
           if (!container.contains(e.target as Node)) return;
           touchStartY = e.touches[0].clientY;
           lastSentY = touchStartY;
-          enterCopyMode();
+          if (!inCopyMode && wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send('\x02[');
+            inCopyMode = true;
+          }
         };
 
         const handleTouchMove = (e: TouchEvent) => {
@@ -305,7 +316,13 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           const currentY = e.touches[0].clientY;
           const deltaY = lastSentY - currentY;
           if (Math.abs(deltaY) >= SCROLL_THRESHOLD) {
-            sendScrollCommand(deltaY > 0 ? 'down' : 'up');
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              if (deltaY > 0) {
+                wsRef.current.send('\x04');
+              } else {
+                wsRef.current.send('\x15');
+              }
+            }
             lastSentY = currentY;
           }
         };
@@ -332,9 +349,11 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         if (mounted && fitAddonRef.current) {
           fitAddonRef.current.fit();
         }
-      }, FIT_DELAY_MS);
+      }, 100);
 
       // Connect to WebSocket with timeout and auto-retry
+      const CONNECTION_TIMEOUT = 10000;
+      const RETRY_BACKOFF = 2000;
       let hasRetried = false;
 
       function connectWebSocket() {
@@ -380,12 +399,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           clearTimeout(timeoutId);
           if (!mounted) return;
           setStatus("connected");
-
-          // Scroll viewport to bottom to ensure user sees latest output.
-          // This handles cases where xterm.js viewport got scrolled away from bottom
-          // (e.g., during brief WS disconnects).
-          term.scrollToBottom();
-
           term.writeln("Connected to terminal session: " + sessionId);
           term.writeln("");
 
@@ -398,15 +411,13 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
 
         ws.onmessage = (event) => {
           if (!mounted) return;
-          // Scrollback is handled by tmux copy-mode, not xterm.js.
-          // Just write the data - tmux controls what's displayed.
           term.write(event.data);
         };
 
         ws.onclose = (event) => {
           clearTimeout(timeoutId);
           if (!mounted) return;
-          if (event.code === WS_CLOSE_CODE_SESSION_DEAD) {
+          if (event.code === 4000) {
             setStatus("session_dead");
             try {
               const reason = JSON.parse(event.reason);
@@ -476,7 +487,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       lastWidth = width;
       lastHeight = height;
       if (resizeTimeout) clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => handleResize(), RESIZE_DEBOUNCE_MS);
+      resizeTimeout = setTimeout(() => handleResize(), 50);
     });
 
     resizeObserver.observe(containerRef.current);
@@ -503,7 +514,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       <div
         ref={containerRef}
         className="w-full h-full overflow-hidden"
-        style={{ backgroundColor: PHOSPHOR_THEME.background }}
+        style={{ backgroundColor: "#0a0e14" }}
       />
     </div>
   );
