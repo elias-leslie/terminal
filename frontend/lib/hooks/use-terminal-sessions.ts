@@ -18,6 +18,8 @@ export interface TerminalSession {
   is_alive: boolean;
   created_at: string | null;
   last_accessed_at: string | null;
+  // Claude state machine: not_started, starting, running, stopped, error
+  claude_state?: "not_started" | "starting" | "running" | "stopped" | "error";
 }
 
 interface SessionListResponse {

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useState, useRef, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { clsx } from "clsx";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { TerminalComponent, TerminalHandle, ConnectionStatus } from "./Terminal";
-import { Plus, X, Terminal as TerminalIcon, Loader2, RefreshCw } from "lucide-react";
+import { Plus, X, Terminal as TerminalIcon, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { LayoutModeButtons, LayoutMode } from "./LayoutModeButton";
 import { useTerminalSessions } from "@/lib/hooks/use-terminal-sessions";
 import { useActiveSession } from "@/lib/hooks/use-active-session";
@@ -45,6 +46,8 @@ interface ProjectSlot {
   activeMode: "shell" | "claude";
   shellSessionId: string | null;
   claudeSessionId: string | null;
+  // Claude state for overlay (from the claude session if in claude mode)
+  claudeState?: "not_started" | "starting" | "running" | "stopped" | "error";
 }
 
 interface AdHocSlot {
@@ -65,6 +68,7 @@ interface TerminalTabsProps {
 export function TerminalTabs({ projectId, projectPath, className }: TerminalTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
 
   // URL-based active session (single source of truth)
   const {
@@ -112,6 +116,8 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
     // Add project slots first
     for (const pt of projectTerminals) {
+      // Get claude_state from the claude session if it exists
+      const claudeState = pt.claudeSession?.claude_state;
       slots.push({
         type: "project",
         projectId: pt.projectId,
@@ -120,6 +126,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         activeMode: pt.activeMode,
         shellSessionId: pt.shellSessionId,
         claudeSessionId: pt.claudeSessionId,
+        claudeState,
       });
     }
 
@@ -248,6 +255,52 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     router.push(`?${params.toString()}`, { scroll: false });
   }, [searchParams, router]);
 
+  // Helper to start Claude in a session and wait for confirmation
+  const startClaudeInSession = useCallback(async (sessionId: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/terminal/sessions/${sessionId}/start-claude`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        console.error("Failed to start Claude:", await res.text());
+        return false;
+      }
+      const data = await res.json();
+
+      // Invalidate sessions query to pick up new claude_state
+      // This ensures the overlay updates when state changes
+      queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
+
+      // If Claude is starting, poll for completion
+      if (data.claude_state === "starting") {
+        // Poll every 500ms until Claude is running (max 10 seconds)
+        const pollStart = Date.now();
+        const pollInterval = setInterval(async () => {
+          if (Date.now() - pollStart > 10000) {
+            clearInterval(pollInterval);
+            return;
+          }
+          // Fetch latest state
+          const stateRes = await fetch(`/api/terminal/sessions/${sessionId}/claude-state`);
+          if (stateRes.ok) {
+            const stateData = await stateRes.json();
+            if (stateData.claude_state === "running" || stateData.claude_state === "error") {
+              clearInterval(pollInterval);
+              // Invalidate to update UI
+              queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
+            }
+          }
+        }, 500);
+      }
+
+      // Return true if started or already running
+      return data.started || data.message?.includes("already running");
+    } catch (e) {
+      console.error("Failed to start Claude:", e);
+      return false;
+    }
+  }, [queryClient]);
+
   // Handle clicking a project tab - create session if needed
   const handleProjectTabClick = useCallback(async (pt: ProjectTerminal) => {
     const currentSessionId = getProjectSessionId(pt);
@@ -275,40 +328,15 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
         // If mode is claude, start Claude after a brief delay
         if (pt.activeMode === "claude") {
-          setTimeout(async () => {
-            try {
-              await fetch(`/api/terminal/sessions/${newSession.id}/start-claude`, {
-                method: "POST",
-              });
-            } catch (e) {
-              console.error("Failed to auto-start Claude:", e);
-            }
-          }, 500);
+          // Small delay for tmux session initialization
+          await new Promise(resolve => setTimeout(resolve, 300));
+          await startClaudeInSession(newSession.id);
         }
       } catch (e) {
         console.error("Failed to create project session:", e);
       }
     }
-  }, [navigateToSession, getProjectSessionId]);
-
-  // Helper to start Claude in a session and wait for confirmation
-  const startClaudeInSession = useCallback(async (sessionId: string): Promise<boolean> => {
-    try {
-      const res = await fetch(`/api/terminal/sessions/${sessionId}/start-claude`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        console.error("Failed to start Claude:", await res.text());
-        return false;
-      }
-      const data = await res.json();
-      // Return true if started or already running
-      return data.started || data.message?.includes("already running");
-    } catch (e) {
-      console.error("Failed to start Claude:", e);
-      return false;
-    }
-  }, []);
+  }, [navigateToSession, getProjectSessionId, startClaudeInSession]);
 
   // Atomic mode switch handler for project tabs
   // Encapsulates: 1) Update backend mode, 2) Get/create session, 3) Start Claude if needed, 4) Switch via URL
@@ -324,6 +352,8 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
     // 2. Determine which session to use
     let targetSessionId = newMode === "claude" ? currentClaudeSessionId : currentShellSessionId;
+    let needsClaudeStart = false;
+    let isNewSession = false;
 
     // 3. Create session if it doesn't exist
     if (!targetSessionId) {
@@ -342,11 +372,26 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
       }
       const newSession = await res.json();
       targetSessionId = newSession.id;
+      isNewSession = true;
+      // New claude session always needs Claude started
+      if (newMode === "claude") {
+        needsClaudeStart = true;
+      }
+    } else if (newMode === "claude") {
+      // Existing claude session - check if Claude is already running
+      // Look up session in the cache to check claude_state
+      const existingSession = sessions.find(s => s.id === targetSessionId);
+      const claudeState = existingSession?.claude_state;
+      // Only start Claude if NOT already running or starting
+      needsClaudeStart = claudeState !== "running" && claudeState !== "starting";
     }
 
-    // 4. If switching to Claude mode, start Claude (with small delay for terminal init)
-    if (newMode === "claude" && targetSessionId) {
-      await new Promise(resolve => setTimeout(resolve, 300));
+    // 4. If switching to Claude mode AND Claude needs to be started
+    if (newMode === "claude" && targetSessionId && needsClaudeStart) {
+      // Delay for new sessions to let tmux initialize
+      if (isNewSession) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
       await startClaudeInSession(targetSessionId);
     }
 
@@ -363,7 +408,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         inline: "nearest",
       });
     }, 100);
-  }, [switchMode, startClaudeInSession, navigateToSession]);
+  }, [switchMode, startClaudeInSession, navigateToSession, sessions]);
 
   // Close terminal session
   const handleCloseTab = useCallback(
@@ -713,31 +758,71 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           </div>
         ) : layoutMode === "single" ? (
           // Single pane - show active session
-          sessions.map((session) => (
-            <div
-              key={session.id}
-              className={clsx(
-                "absolute inset-0 overflow-hidden",
-                session.id === activeSessionId ? "z-10 visible" : "z-0 invisible"
-              )}
-            >
-              <TerminalComponent
-                ref={(handle) => {
-                  if (handle) {
-                    terminalRefs.current.set(session.id, handle);
-                  } else {
-                    terminalRefs.current.delete(session.id);
-                  }
-                }}
-                sessionId={session.id}
-                workingDir={session.working_dir || projectPath}
-                className="h-full"
-                fontFamily={fontFamily}
-                fontSize={fontSize}
-                onStatusChange={(status) => handleStatusChange(session.id, status)}
-              />
-            </div>
-          ))
+          sessions.map((session) => {
+            // Show loading overlay for claude sessions that aren't running yet
+            const showClaudeOverlay = session.mode === "claude" &&
+              session.claude_state !== "running" &&
+              session.claude_state !== "stopped" &&
+              session.claude_state !== "error";
+
+            return (
+              <div
+                key={session.id}
+                className={clsx(
+                  "absolute inset-0 overflow-hidden",
+                  session.id === activeSessionId ? "z-10 visible" : "z-0 invisible"
+                )}
+              >
+                <TerminalComponent
+                  ref={(handle) => {
+                    if (handle) {
+                      terminalRefs.current.set(session.id, handle);
+                    } else {
+                      terminalRefs.current.delete(session.id);
+                    }
+                  }}
+                  sessionId={session.id}
+                  workingDir={session.working_dir || projectPath}
+                  className="h-full"
+                  fontFamily={fontFamily}
+                  fontSize={fontSize}
+                  onStatusChange={(status) => handleStatusChange(session.id, status)}
+                />
+                {/* Claude loading overlay - hides terminal until Claude is ready */}
+                {showClaudeOverlay && (
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center z-20"
+                    style={{ backgroundColor: "var(--term-bg-deep)" }}
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <Sparkles
+                        className="w-8 h-8 animate-pulse"
+                        style={{ color: "var(--term-accent)" }}
+                      />
+                      <span
+                        className="text-lg font-medium"
+                        style={{ color: "var(--term-text-primary)" }}
+                      >
+                        Starting Claude...
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Loader2
+                        className="w-4 h-4 animate-spin"
+                        style={{ color: "var(--term-text-muted)" }}
+                      />
+                      <span
+                        className="text-sm"
+                        style={{ color: "var(--term-text-muted)" }}
+                      >
+                        Initializing Claude Code
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
         ) : (
           // Split pane layout - 1:1 mapping with terminal slots
           <Group
@@ -902,17 +987,47 @@ function SplitPane({
             <span className="text-xs" style={{ color: "var(--term-text-muted)" }}>(no session)</span>
           )}
         </div>
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden relative">
           {sessionId ? (
-            <TerminalComponent
-              ref={(handle) => onTerminalRef?.(sessionId, handle)}
-              sessionId={sessionId}
-              workingDir={getWorkingDir() || undefined}
-              className="h-full"
-              fontFamily={fontFamily}
-              fontSize={fontSize}
-              onStatusChange={(status) => onStatusChange?.(sessionId, status)}
-            />
+            <>
+              <TerminalComponent
+                ref={(handle) => onTerminalRef?.(sessionId, handle)}
+                sessionId={sessionId}
+                workingDir={getWorkingDir() || undefined}
+                className="h-full"
+                fontFamily={fontFamily}
+                fontSize={fontSize}
+                onStatusChange={(status) => onStatusChange?.(sessionId, status)}
+              />
+              {/* Claude loading overlay for split panes */}
+              {slot.type === "project" &&
+                slot.activeMode === "claude" &&
+                slot.claudeState !== "running" &&
+                slot.claudeState !== "stopped" &&
+                slot.claudeState !== "error" && (
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center z-20"
+                  style={{ backgroundColor: "var(--term-bg-deep)" }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles
+                      className="w-5 h-5 animate-pulse"
+                      style={{ color: "var(--term-accent)" }}
+                    />
+                    <span
+                      className="text-sm font-medium"
+                      style={{ color: "var(--term-text-primary)" }}
+                    >
+                      Starting Claude...
+                    </span>
+                  </div>
+                  <Loader2
+                    className="w-4 h-4 animate-spin"
+                    style={{ color: "var(--term-text-muted)" }}
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <div
               className="flex items-center justify-center h-full text-xs"

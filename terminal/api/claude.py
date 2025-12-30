@@ -105,12 +105,11 @@ def _determine_legacy_claude_state(
 def _is_claude_running_in_session(tmux_session: str) -> bool:
     """Check if Claude Code is already running in a tmux session.
 
-    Checks the current pane content for Claude Code TUI border character.
-    This is the fallback detection method when state machine is not definitive.
+    Uses tmux's pane_current_command to check if 'claude' is the foreground process.
+    This is more reliable than string matching on pane content.
     """
-    # Capture the current pane content
     result = subprocess.run(
-        ["tmux", "capture-pane", "-t", tmux_session, "-p"],
+        ["tmux", "list-panes", "-t", tmux_session, "-F", "#{pane_current_command}"],
         capture_output=True,
         text=True,
     )
@@ -118,17 +117,16 @@ def _is_claude_running_in_session(tmux_session: str) -> bool:
     if result.returncode != 0:
         return False
 
-    content = result.stdout
-    # Look for Claude Code's TUI border character (most reliable indicator)
-    # The box-drawing character appears at the top of Claude's UI
-    return "\u256d" in content  # Unicode box drawings light arc down and right
+    # pane_current_command returns the foreground process name (e.g., "claude", "bash")
+    current_command = result.stdout.strip()
+    return current_command == "claude"
 
 
 def _verify_claude_started(tmux_session: str) -> bool:
-    """Verify Claude Code has started by checking for TUI border.
+    """Verify Claude Code has started by checking if 'claude' is the foreground process.
 
     Returns:
-        True if Claude TUI is detected, False otherwise
+        True if Claude process is running, False otherwise
     """
     return _is_claude_running_in_session(tmux_session)
 
