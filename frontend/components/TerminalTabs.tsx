@@ -256,11 +256,12 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     };
   }, []);
 
-  // Create new terminal session (ad-hoc)
+  // Create new terminal session (ad-hoc / generic)
   const handleAddTab = useCallback(async () => {
     const name = getNextTerminalName(sessions);
-    await create(name, projectPath);
-  }, [sessions, create, projectPath]);
+    // Pass isGeneric=true to create without project association
+    await create(name, undefined, undefined, true);
+  }, [sessions, create]);
 
   // Get current session ID for a project based on activeMode
   const getProjectSessionId = useCallback((pt: ProjectTerminal): string | null => {

@@ -238,11 +238,12 @@ export function useTerminalSessions(projectId?: string) {
   });
 
   // Create new session
+  // Pass isGeneric=true to create an ad-hoc terminal without project association
   const create = useCallback(
-    async (name: string, workingDir?: string, mode?: "shell" | "claude") => {
+    async (name: string, workingDir?: string, mode?: "shell" | "claude", isGeneric?: boolean) => {
       return createMutation.mutateAsync({
         name,
-        project_id: projectId,
+        project_id: isGeneric ? undefined : projectId,
         working_dir: workingDir,
         mode,
       });
