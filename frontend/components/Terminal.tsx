@@ -248,40 +248,39 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       let inCopyMode = false;
       let copyModeTimeout: ReturnType<typeof setTimeout> | null = null;
 
-      const handleWheel = (e: WheelEvent) => {
-        // Only handle if WS is connected
-        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-
-        // Prevent default browser scroll
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Enter tmux copy-mode if not already in it
-        if (!inCopyMode) {
+      // Helper: Enter tmux copy-mode if not already in it
+      const enterCopyMode = () => {
+        if (!inCopyMode && wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send('\x02['); // Ctrl+B [
           inCopyMode = true;
         }
+      };
 
-        // Reset copy-mode exit timeout
+      // Helper: Send scroll command in copy-mode (Ctrl+U up, Ctrl+D down)
+      const sendScrollCommand = (direction: 'up' | 'down') => {
+        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(direction === 'up' ? '\x15' : '\x04');
+      };
+
+      // Helper: Reset copy-mode exit timeout
+      const resetCopyModeTimeout = () => {
         if (copyModeTimeout) clearTimeout(copyModeTimeout);
         copyModeTimeout = setTimeout(() => {
-          // Exit copy-mode after timeout of no scrolling
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send('q'); // 'q' exits copy-mode
           }
           inCopyMode = false;
         }, COPY_MODE_TIMEOUT);
+      };
 
-        // Send scroll commands to tmux copy-mode
-        // In copy-mode: Ctrl+U = half page up, Ctrl+D = half page down
-        // These actually scroll the view, not just move cursor
-        if (e.deltaY < 0) {
-          // Scroll up (see older content)
-          wsRef.current.send('\x15'); // Ctrl+U = half page up
-        } else {
-          // Scroll down (see newer content)
-          wsRef.current.send('\x04'); // Ctrl+D = half page down
-        }
+      const handleWheel = (e: WheelEvent) => {
+        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        enterCopyMode();
+        resetCopyModeTimeout();
+        sendScrollCommand(e.deltaY < 0 ? 'up' : 'down');
       };
 
       const wheelContainer = containerRef.current;
@@ -310,20 +309,16 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         containerRef.current.style.overscrollBehavior = 'none';
         containerRef.current.style.touchAction = 'none';
 
-        // Touch scrolling - send scroll commands to tmux via WebSocket
+        // Touch scrolling - uses shared copy-mode helpers
         let touchStartY = 0;
         let lastSentY = 0;
-        let inCopyMode = false;
         const container = containerRef.current;
 
         const handleTouchStart = (e: TouchEvent) => {
           if (!container.contains(e.target as Node)) return;
           touchStartY = e.touches[0].clientY;
           lastSentY = touchStartY;
-          if (!inCopyMode && wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send('\x02[');
-            inCopyMode = true;
-          }
+          enterCopyMode();
         };
 
         const handleTouchMove = (e: TouchEvent) => {
@@ -333,13 +328,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           const currentY = e.touches[0].clientY;
           const deltaY = lastSentY - currentY;
           if (Math.abs(deltaY) >= SCROLL_THRESHOLD) {
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-              if (deltaY > 0) {
-                wsRef.current.send('\x04');
-              } else {
-                wsRef.current.send('\x15');
-              }
-            }
+            sendScrollCommand(deltaY > 0 ? 'down' : 'up');
             lastSentY = currentY;
           }
         };

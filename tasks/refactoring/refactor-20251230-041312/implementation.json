@@ -209,7 +209,7 @@
           ],
           "files_affected": ["terminal/storage/terminal.py"],
           "verification": "cd terminal && python -c 'from terminal.storage import terminal; print(terminal.list_sessions())'",
-          "passes": false
+          "passes": true
         },
         {
           "id": "3.3",
@@ -241,7 +241,7 @@
           ],
           "files_affected": ["frontend/components/Terminal.tsx"],
           "verification": "npm run build --prefix frontend",
-          "passes": false
+          "passes": true
         },
         {
           "id": "3.5",
