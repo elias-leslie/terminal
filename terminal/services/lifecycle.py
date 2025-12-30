@@ -375,12 +375,16 @@ def ensure_session_alive(session_id: str) -> bool:
         return False
 
 
-def reconcile_on_startup() -> dict[str, int]:
+def reconcile_on_startup(purge_after_days: int = 7) -> dict[str, int]:
     """Reconcile DB with tmux state on server startup.
 
     Syncs the database with the actual tmux session state:
     - Sessions in DB but not tmux: mark as dead
     - Sessions in DB and tmux: mark as alive
+    - Dead sessions older than purge_after_days: permanently deleted
+
+    Args:
+        purge_after_days: Delete dead sessions not accessed in this many days
 
     Returns:
         Stats dict with counts of sessions processed
@@ -398,6 +402,7 @@ def reconcile_on_startup() -> dict[str, int]:
         "total_tmux_sessions": len(tmux_sessions),
         "marked_alive": 0,
         "marked_dead": 0,
+        "purged": 0,
     }
 
     for session in db_sessions:
@@ -415,6 +420,12 @@ def reconcile_on_startup() -> dict[str, int]:
                 terminal_store.mark_dead(session_id)
                 stats["marked_dead"] += 1
                 logger.info("reconcile_marked_dead", session_id=session_id)
+
+    # Purge old dead sessions to prevent unbounded growth
+    purged = terminal_store.purge_dead_sessions(older_than_days=purge_after_days)
+    stats["purged"] = purged
+    if purged > 0:
+        logger.info("reconcile_purged_dead_sessions", count=purged)
 
     logger.info("reconciliation_complete", **stats)
 

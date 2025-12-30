@@ -198,6 +198,34 @@ def mark_dead(session_id: SessionId) -> dict[str, Any] | None:
     return update_session(session_id, is_alive=False)
 
 
+def purge_dead_sessions(older_than_days: int = 7) -> int:
+    """Permanently delete dead sessions older than N days.
+
+    Called during startup reconciliation to prevent unbounded growth
+    of dead session records.
+
+    Args:
+        older_than_days: Delete dead sessions not accessed in this many days
+
+    Returns:
+        Number of sessions deleted
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            DELETE FROM terminal_sessions
+            WHERE is_alive = false AND last_accessed_at < %s
+            """,
+            (cutoff,),
+        )
+        deleted_count = cur.rowcount
+        conn.commit()
+
+    return deleted_count
+
+
 def touch_session(session_id: SessionId) -> dict[str, Any] | None:
     """Update last_accessed_at timestamp.
 
