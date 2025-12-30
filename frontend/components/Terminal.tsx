@@ -412,7 +412,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         ws.onclose = (event) => {
           clearTimeout(timeoutId);
           if (!mounted) return;
-          if (event.code === 4000) {
+          if (event.code === WS_CLOSE_CODE_SESSION_DEAD) {
             setStatus("session_dead");
             try {
               const reason = JSON.parse(event.reason);
@@ -482,7 +482,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       lastWidth = width;
       lastHeight = height;
       if (resizeTimeout) clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => handleResize(), 50);
+      resizeTimeout = setTimeout(() => handleResize(), RESIZE_DEBOUNCE_MS);
     });
 
     resizeObserver.observe(containerRef.current);
@@ -509,7 +509,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       <div
         ref={containerRef}
         className="w-full h-full overflow-hidden"
-        style={{ backgroundColor: "#0a0e14" }}
+        style={{ backgroundColor: PHOSPHOR_THEME.background }}
       />
     </div>
   );
