@@ -15,6 +15,13 @@ import psycopg.sql
 from .connection import get_connection
 
 
+# Standard SELECT field list for terminal_sessions queries
+# Keep in sync with _row_to_dict() field order
+TERMINAL_SESSION_FIELDS = """id, name, user_id, project_id, working_dir, display_order,
+               mode, is_alive, created_at, last_accessed_at, last_claude_session,
+               claude_state"""
+
+
 def list_sessions(include_dead: bool = False) -> list[dict[str, Any]]:
     """List terminal sessions.
 
@@ -24,10 +31,8 @@ def list_sessions(include_dead: bool = False) -> list[dict[str, Any]]:
     Returns:
         List of session dicts ordered by display_order
     """
-    base_query = """
-        SELECT id, name, user_id, project_id, working_dir, display_order,
-               mode, is_alive, created_at, last_accessed_at, last_claude_session,
-               claude_state
+    base_query = f"""
+        SELECT {TERMINAL_SESSION_FIELDS}
         FROM terminal_sessions
     """
     if include_dead:
@@ -53,10 +58,8 @@ def get_session(session_id: str | UUID) -> dict[str, Any] | None:
     """
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            """
-            SELECT id, name, user_id, project_id, working_dir, display_order,
-                   mode, is_alive, created_at, last_accessed_at, last_claude_session,
-                   claude_state
+            f"""
+            SELECT {TERMINAL_SESSION_FIELDS}
             FROM terminal_sessions
             WHERE id = %s
             """,
@@ -132,14 +135,14 @@ def update_session(session_id: str | UUID, **fields: Any) -> dict[str, Any] | No
     values = list(update_fields.values())
     values.append(str(session_id))
 
-    query = psycopg.sql.SQL("""
+    query = psycopg.sql.SQL(
+        f"""
         UPDATE terminal_sessions
-        SET {}
+        SET {{}}
         WHERE id = %s
-        RETURNING id, name, user_id, project_id, working_dir, display_order,
-                  mode, is_alive, created_at, last_accessed_at, last_claude_session,
-                  claude_state
-    """).format(psycopg.sql.SQL(", ").join(set_clauses))
+        RETURNING {TERMINAL_SESSION_FIELDS}
+    """
+    ).format(psycopg.sql.SQL(", ").join(set_clauses))
 
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(query, values)
@@ -200,13 +203,11 @@ def touch_session(session_id: str | UUID) -> dict[str, Any] | None:
     """
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            """
+            f"""
             UPDATE terminal_sessions
             SET last_accessed_at = NOW()
             WHERE id = %s
-            RETURNING id, name, user_id, project_id, working_dir, display_order,
-                      mode, is_alive, created_at, last_accessed_at, last_claude_session,
-                      claude_state
+            RETURNING {TERMINAL_SESSION_FIELDS}
             """,
             (str(session_id),),
         )
@@ -233,10 +234,8 @@ def list_orphaned(older_than_days: int = 30) -> list[dict[str, Any]]:
 
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            """
-            SELECT id, name, user_id, project_id, working_dir, display_order,
-                   mode, is_alive, created_at, last_accessed_at, last_claude_session,
-                   claude_state
+            f"""
+            SELECT {TERMINAL_SESSION_FIELDS}
             FROM terminal_sessions
             WHERE last_accessed_at < %s
             ORDER BY last_accessed_at
@@ -280,10 +279,8 @@ def get_session_by_project(project_id: str, mode: str = "shell") -> dict[str, An
     """
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            """
-            SELECT id, name, user_id, project_id, working_dir, display_order,
-                   mode, is_alive, created_at, last_accessed_at, last_claude_session,
-                   claude_state
+            f"""
+            SELECT {TERMINAL_SESSION_FIELDS}
             FROM terminal_sessions
             WHERE project_id = %s AND mode = %s AND is_alive = true
             ORDER BY created_at DESC
@@ -309,10 +306,8 @@ def get_project_sessions(project_id: str) -> dict[str, dict[str, Any] | None]:
     """
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            """
-            SELECT id, name, user_id, project_id, working_dir, display_order,
-                   mode, is_alive, created_at, last_accessed_at, last_claude_session,
-                   claude_state
+            f"""
+            SELECT {TERMINAL_SESSION_FIELDS}
             FROM terminal_sessions
             WHERE project_id = %s AND is_alive = true
             ORDER BY mode

@@ -194,7 +194,7 @@
             "terminal/api/claude.py"
           ],
           "verification": "cd terminal && python -c 'from terminal.utils import tmux; print(tmux.get_tmux_session_name(\"test\"))'",
-          "passes": false
+          "passes": true
         },
         {
           "id": "3.2",
