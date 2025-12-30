@@ -1,16 +1,14 @@
 "use client";
 
-import { useCallback, useRef, useMemo, useState } from "react";
+import { useCallback, useRef, useMemo } from "react";
 import { useClickOutside } from "@/lib/hooks/useClickOutside";
-import { clsx } from "clsx";
-import { Settings2, FolderKanban } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import {
   TERMINAL_FONTS,
   TERMINAL_FONT_SIZES,
   TerminalFontId,
   TerminalFontSize,
 } from "@/lib/hooks/use-terminal-settings";
-import { TerminalManagerModal } from "./TerminalManagerModal";
 
 // Keyboard size type
 export type KeyboardSizePreset = "small" | "medium" | "large";
@@ -41,7 +39,6 @@ export function SettingsDropdown({
 }: SettingsDropdownProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [showProjectSettings, setShowProjectSettings] = useState(false);
   const closeDropdown = useCallback(
     () => setShowSettings(false),
     [setShowSettings]
@@ -165,7 +162,7 @@ export function SettingsDropdown({
 
           {/* Keyboard size - only on mobile */}
           {isMobile && keyboardSize !== undefined && setKeyboardSize && (
-            <div className="mb-4">
+            <div>
               <label
                 className="block text-xs font-medium mb-1.5"
                 style={{ color: "var(--term-text-muted)" }}
@@ -195,44 +192,8 @@ export function SettingsDropdown({
               </div>
             </div>
           )}
-
-          {/* Terminal Projects button */}
-          <div style={{ borderTop: "1px solid var(--term-border)", paddingTop: "12px", marginTop: "4px" }}>
-            <button
-              onClick={() => {
-                setShowProjectSettings(true);
-                setShowSettings(false);
-              }}
-              className="w-full flex items-center gap-2 px-2.5 py-2 text-sm rounded-md transition-colors"
-              style={{
-                backgroundColor: "transparent",
-                color: "var(--term-text-muted)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--term-bg-deep)";
-                e.currentTarget.style.color = "var(--term-text-primary)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "var(--term-text-muted)";
-              }}
-            >
-              <FolderKanban size={16} />
-              <span>Terminal Projects</span>
-            </button>
-          </div>
         </div>
       )}
-
-      {/* Terminal Manager Modal */}
-      <TerminalManagerModal
-        isOpen={showProjectSettings}
-        onClose={() => setShowProjectSettings(false)}
-        onCreateGenericTerminal={() => {
-          // This will be handled by TerminalTabs in phase 7
-          console.log("Create generic terminal requested");
-        }}
-      />
     </div>
   );
 }
