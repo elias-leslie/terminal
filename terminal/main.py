@@ -4,6 +4,7 @@ Independent microservice for web terminal functionality.
 Runs on port 8002, separate from main SummitFlow backend.
 """
 
+import subprocess
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -19,6 +20,33 @@ from .services import lifecycle
 logger = get_logger(__name__)
 
 
+def _setup_tmux_session_hook() -> None:
+    """Set up global tmux hook to notify backend of session switches.
+
+    This hook fires whenever any tmux client switches sessions.
+    We use it to track which session each terminal is viewing.
+    """
+    # The hook calls our internal endpoint with from/to session info
+    # We run curl in background (&) to not block tmux
+    hook_cmd = (
+        f'run-shell "curl -s \'http://localhost:{TERMINAL_PORT}/api/internal/session-switch'
+        '?from=#{client_last_session}&to=#{client_session}\' >/dev/null 2>&1 &"'
+    )
+
+    # Set global hook (applies to all sessions)
+    result = subprocess.run(
+        ["tmux", "set-hook", "-g", "client-session-changed", hook_cmd],
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode == 0:
+        logger.info("tmux_session_hook_installed")
+    else:
+        # tmux might not be running yet - that's OK
+        logger.warning("tmux_session_hook_failed", error=result.stderr.strip())
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan handler."""
@@ -29,6 +57,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("startup_reconciliation_complete", **stats)
     except Exception as e:
         logger.error("startup_reconciliation_failed", error=str(e))
+
+    # Set up tmux hook for session tracking
+    _setup_tmux_session_hook()
 
     yield
 

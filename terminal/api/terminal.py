@@ -32,6 +32,39 @@ router = APIRouter()
 # Active terminal sessions: session_id -> master_fd
 _sessions: dict[str, dict[str, Any]] = {}
 
+# Prefix for terminal base sessions
+_BASE_SESSION_PREFIX = "summitflow-"
+
+
+@router.get("/api/internal/session-switch")
+async def session_switch_hook(
+    from_session: str = Query(..., alias="from"),
+    to_session: str = Query(..., alias="to"),
+) -> dict:
+    """Handle tmux session switch notifications.
+
+    Called by tmux hook when a client switches sessions.
+    Extracts terminal session ID from the base session name and stores the target.
+    """
+    # Only track switches FROM a terminal base session
+    if not from_session.startswith(_BASE_SESSION_PREFIX):
+        return {"status": "ignored", "reason": "not from base session"}
+
+    # Extract terminal session ID from "summitflow-{uuid}"
+    terminal_session_id = from_session[len(_BASE_SESSION_PREFIX):]
+
+    # Don't store if switching back to base session
+    if to_session.startswith(_BASE_SESSION_PREFIX):
+        logger.info("session_switch_to_base", terminal=terminal_session_id)
+        terminal_store.update_claude_session(terminal_session_id, None)
+        return {"status": "cleared"}
+
+    # Store the target session
+    logger.info("session_switch_detected", terminal=terminal_session_id, target=to_session)
+    terminal_store.update_claude_session(terminal_session_id, to_session)
+
+    return {"status": "stored", "target": to_session}
+
 
 def _create_tmux_session(session_id: str, working_dir: str | None = None) -> str:
     """Create or attach to a tmux session.
@@ -198,10 +231,10 @@ async def terminal_websocket(
         }
 
         # Start output reader task
-        output_task = asyncio.create_task(_read_output(websocket, master_fd, session_id))
+        output_task = asyncio.create_task(_read_output(websocket, master_fd))
 
-        # Start session tracker to detect tmux session switches
-        tracker_task = asyncio.create_task(_track_session_switches(session_id, tmux_session_name))
+        # Session tracking is now handled by tmux hooks (see main.py)
+        # No polling needed - hooks notify us instantly on session switch
 
         # Read input from WebSocket
         try:
@@ -243,10 +276,8 @@ async def terminal_websocket(
 
         finally:
             output_task.cancel()
-            tracker_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await output_task
-                await tracker_task
 
     except Exception as e:
         logger.error("terminal_error", session_id=session_id, error=str(e))
@@ -264,53 +295,12 @@ async def terminal_websocket(
         logger.info("terminal_cleanup_complete", session_id=session_id)
 
 
-async def _track_session_switches(session_id: str, base_session: str) -> None:
-    """Poll tmux to detect when user switches to a different session.
-
-    Tracks any session switch away from the base terminal session.
-    On reconnect, the terminal will auto-switch to the last target session.
-    """
-    last_target_session = None
-
-    try:
-        while True:
-            await asyncio.sleep(2)  # Poll every 2 seconds
-
-            # Get the current session for clients attached to our base session
-            result = subprocess.run(
-                ["tmux", "list-clients", "-t", base_session, "-F", "#{client_session}"],
-                capture_output=True,
-                text=True,
-            )
-
-            if result.returncode == 0 and result.stdout.strip():
-                current_session = result.stdout.strip().split("\n")[0]
-
-                # If switched to a different session (not the base), store it
-                if current_session != base_session and current_session != last_target_session:
-                    logger.info("session_switch_detected", from_session=base_session, to_session=current_session)
-                    terminal_store.update_claude_session(session_id, current_session)
-                    last_target_session = current_session
-
-                # If switched back to base session, clear stored target
-                elif current_session == base_session and last_target_session:
-                    logger.info("returned_to_base_session", base=base_session)
-                    terminal_store.update_claude_session(session_id, None)
-                    last_target_session = None
-
-    except asyncio.CancelledError:
-        pass
-    except Exception as e:
-        logger.error("session_tracker_error", error=str(e))
-
-
-async def _read_output(websocket: WebSocket, master_fd: int, session_id: str) -> None:
+async def _read_output(websocket: WebSocket, master_fd: int) -> None:
     """Read output from PTY and send to WebSocket.
 
     Args:
         websocket: WebSocket connection
         master_fd: Master file descriptor
-        session_id: Terminal session ID for updating stored claude session
     """
     loop = asyncio.get_event_loop()
 
