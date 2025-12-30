@@ -246,7 +246,12 @@ async def terminal_websocket(
             await websocket.close(code=1011, reason=str(e))
 
     finally:
-        # Clean up PTY but keep tmux session
+        # Clean up PTY child process and fd, but keep tmux session
+        if pid is not None:
+            with contextlib.suppress(OSError):
+                os.kill(pid, 9)  # SIGKILL the tmux attach process
+                os.waitpid(pid, os.WNOHANG)  # Reap zombie
+
         if master_fd is not None:
             with contextlib.suppress(OSError):
                 os.close(master_fd)
