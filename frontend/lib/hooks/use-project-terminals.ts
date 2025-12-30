@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { useProjectSettings, ProjectSetting } from "./use-project-settings";
+import { useMemo, useCallback } from "react";
+import { useProjectSettings } from "./use-project-settings";
 import { useTerminalSessions, TerminalSession } from "./use-terminal-sessions";
 
 // ============================================================================
@@ -12,13 +12,17 @@ export interface ProjectTerminal {
   projectId: string;
   projectName: string;
   rootPath: string | null;
-  mode: "shell" | "claude";
-  sessionId: string | null; // null if not yet created
-  session: TerminalSession | null;
+  activeMode: "shell" | "claude";
+  // Dual session IDs
+  shellSessionId: string | null;
+  claudeSessionId: string | null;
+  // Dual session objects
+  shellSession: TerminalSession | null;
+  claudeSession: TerminalSession | null;
 }
 
 export interface UseProjectTerminalsResult {
-  /** Enabled projects with session info merged */
+  /** Enabled projects with dual session info merged */
   projectTerminals: ProjectTerminal[];
   /** Sessions without a project_id (generic shells) */
   adHocSessions: TerminalSession[];
@@ -26,6 +30,12 @@ export interface UseProjectTerminalsResult {
   isLoading: boolean;
   /** Error occurred */
   isError: boolean;
+  /** Switch project mode (shell <-> claude) */
+  switchMode: (projectId: string, mode: "shell" | "claude") => Promise<void>;
+  /** Reset project sessions (delete and recreate) */
+  resetProject: (projectId: string) => Promise<void>;
+  /** Disable project terminal */
+  disableProject: (projectId: string) => Promise<void>;
 }
 
 // ============================================================================
@@ -61,6 +71,8 @@ export interface UseProjectTerminalsResult {
 export function useProjectTerminals(): UseProjectTerminalsResult {
   const {
     enabledProjects,
+    switchMode: switchProjectMode,
+    updateSettings,
     isLoading: projectsLoading,
     isError: projectsError,
   } = useProjectSettings();
@@ -71,19 +83,26 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
     isError: sessionsError,
   } = useTerminalSessions();
 
-  // Merge enabled projects with sessions
+  // Merge enabled projects with dual sessions
   const projectTerminals = useMemo(() => {
     return enabledProjects.map((project) => {
-      // Find session for this project
-      const session = sessions.find((s) => s.project_id === project.id) ?? null;
+      // Find shell and claude sessions for this project
+      const shellSession = sessions.find(
+        (s) => s.project_id === project.id && s.mode === "shell"
+      ) ?? null;
+      const claudeSession = sessions.find(
+        (s) => s.project_id === project.id && s.mode === "claude"
+      ) ?? null;
 
       return {
         projectId: project.id,
         projectName: project.name,
         rootPath: project.root_path,
-        mode: project.terminal_mode,
-        sessionId: session?.id ?? null,
-        session,
+        activeMode: project.active_mode,
+        shellSessionId: shellSession?.id ?? null,
+        claudeSessionId: claudeSession?.id ?? null,
+        shellSession,
+        claudeSession,
       };
     });
   }, [enabledProjects, sessions]);
@@ -93,10 +112,40 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
     return sessions.filter((s) => !s.project_id);
   }, [sessions]);
 
+  // Switch project mode
+  const switchMode = useCallback(
+    async (projectId: string, mode: "shell" | "claude") => {
+      await switchProjectMode(projectId, mode);
+    },
+    [switchProjectMode]
+  );
+
+  // Reset project sessions via API
+  const resetProject = useCallback(async (projectId: string) => {
+    const res = await fetch(`/api/terminal/projects/${projectId}/reset`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ detail: "Failed to reset project" }));
+      throw new Error(error.detail || "Failed to reset project");
+    }
+  }, []);
+
+  // Disable project terminal via API
+  const disableProject = useCallback(
+    async (projectId: string) => {
+      await updateSettings(projectId, { enabled: false });
+    },
+    [updateSettings]
+  );
+
   return {
     projectTerminals,
     adHocSessions,
     isLoading: projectsLoading || sessionsLoading,
     isError: projectsError || sessionsError,
+    switchMode,
+    resetProject,
+    disableProject,
   };
 }

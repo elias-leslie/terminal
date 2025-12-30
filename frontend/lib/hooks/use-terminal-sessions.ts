@@ -13,6 +13,7 @@ export interface TerminalSession {
   user_id: string | null;
   project_id: string | null;
   working_dir: string | null;
+  mode: "shell" | "claude";
   display_order: number;
   is_alive: boolean;
   created_at: string | null;
