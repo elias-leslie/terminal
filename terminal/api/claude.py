@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
+import time
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -286,6 +287,15 @@ async def start_claude(
                 message=f"Claude state changed to {new_state}",
                 claude_state=new_state or "not_started",
             )
+
+    # Clear the terminal first so the command isn't visible in scrollback
+    subprocess.run(
+        ["tmux", "send-keys", "-t", tmux_session, "clear", "Enter"],
+        capture_output=True,
+        text=True,
+    )
+    # Small delay to let clear complete
+    time.sleep(0.1)
 
     # Send the claude command with skip-permissions flag
     result = subprocess.run(
