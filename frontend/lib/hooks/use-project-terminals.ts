@@ -126,9 +126,8 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
 
   // Reset project sessions via API
   const resetProject = useCallback(async (projectId: string) => {
-    // Get current project info to know active mode
+    // Get current project info
     const project = projectTerminals.find((p) => p.projectId === projectId);
-    const activeMode = project?.activeMode || "shell";
     const oldShellId = project?.shellSessionId;
     const oldClaudeId = project?.claudeSessionId;
 
@@ -141,26 +140,18 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
     }
 
     const result = await res.json();
-    const newSessionId = activeMode === "claude"
-      ? result.claude_session_id
-      : result.shell_session_id;
+    // Reset always goes back to shell mode
+    const newShellSessionId = result.shell_session_id;
 
-    // Optimistically update sessions cache
-    queryClient.setQueryData<TerminalSession[]>(["terminal-sessions"], (old) => {
-      if (!old) return old;
-      // Remove old sessions
-      let updated = old.filter((s) => s.id !== oldShellId && s.id !== oldClaudeId);
-      return updated;
-    });
-
-    // Switch to new session if available
-    if (newSessionId) {
-      setActiveId(newSessionId);
+    // Switch to new shell session immediately
+    if (newShellSessionId) {
+      setActiveId(newShellSessionId);
     }
 
-    // Refetch to get fresh data
-    await queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
-  }, [projectTerminals, queryClient, setActiveId]);
+    // Refetch both queries to get new data (these run in background)
+    queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
+    queryClient.invalidateQueries({ queryKey: ["terminal-projects"] });
+  }, [queryClient, setActiveId]);
 
   // Disable project terminal via API
   const disableProject = useCallback(
