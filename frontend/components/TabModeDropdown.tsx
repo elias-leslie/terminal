@@ -26,21 +26,28 @@ export function TabModeDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [dropdownPosition, setDropdownPosition] = useState<"below" | "above">("below");
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   const closeDropdown = useCallback(() => setIsOpen(false), []);
   const clickOutsideRefs = useMemo(() => [buttonRef, dropdownRef], []);
   useClickOutside(clickOutsideRefs, closeDropdown, isOpen);
 
-  // Calculate dropdown position based on viewport
+  // Calculate dropdown position based on viewport - use fixed positioning
   useEffect(() => {
     if (!isOpen || !buttonRef.current) return;
 
     const rect = buttonRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
     const dropdownHeight = 88; // Approximate height of 2 options
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openAbove = spaceBelow < dropdownHeight;
 
-    setDropdownPosition(spaceBelow < dropdownHeight ? "above" : "below");
+    setDropdownStyle({
+      position: "fixed",
+      top: openAbove ? undefined : rect.bottom + 4,
+      bottom: openAbove ? window.innerHeight - rect.top + 4 : undefined,
+      right: window.innerWidth - rect.right,
+      zIndex: 9999,
+    });
   }, [isOpen]);
 
   const handleSelect = (mode: TerminalMode) => {
@@ -125,18 +132,14 @@ export function TabModeDropdown({
           <div
             ref={dropdownRef}
             role="listbox"
-            className={`
-              absolute z-[9999] min-w-[100px] rounded-md overflow-hidden
-              animate-in fade-in slide-in-from-top-1 duration-100
-              ${dropdownPosition === "above" ? "bottom-full mb-1" : "top-full mt-1"}
-            `}
+            className="min-w-[100px] rounded-md overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100"
             style={{
+              ...dropdownStyle,
               backgroundColor: "rgba(21, 27, 35, 0.95)",
               backdropFilter: "blur(12px)",
               WebkitBackdropFilter: "blur(12px)",
               border: "1px solid var(--term-border-active)",
               boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
-              right: 0, // Align to right edge of button
             }}
             onClick={(e) => e.stopPropagation()}
           >

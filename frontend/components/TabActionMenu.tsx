@@ -28,28 +28,31 @@ export function TabActionMenu({
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [menuPosition, setMenuPosition] = useState<{
-    vertical: "above" | "below";
-    horizontal: "left" | "right";
-  }>({ vertical: "below", horizontal: "right" });
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
 
   const closeMenu = useCallback(() => setIsOpen(false), []);
   const clickOutsideRefs = useMemo(() => [buttonRef, menuRef], []);
   useClickOutside(clickOutsideRefs, closeMenu, isOpen);
 
-  // Calculate menu position based on viewport
+  // Calculate menu position based on viewport - use fixed positioning
   useEffect(() => {
     if (!isOpen || !buttonRef.current) return;
 
     const rect = buttonRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceRight = window.innerWidth - rect.right;
     const menuHeight = 88; // Approximate height of 2 options
     const menuWidth = 140;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceRight = window.innerWidth - rect.right;
+    const openAbove = spaceBelow < menuHeight;
+    const openLeft = spaceRight < menuWidth;
 
-    setMenuPosition({
-      vertical: spaceBelow < menuHeight ? "above" : "below",
-      horizontal: spaceRight < menuWidth ? "left" : "right",
+    setMenuStyle({
+      position: "fixed",
+      top: openAbove ? undefined : rect.bottom + 4,
+      bottom: openAbove ? window.innerHeight - rect.top + 4 : undefined,
+      right: openLeft ? window.innerWidth - rect.right : undefined,
+      left: openLeft ? undefined : rect.left,
+      zIndex: 9999,
     });
   }, [isOpen]);
 
@@ -124,13 +127,9 @@ export function TabActionMenu({
           <div
             ref={menuRef}
             role="menu"
-            className={`
-              absolute z-[9999] min-w-[120px] rounded-md overflow-hidden
-              animate-in fade-in slide-in-from-top-1 duration-100
-              ${menuPosition.vertical === "above" ? "bottom-full mb-1" : "top-full mt-1"}
-              ${menuPosition.horizontal === "left" ? "right-0" : "left-0"}
-            `}
+            className="min-w-[120px] rounded-md overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100"
             style={{
+              ...menuStyle,
               backgroundColor: "rgba(21, 27, 35, 0.95)",
               backdropFilter: "blur(12px)",
               WebkitBackdropFilter: "blur(12px)",
