@@ -303,6 +303,38 @@ def reset_session(session_id: str) -> str | None:
     return new_session_id
 
 
+def reset_project_sessions(project_id: str) -> dict[str, str | None]:
+    """Reset all sessions for a project.
+
+    Gets both shell and claude sessions for the project, resets each one.
+
+    Args:
+        project_id: Project identifier
+
+    Returns:
+        Dict with 'shell' and 'claude' keys, each containing new session ID or None
+    """
+    # Get both sessions for project
+    sessions = terminal_store.get_project_sessions(project_id)
+
+    result: dict[str, str | None] = {"shell": None, "claude": None}
+
+    for mode in ["shell", "claude"]:
+        session = sessions.get(mode)
+        if session:
+            new_id = reset_session(session["id"])
+            result[mode] = new_id
+
+    logger.info(
+        "project_sessions_reset",
+        project_id=project_id,
+        shell_session=result["shell"],
+        claude_session=result["claude"],
+    )
+
+    return result
+
+
 def ensure_session_alive(session_id: str) -> bool:
     """Ensure a session is alive, recreating tmux if necessary.
 
