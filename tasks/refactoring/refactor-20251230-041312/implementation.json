@@ -541,7 +541,7 @@
           ],
           "files_affected": [],
           "verification": "npm run build --prefix frontend",
-          "passes": false
+          "passes": true
         },
         {
           "id": "7.2",
@@ -556,7 +556,7 @@
           ],
           "files_affected": [],
           "verification": "cd terminal && python -c 'from terminal.main import app'",
-          "passes": false
+          "passes": true
         },
         {
           "id": "7.3",
@@ -572,7 +572,7 @@
           ],
           "files_affected": [],
           "verification": "curl -s http://localhost:8002/health | jq .",
-          "passes": false
+          "passes": true
         }
       ]
     }
