@@ -34,7 +34,7 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           is_alive, created_at, last_accessed_at, last_claude_session
+                           mode, is_alive, created_at, last_accessed_at, last_claude_session
                     FROM terminal_sessions
                     WHERE user_id = %s
                     ORDER BY display_order, created_at
@@ -45,7 +45,7 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           is_alive, created_at, last_accessed_at, last_claude_session
+                           mode, is_alive, created_at, last_accessed_at, last_claude_session
                     FROM terminal_sessions
                     WHERE user_id = %s AND is_alive = true
                     ORDER BY display_order, created_at
@@ -57,7 +57,7 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           is_alive, created_at, last_accessed_at, last_claude_session
+                           mode, is_alive, created_at, last_accessed_at, last_claude_session
                     FROM terminal_sessions
                     ORDER BY display_order, created_at
                     """
@@ -66,7 +66,7 @@ def list_sessions(
                 cur.execute(
                     """
                     SELECT id, name, user_id, project_id, working_dir, display_order,
-                           is_alive, created_at, last_accessed_at, last_claude_session
+                           mode, is_alive, created_at, last_accessed_at, last_claude_session
                     FROM terminal_sessions
                     WHERE is_alive = true
                     ORDER BY display_order, created_at
@@ -90,7 +90,7 @@ def get_session(session_id: str | UUID) -> dict[str, Any] | None:
         cur.execute(
             """
             SELECT id, name, user_id, project_id, working_dir, display_order,
-                   is_alive, created_at, last_accessed_at, last_claude_session
+                   mode, is_alive, created_at, last_accessed_at, last_claude_session
             FROM terminal_sessions
             WHERE id = %s
             """,
@@ -108,6 +108,7 @@ def create_session(
     project_id: str | None = None,
     working_dir: str | None = None,
     user_id: str | None = None,
+    mode: str = "shell",
 ) -> str:
     """Create a new terminal session.
 
@@ -118,6 +119,7 @@ def create_session(
         project_id: Optional project ID for context
         working_dir: Initial working directory (default: user home)
         user_id: Optional user ID (for future auth support)
+        mode: Session mode - 'shell' or 'claude' (default: 'shell')
 
     Returns:
         Server-generated session UUID as string
@@ -125,11 +127,11 @@ def create_session(
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO terminal_sessions (name, user_id, project_id, working_dir)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO terminal_sessions (name, user_id, project_id, working_dir, mode)
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (name, user_id, project_id, working_dir),
+            (name, user_id, project_id, working_dir, mode),
         )
         row = cur.fetchone()
         conn.commit()
@@ -169,7 +171,7 @@ def update_session(session_id: str | UUID, **fields: Any) -> dict[str, Any] | No
         SET {}
         WHERE id = %s
         RETURNING id, name, user_id, project_id, working_dir, display_order,
-                  is_alive, created_at, last_accessed_at
+                  mode, is_alive, created_at, last_accessed_at
     """).format(psycopg.sql.SQL(", ").join(set_clauses))
 
     with get_connection() as conn, conn.cursor() as cur:
@@ -236,7 +238,7 @@ def touch_session(session_id: str | UUID) -> dict[str, Any] | None:
             SET last_accessed_at = NOW()
             WHERE id = %s
             RETURNING id, name, user_id, project_id, working_dir, display_order,
-                      is_alive, created_at, last_accessed_at
+                      mode, is_alive, created_at, last_accessed_at
             """,
             (str(session_id),),
         )
@@ -265,7 +267,7 @@ def list_orphaned(older_than_days: int = 30) -> list[dict[str, Any]]:
         cur.execute(
             """
             SELECT id, name, user_id, project_id, working_dir, display_order,
-                   is_alive, created_at, last_accessed_at
+                   mode, is_alive, created_at, last_accessed_at
             FROM terminal_sessions
             WHERE last_accessed_at < %s
             ORDER BY last_accessed_at
@@ -286,20 +288,22 @@ def _row_to_dict(row: tuple) -> dict[str, Any]:
         "project_id": row[3],
         "working_dir": row[4],
         "display_order": row[5],
-        "is_alive": row[6],
-        "created_at": row[7],
-        "last_accessed_at": row[8],
-        "last_claude_session": row[9] if len(row) > 9 else None,
+        "mode": row[6],
+        "is_alive": row[7],
+        "created_at": row[8],
+        "last_accessed_at": row[9],
+        "last_claude_session": row[10] if len(row) > 10 else None,
     }
 
 
-def get_session_by_project(project_id: str) -> dict[str, Any] | None:
-    """Get the active session for a project.
+def get_session_by_project(project_id: str, mode: str = "shell") -> dict[str, Any] | None:
+    """Get the active session for a project and mode.
 
-    Each project should have at most one active session.
+    Each project can have one shell session and one claude session.
 
     Args:
         project_id: Project identifier
+        mode: Session mode - 'shell' or 'claude' (default: 'shell')
 
     Returns:
         Session dict or None if not found
@@ -308,19 +312,69 @@ def get_session_by_project(project_id: str) -> dict[str, Any] | None:
         cur.execute(
             """
             SELECT id, name, user_id, project_id, working_dir, display_order,
-                   is_alive, created_at, last_accessed_at, last_claude_session
+                   mode, is_alive, created_at, last_accessed_at, last_claude_session
             FROM terminal_sessions
-            WHERE project_id = %s AND is_alive = true
+            WHERE project_id = %s AND mode = %s AND is_alive = true
             ORDER BY created_at DESC
             LIMIT 1
             """,
-            (project_id,),
+            (project_id, mode),
         )
         row = cur.fetchone()
 
     if not row:
         return None
     return _row_to_dict(row)
+
+
+def get_project_sessions(project_id: str) -> dict[str, dict[str, Any] | None]:
+    """Get both shell and claude sessions for a project.
+
+    Args:
+        project_id: Project identifier
+
+    Returns:
+        Dict with 'shell' and 'claude' keys, each containing session dict or None
+    """
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, name, user_id, project_id, working_dir, display_order,
+                   mode, is_alive, created_at, last_accessed_at, last_claude_session
+            FROM terminal_sessions
+            WHERE project_id = %s AND is_alive = true
+            ORDER BY mode
+            """,
+            (project_id,),
+        )
+        rows = cur.fetchall()
+
+    result: dict[str, dict[str, Any] | None] = {"shell": None, "claude": None}
+    for row in rows:
+        session = _row_to_dict(row)
+        if session["mode"] in result:
+            result[session["mode"]] = session
+    return result
+
+
+def delete_project_sessions(project_id: str) -> int:
+    """Delete all sessions for a project (hard delete).
+
+    Args:
+        project_id: Project identifier
+
+    Returns:
+        Number of sessions deleted
+    """
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM terminal_sessions WHERE project_id = %s",
+            (project_id,),
+        )
+        count = cur.rowcount
+        conn.commit()
+
+    return count
 
 
 def update_claude_session(session_id: str | UUID, claude_session: str | None) -> None:
