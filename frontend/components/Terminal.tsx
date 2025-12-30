@@ -8,7 +8,6 @@ import {
   RETRY_BACKOFF,
   SCROLL_THRESHOLD,
   SCROLLBACK,
-  COPY_MODE_TIMEOUT,
   MOBILE_WIDTH_THRESHOLD,
   FIT_DELAY_MS,
   WS_CLOSE_CODE_SESSION_DEAD,
@@ -226,8 +225,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // - Mobile: Touch gestures already send tmux copy-mode commands
       //
       // We handle wheel events to enter tmux copy-mode and scroll within it.
+      // User exits copy-mode manually by pressing 'q' or typing (matches mobile behavior).
       let inCopyMode = false;
-      let copyModeTimeout: ReturnType<typeof setTimeout> | null = null;
 
       // Helper: Enter tmux copy-mode if not already in it
       const enterCopyMode = () => {
@@ -243,24 +242,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         wsRef.current.send(direction === 'up' ? '\x15' : '\x04');
       };
 
-      // Helper: Reset copy-mode exit timeout
-      const resetCopyModeTimeout = () => {
-        if (copyModeTimeout) clearTimeout(copyModeTimeout);
-        copyModeTimeout = setTimeout(() => {
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send('q'); // 'q' exits copy-mode
-          }
-          inCopyMode = false;
-        }, COPY_MODE_TIMEOUT);
-      };
-
       const handleWheel = (e: WheelEvent) => {
         if (wsRef.current?.readyState !== WebSocket.OPEN) return;
         e.preventDefault();
         e.stopPropagation();
 
         enterCopyMode();
-        resetCopyModeTimeout();
         sendScrollCommand(e.deltaY < 0 ? 'up' : 'down');
       };
 
@@ -270,9 +257,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Store wheel cleanup
       (term as unknown as { _wheelCleanup?: () => void })._wheelCleanup = () => {
         wheelContainer.removeEventListener('wheel', handleWheel, { capture: true });
-        if (copyModeTimeout) {
-          clearTimeout(copyModeTimeout);
-        }
       };
 
       terminalRef.current = term;

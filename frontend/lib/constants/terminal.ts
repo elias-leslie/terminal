@@ -10,9 +10,6 @@ export const SCROLL_THRESHOLD = 50;
 /** Terminal scrollback buffer size */
 export const SCROLLBACK = 5000;
 
-/** Copy mode exit timeout in milliseconds */
-export const COPY_MODE_TIMEOUT = 2000;
-
 /** Mobile device width threshold in pixels */
 export const MOBILE_WIDTH_THRESHOLD = 768;
 
