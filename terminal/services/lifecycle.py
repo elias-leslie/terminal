@@ -92,7 +92,7 @@ def create_session(
 
     # Step 2: Create tmux session
     try:
-        _create_tmux_session(session_id, working_dir)
+        create_tmux_session(session_id, working_dir)
     except TmuxError as e:
         # Rollback: delete DB record
         logger.error(
@@ -313,7 +313,7 @@ def ensure_session_alive(session_id: str) -> bool:
         return False
 
     # Check tmux session
-    if _tmux_session_exists(session_id):
+    if tmux_session_exists(session_id):
         # Ensure DB says it's alive
         if not session["is_alive"]:
             terminal_store.update_session(session_id, is_alive=True)
@@ -324,7 +324,7 @@ def ensure_session_alive(session_id: str) -> bool:
     logger.info("session_resurrection_attempt", session_id=session_id)
 
     try:
-        _create_tmux_session(session_id, session.get("working_dir"))
+        create_tmux_session(session_id, session.get("working_dir"))
         terminal_store.update_session(session_id, is_alive=True)
         logger.info("session_resurrected", session_id=session_id)
         return True
@@ -354,7 +354,7 @@ def reconcile_on_startup() -> dict[str, int]:
     db_sessions = terminal_store.list_sessions(include_dead=True)
 
     # Get all tmux sessions
-    tmux_sessions = _list_tmux_sessions()
+    tmux_sessions = list_tmux_sessions()
 
     stats = {
         "total_db_sessions": len(db_sessions),
@@ -440,7 +440,7 @@ def get_or_create_project_session(
     if existing:
         session_id = existing["id"]
         # Check if tmux session still alive
-        if _tmux_session_exists(session_id):
+        if tmux_session_exists(session_id):
             logger.info(
                 "project_session_exists",
                 project_id=project_id,
@@ -457,7 +457,7 @@ def get_or_create_project_session(
                 mode=mode,
             )
             try:
-                _create_tmux_session(session_id, root_path)
+                create_tmux_session(session_id, root_path)
                 terminal_store.update_session(session_id, is_alive=True)
                 logger.info("project_session_resurrected", session_id=session_id)
                 return session_id

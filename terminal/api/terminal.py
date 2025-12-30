@@ -26,6 +26,7 @@ from ..config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS
 from ..logging_config import get_logger
 from ..services import lifecycle
 from ..storage import terminal as terminal_store
+from ..utils.tmux import create_tmux_session, run_tmux_command
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -67,58 +68,6 @@ async def session_switch_hook(
     return {"status": "stored", "target": to_session}
 
 
-def _create_tmux_session(session_id: str, working_dir: str | None = None) -> str:
-    """Create or attach to a tmux session.
-
-    Args:
-        session_id: Unique session identifier
-        working_dir: Optional working directory to start in
-
-    Returns:
-        tmux session name
-    """
-    session_name = f"summitflow-{session_id}"
-
-    # Check if session exists
-    result = subprocess.run(
-        ["tmux", "has-session", "-t", session_name],
-        capture_output=True,
-    )
-
-    if result.returncode != 0:
-        # Create new session with optional working directory
-        cmd = [
-            "tmux",
-            "new-session",
-            "-d",
-            "-s",
-            session_name,
-            "-x",
-            str(TMUX_DEFAULT_COLS),
-            "-y",
-            str(TMUX_DEFAULT_ROWS),
-        ]
-        if working_dir:
-            cmd.extend(["-c", working_dir])
-        subprocess.run(cmd, capture_output=True)
-
-        # Disable mouse mode so xterm.js handles selection natively
-        subprocess.run(
-            ["tmux", "set-option", "-t", session_name, "mouse", "off"],
-            capture_output=True,
-        )
-        logger.info("tmux_session_created", session=session_name, working_dir=working_dir)
-    else:
-        # Ensure mouse is off for existing sessions too
-        subprocess.run(
-            ["tmux", "set-option", "-t", session_name, "mouse", "off"],
-            capture_output=True,
-        )
-        logger.info("tmux_session_attached", session=session_name)
-
-    return session_name
-
-
 def _spawn_pty_for_tmux(
     tmux_session: str,
     stored_target_session: str | None = None,
@@ -135,11 +84,8 @@ def _spawn_pty_for_tmux(
     # Check if stored target session still exists
     target_session = None
     if stored_target_session:
-        result = subprocess.run(
-            ["tmux", "has-session", "-t", stored_target_session],
-            capture_output=True,
-        )
-        if result.returncode == 0:
+        success, _ = run_tmux_command(["has-session", "-t", stored_target_session])
+        if success:
             target_session = stored_target_session
             logger.info("using_stored_target_session", session=stored_target_session)
 
@@ -229,7 +175,7 @@ async def terminal_websocket(
         stored_target_session = session.get("last_claude_session") if session else None
 
         # Create or attach to tmux session (should exist now due to ensure_session_alive)
-        tmux_session_name = _create_tmux_session(session_id, session_working_dir)
+        tmux_session_name = create_tmux_session(session_id, session_working_dir)
 
         # Spawn PTY for tmux (pass stored target session for auto-reconnect)
         master_fd, pid = _spawn_pty_for_tmux(tmux_session_name, stored_target_session)
