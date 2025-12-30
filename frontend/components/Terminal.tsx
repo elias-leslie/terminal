@@ -8,7 +8,6 @@ import {
   RETRY_BACKOFF,
   SCROLL_THRESHOLD,
   SCROLLBACK,
-  COPY_MODE_TIMEOUT,
   MOBILE_WIDTH_THRESHOLD,
   FIT_DELAY_MS,
   WS_CLOSE_CODE_SESSION_DEAD,
@@ -226,8 +225,10 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // - Mobile: Touch gestures already send tmux copy-mode commands
       //
       // We handle wheel events to enter tmux copy-mode and scroll within it.
+      // User must press 'q' or Escape to exit copy-mode and return to live view.
+      // (No auto-exit timeout - this prevents the "snap back" issue where the view
+      // would jump back to the bottom every 2 seconds.)
       let inCopyMode = false;
-      let copyModeTimeout: ReturnType<typeof setTimeout> | null = null;
 
       // Helper: Enter tmux copy-mode if not already in it
       const enterCopyMode = () => {
@@ -243,24 +244,18 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         wsRef.current.send(direction === 'up' ? '\x15' : '\x04');
       };
 
-      // Helper: Reset copy-mode exit timeout
-      const resetCopyModeTimeout = () => {
-        if (copyModeTimeout) clearTimeout(copyModeTimeout);
-        copyModeTimeout = setTimeout(() => {
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send('q'); // 'q' exits copy-mode
-          }
-          inCopyMode = false;
-        }, COPY_MODE_TIMEOUT);
-      };
-
       const handleWheel = (e: WheelEvent) => {
-        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+        // CRITICAL: Always prevent default to stop xterm.js from scrolling its own buffer.
+        // If we don't, xterm.js viewport can scroll away from bottom during WS disconnects,
+        // causing all subsequent output to be invisible (appears at buffer bottom but
+        // viewport stays at old position).
         e.preventDefault();
         e.stopPropagation();
 
+        // Only send scroll commands if WS is connected
+        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+
         enterCopyMode();
-        resetCopyModeTimeout();
         sendScrollCommand(e.deltaY < 0 ? 'up' : 'down');
       };
 
@@ -270,9 +265,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Store wheel cleanup
       (term as unknown as { _wheelCleanup?: () => void })._wheelCleanup = () => {
         wheelContainer.removeEventListener('wheel', handleWheel, { capture: true });
-        if (copyModeTimeout) {
-          clearTimeout(copyModeTimeout);
-        }
       };
 
       terminalRef.current = term;
@@ -384,6 +376,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           clearTimeout(timeoutId);
           if (!mounted) return;
           setStatus("connected");
+
+          // Scroll viewport to bottom to ensure user sees latest output.
+          // This handles cases where xterm.js viewport got scrolled away from bottom
+          // (e.g., during brief WS disconnects).
+          term.scrollToBottom();
+
           term.writeln("Connected to terminal session: " + sessionId);
           term.writeln("");
 
