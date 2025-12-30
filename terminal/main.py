@@ -20,12 +20,20 @@ from .services import lifecycle
 logger = get_logger(__name__)
 
 
-def _setup_tmux_session_hook() -> None:
-    """Set up global tmux hook to notify backend of session switches.
+def _setup_tmux_options() -> None:
+    """Set up tmux options and hooks for terminal service.
 
-    This hook fires whenever any tmux client switches sessions.
-    We use it to track which session each terminal is viewing.
+    Configures:
+    - detach-on-destroy off: When a session ends, switch to another instead of showing [exited]
+    - client-session-changed hook: Notify backend when sessions switch
     """
+    # When a session is destroyed, switch to another session instead of detaching
+    # This makes /exit in Claude Code seamlessly return to the base terminal
+    subprocess.run(
+        ["tmux", "set-option", "-g", "detach-on-destroy", "off"],
+        capture_output=True,
+    )
+
     # The hook calls our internal endpoint with from/to session info
     # We run curl in background (&) to not block tmux
     hook_cmd = (
@@ -41,10 +49,10 @@ def _setup_tmux_session_hook() -> None:
     )
 
     if result.returncode == 0:
-        logger.info("tmux_session_hook_installed")
+        logger.info("tmux_options_configured")
     else:
         # tmux might not be running yet - that's OK
-        logger.warning("tmux_session_hook_failed", error=result.stderr.strip())
+        logger.warning("tmux_setup_failed", error=result.stderr.strip())
 
 
 @asynccontextmanager
@@ -58,8 +66,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.error("startup_reconciliation_failed", error=str(e))
 
-    # Set up tmux hook for session tracking
-    _setup_tmux_session_hook()
+    # Set up tmux options and hooks
+    _setup_tmux_options()
 
     yield
 
