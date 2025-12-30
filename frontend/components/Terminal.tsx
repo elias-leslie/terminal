@@ -228,40 +228,65 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       containerRef.current.addEventListener('mouseup', forceLocalMouseHandling, { capture: true });
       containerRef.current.addEventListener('mousemove', forceLocalMouseHandling, { capture: true });
 
-      // Fix: xterm.js 6.x doesn't auto-sync scroll dimensions when buffer grows
-      // The viewport only syncs on resize/scroll events, not on write.
-      // Solution: Call resize() with current dimensions to force a full sync.
-      // This triggers bufferService.onResize -> Viewport._sync() with correct dimensions.
+      // SCROLLBACK ARCHITECTURE NOTE:
+      // xterm.js scrollback does NOT work with tmux because tmux controls what's displayed.
+      // xterm.js only receives the current viewport from tmux (e.g., 37 lines).
+      // The scrollback history is stored in tmux's buffer, not xterm.js's buffer.
       //
-      // We debounce this to avoid excessive sync calls during rapid writes.
-      let syncTimeout: ReturnType<typeof setTimeout> | null = null;
-      const triggerViewportSync = () => {
-        if (syncTimeout) return; // Already scheduled
-        syncTimeout = setTimeout(() => {
-          syncTimeout = null;
-          // resize() with current dimensions forces a full viewport sync
-          // This is more reliable than scrollLines(0) which may be a no-op
-          if (term.cols && term.rows) {
-            term.resize(term.cols, term.rows);
+      // For scrollback, users must use tmux copy-mode:
+      // - Desktop: Ctrl+B [ to enter copy-mode, then scroll with arrows/PgUp/PgDn
+      // - Mobile: Touch gestures already send tmux copy-mode commands
+      //
+      // We handle wheel events to enter tmux copy-mode and scroll within it.
+      let inCopyMode = false;
+      let copyModeTimeout: ReturnType<typeof setTimeout> | null = null;
+
+      const handleWheel = (e: WheelEvent) => {
+        // Only handle if WS is connected
+        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+
+        // Prevent default browser scroll
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Enter tmux copy-mode if not already in it
+        if (!inCopyMode) {
+          wsRef.current.send('\x02['); // Ctrl+B [
+          inCopyMode = true;
+        }
+
+        // Reset copy-mode exit timeout
+        if (copyModeTimeout) clearTimeout(copyModeTimeout);
+        copyModeTimeout = setTimeout(() => {
+          // Exit copy-mode after 2 seconds of no scrolling
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send('q'); // 'q' exits copy-mode
           }
-        }, 100); // Debounce at 100ms to batch rapid writes
-      };
+          inCopyMode = false;
+        }, 2000);
 
-      // Sync viewport after data is written
-      term.onWriteParsed(() => triggerViewportSync());
-
-      // Store sync cleanup
-      (term as unknown as { _syncCleanup?: () => void })._syncCleanup = () => {
-        if (syncTimeout) {
-          clearTimeout(syncTimeout);
-          syncTimeout = null;
+        // Send scroll commands to tmux copy-mode
+        // In copy-mode: Ctrl+U = half page up, Ctrl+D = half page down
+        // These actually scroll the view, not just move cursor
+        if (e.deltaY < 0) {
+          // Scroll up (see older content)
+          wsRef.current.send('\x15'); // Ctrl+U = half page up
+        } else {
+          // Scroll down (see newer content)
+          wsRef.current.send('\x04'); // Ctrl+D = half page down
         }
       };
 
-      // Wheel events: Let xterm.js handle natively
-      // xterm.js converts wheel to arrow keys ONLY in alternate scroll mode (alt buffer)
-      // With smcup@:rmcup@ in tmux.conf, alternate screen is disabled, so this won't happen.
-      // No custom wheel handler needed - xterm.js default behavior is correct.
+      const wheelContainer = containerRef.current;
+      wheelContainer.addEventListener('wheel', handleWheel, { capture: true, passive: false });
+
+      // Store wheel cleanup
+      (term as unknown as { _wheelCleanup?: () => void })._wheelCleanup = () => {
+        wheelContainer.removeEventListener('wheel', handleWheel, { capture: true });
+        if (copyModeTimeout) {
+          clearTimeout(copyModeTimeout);
+        }
+      };
 
       terminalRef.current = term;
       fitAddonRef.current = fitAddon;
@@ -449,8 +474,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       if (terminalRef.current) {
         const touchCleanup = (terminalRef.current as unknown as { _touchCleanup?: () => void })._touchCleanup;
         if (touchCleanup) touchCleanup();
-        const syncCleanup = (terminalRef.current as unknown as { _syncCleanup?: () => void })._syncCleanup;
-        if (syncCleanup) syncCleanup();
+        const wheelCleanup = (terminalRef.current as unknown as { _wheelCleanup?: () => void })._wheelCleanup;
+        if (wheelCleanup) wheelCleanup();
         terminalRef.current.dispose();
         terminalRef.current = null;
       }
