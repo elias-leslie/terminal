@@ -182,6 +182,9 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   // Tab refs for scroll into view
   const projectTabRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
+  // Claude state polling interval ref for cleanup
+  const claudePollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Get active terminal status for showing reconnect button
   const activeStatus = activeSessionId ? terminalStatuses.get(activeSessionId) : undefined;
   const showReconnect = activeStatus && ["disconnected", "error", "timeout"].includes(activeStatus);
@@ -237,6 +240,16 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, [editingId]);
 
+  // Cleanup Claude polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (claudePollIntervalRef.current) {
+        clearInterval(claudePollIntervalRef.current);
+        claudePollIntervalRef.current = null;
+      }
+    };
+  }, []);
+
   // Create new terminal session (ad-hoc)
   const handleAddTab = useCallback(async () => {
     const name = getNextTerminalName(sessions);
@@ -273,11 +286,19 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
       // If Claude is starting, poll for completion
       if (data.claude_state === "starting") {
+        // Clear any existing polling interval
+        if (claudePollIntervalRef.current) {
+          clearInterval(claudePollIntervalRef.current);
+        }
+
         // Poll every 500ms until Claude is running (max 10 seconds)
         const pollStart = Date.now();
-        const pollInterval = setInterval(async () => {
+        claudePollIntervalRef.current = setInterval(async () => {
           if (Date.now() - pollStart > 10000) {
-            clearInterval(pollInterval);
+            if (claudePollIntervalRef.current) {
+              clearInterval(claudePollIntervalRef.current);
+              claudePollIntervalRef.current = null;
+            }
             return;
           }
           // Fetch latest state
@@ -285,7 +306,10 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           if (stateRes.ok) {
             const stateData = await stateRes.json();
             if (stateData.claude_state === "running" || stateData.claude_state === "error") {
-              clearInterval(pollInterval);
+              if (claudePollIntervalRef.current) {
+                clearInterval(claudePollIntervalRef.current);
+                claudePollIntervalRef.current = null;
+              }
               // Invalidate to update UI
               queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
             }

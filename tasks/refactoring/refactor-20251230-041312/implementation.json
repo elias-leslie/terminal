@@ -113,7 +113,7 @@
           ],
           "files_affected": ["terminal/services/lifecycle.py"],
           "verification": "cd terminal && python -c 'from terminal.services import lifecycle'",
-          "passes": false
+          "passes": true
         },
         {
           "id": "2.2",
