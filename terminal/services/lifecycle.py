@@ -15,6 +15,7 @@ from __future__ import annotations
 import subprocess
 
 from ..logging_config import get_logger
+from ..storage import project_settings as settings_store
 from ..storage import terminal as terminal_store
 
 logger = get_logger(__name__)
@@ -354,6 +355,33 @@ def reset_all_sessions() -> int:
     logger.info("all_sessions_reset", count=count)
 
     return count
+
+
+def disable_project_terminal(project_id: str) -> bool:
+    """Disable terminal for a project.
+
+    Deletes both shell and claude sessions and sets project enabled=false.
+
+    Args:
+        project_id: Project identifier
+
+    Returns:
+        True if successful
+    """
+    # Delete all sessions for this project
+    sessions = terminal_store.get_project_sessions(project_id)
+
+    for mode in ["shell", "claude"]:
+        session = sessions.get(mode)
+        if session:
+            delete_session(session["id"])
+
+    # Set project as disabled
+    settings_store.upsert_settings(project_id, enabled=False)
+
+    logger.info("project_terminal_disabled", project_id=project_id)
+
+    return True
 
 
 def ensure_session_alive(session_id: str) -> bool:
