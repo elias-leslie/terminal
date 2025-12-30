@@ -473,11 +473,12 @@
           "steps": [
             "Add CLAUDE_STARTUP_VERIFICATION_DELAY_SECONDS = 3 at module level",
             "Replace asyncio.sleep(3) on line 137 with constant",
-            "Add comment explaining why delay is needed"
+            "Add comment explaining why delay is needed",
+            "BONUS: Fixed stale import from lifecycle to utils.tmux"
           ],
           "files_affected": ["terminal/api/claude.py"],
           "verification": "cd terminal && python -c 'from terminal.api import claude'",
-          "passes": false
+          "passes": true
         }
       ]
     },

@@ -15,8 +15,8 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from ..logging_config import get_logger
-from ..services.lifecycle import _get_tmux_session_name, _tmux_session_exists_by_name
 from ..storage import terminal as terminal_store
+from ..utils.tmux import get_tmux_session_name, tmux_session_exists_by_name
 
 router = APIRouter(tags=["Claude Integration"])
 logger = get_logger(__name__)
@@ -197,10 +197,10 @@ async def start_claude(
         )
 
     # Get the tmux session name
-    tmux_session = _get_tmux_session_name(session_id)
+    tmux_session = get_tmux_session_name(session_id)
 
     # Check if tmux session exists
-    if not _tmux_session_exists_by_name(tmux_session):
+    if not tmux_session_exists_by_name(tmux_session):
         raise HTTPException(
             status_code=400,
             detail=f"tmux session {tmux_session} does not exist",
