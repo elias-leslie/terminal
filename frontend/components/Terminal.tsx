@@ -228,6 +228,24 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       containerRef.current.addEventListener('mouseup', forceLocalMouseHandling, { capture: true });
       containerRef.current.addEventListener('mousemove', forceLocalMouseHandling, { capture: true });
 
+      // Handle wheel events - always use local scrollback for xterm.js buffer
+      // This prevents wheel events from being sent to the terminal as key sequences
+      const handleWheel = (e: WheelEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        // Scroll xterm.js buffer directly
+        const lines = Math.round(e.deltaY / 20); // Convert delta to line count
+        term.scrollLines(lines);
+      };
+      const wheelContainer = containerRef.current;
+      wheelContainer.addEventListener('wheel', handleWheel, { capture: true, passive: false });
+
+      // Store wheel cleanup
+      (term as unknown as { _wheelCleanup?: () => void })._wheelCleanup = () => {
+        wheelContainer.removeEventListener('wheel', handleWheel, { capture: true });
+      };
+
       terminalRef.current = term;
       fitAddonRef.current = fitAddon;
 
@@ -414,6 +432,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       if (terminalRef.current) {
         const touchCleanup = (terminalRef.current as unknown as { _touchCleanup?: () => void })._touchCleanup;
         if (touchCleanup) touchCleanup();
+        const wheelCleanup = (terminalRef.current as unknown as { _wheelCleanup?: () => void })._wheelCleanup;
+        if (wheelCleanup) wheelCleanup();
         terminalRef.current.dispose();
         terminalRef.current = null;
       }
