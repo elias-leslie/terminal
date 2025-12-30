@@ -22,6 +22,7 @@ from typing import Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
+from ..config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS
 from ..logging_config import get_logger
 from ..services import lifecycle
 from ..storage import terminal as terminal_store
@@ -86,7 +87,17 @@ def _create_tmux_session(session_id: str, working_dir: str | None = None) -> str
 
     if result.returncode != 0:
         # Create new session with optional working directory
-        cmd = ["tmux", "new-session", "-d", "-s", session_name, "-x", "120", "-y", "30"]
+        cmd = [
+            "tmux",
+            "new-session",
+            "-d",
+            "-s",
+            session_name,
+            "-x",
+            str(TMUX_DEFAULT_COLS),
+            "-y",
+            str(TMUX_DEFAULT_ROWS),
+        ]
         if working_dir:
             cmd.extend(["-c", working_dir])
         subprocess.run(cmd, capture_output=True)
@@ -257,8 +268,8 @@ async def terminal_websocket(
                         try:
                             data = json.loads(text)
                             resize = data.get("resize", {})
-                            cols = resize.get("cols", 120)
-                            rows = resize.get("rows", 30)
+                            cols = resize.get("cols", TMUX_DEFAULT_COLS)
+                            rows = resize.get("rows", TMUX_DEFAULT_ROWS)
                             _resize_pty(master_fd, cols, rows)
                             logger.info(
                                 "terminal_resized",

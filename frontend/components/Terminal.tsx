@@ -144,7 +144,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         cursorBlink: true,
         fontSize: fontSize,
         fontFamily: fontFamily,
-        scrollback: 5000,
+        scrollback: SCROLLBACK,
         allowProposedApi: true,
         rightClickSelectsWord: true,
         macOptionClickForcesSelection: true,
@@ -265,12 +265,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         // Reset copy-mode exit timeout
         if (copyModeTimeout) clearTimeout(copyModeTimeout);
         copyModeTimeout = setTimeout(() => {
-          // Exit copy-mode after 2 seconds of no scrolling
+          // Exit copy-mode after timeout of no scrolling
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send('q'); // 'q' exits copy-mode
           }
           inCopyMode = false;
-        }, 2000);
+        }, COPY_MODE_TIMEOUT);
 
         // Send scroll commands to tmux copy-mode
         // In copy-mode: Ctrl+U = half page up, Ctrl+D = half page down
@@ -314,7 +314,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         let touchStartY = 0;
         let lastSentY = 0;
         let inCopyMode = false;
-        const SCROLL_THRESHOLD = 50;
         const container = containerRef.current;
 
         const handleTouchStart = (e: TouchEvent) => {
@@ -370,8 +369,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       }, 100);
 
       // Connect to WebSocket with timeout and auto-retry
-      const CONNECTION_TIMEOUT = 10000;
-      const RETRY_BACKOFF = 2000;
       let hasRetried = false;
 
       function connectWebSocket() {
