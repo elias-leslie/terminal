@@ -238,10 +238,14 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         }
       };
 
-      // Helper: Send scroll command in copy-mode (Ctrl+U up, Ctrl+D down)
+      // Helper: Send scroll command in copy-mode
+      // IMPORTANT: Use Page Up/Down escape sequences instead of Ctrl+U/Ctrl+D!
+      // Ctrl+D is EOF and will exit programs (like Claude Code) if sent when not in copy-mode.
+      // Page Up/Down are safe - they scroll in copy-mode and are ignored in normal mode.
       const sendScrollCommand = (direction: 'up' | 'down') => {
         if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-        wsRef.current.send(direction === 'up' ? '\x15' : '\x04');
+        // Page Up: \x1b[5~  Page Down: \x1b[6~
+        wsRef.current.send(direction === 'up' ? '\x1b[5~' : '\x1b[6~');
       };
 
       const handleWheel = (e: WheelEvent) => {
