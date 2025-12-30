@@ -10,7 +10,7 @@ import {
   TerminalFontId,
   TerminalFontSize,
 } from "@/lib/hooks/use-terminal-settings";
-import { ProjectSettingsModal } from "./ProjectSettingsModal";
+import { TerminalManagerModal } from "./TerminalManagerModal";
 
 // Keyboard size type
 export type KeyboardSizePreset = "small" | "medium" | "large";
@@ -224,10 +224,14 @@ export function SettingsDropdown({
         </div>
       )}
 
-      {/* Project Settings Modal */}
-      <ProjectSettingsModal
+      {/* Terminal Manager Modal */}
+      <TerminalManagerModal
         isOpen={showProjectSettings}
         onClose={() => setShowProjectSettings(false)}
+        onCreateGenericTerminal={() => {
+          // This will be handled by TerminalTabs in phase 7
+          console.log("Create generic terminal requested");
+        }}
       />
     </div>
   );

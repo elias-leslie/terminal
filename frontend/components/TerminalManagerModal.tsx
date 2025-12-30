@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { X, GripVertical, ChevronDown } from "lucide-react";
+import { X, GripVertical, Plus, Terminal } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -21,12 +21,24 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useProjectSettings, ProjectSetting } from "@/lib/hooks/use-project-settings";
 
-interface ProjectSettingsModalProps {
+interface TerminalManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreateGenericTerminal: () => void;
 }
 
-export function ProjectSettingsModal({ isOpen, onClose }: ProjectSettingsModalProps) {
+/**
+ * Terminal Manager Modal - opened via + button in tab bar.
+ * Features:
+ * - Enable/disable project terminals via checkboxes
+ * - Drag-and-drop reordering of projects
+ * - "New Generic Terminal" button for ad-hoc sessions
+ */
+export function TerminalManagerModal({
+  isOpen,
+  onClose,
+  onCreateGenericTerminal,
+}: TerminalManagerModalProps) {
   const { projects, updateSettings, updateOrder, isUpdating } = useProjectSettings();
   const [localProjects, setLocalProjects] = useState<ProjectSetting[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
@@ -68,16 +80,6 @@ export function ProjectSettingsModal({ isOpen, onClose }: ProjectSettingsModalPr
     setHasChanges(true);
   };
 
-  // Set project mode
-  const handleModeChange = (projectId: string, mode: "shell" | "claude") => {
-    setLocalProjects((items) =>
-      items.map((item) =>
-        item.id === projectId ? { ...item, terminal_mode: mode } : item
-      )
-    );
-    setHasChanges(true);
-  };
-
   // Apply changes
   const handleApply = async () => {
     // Update each changed project
@@ -85,16 +87,8 @@ export function ProjectSettingsModal({ isOpen, onClose }: ProjectSettingsModalPr
       const original = projects.find((p) => p.id === local.id);
       if (!original) continue;
 
-      const changes: { enabled?: boolean; default_mode?: "shell" | "claude" } = {};
       if (local.terminal_enabled !== original.terminal_enabled) {
-        changes.enabled = local.terminal_enabled;
-      }
-      if (local.terminal_mode !== original.terminal_mode) {
-        changes.default_mode = local.terminal_mode;
-      }
-
-      if (Object.keys(changes).length > 0) {
-        await updateSettings(local.id, changes);
+        await updateSettings(local.id, { enabled: local.terminal_enabled });
       }
     }
 
@@ -106,6 +100,12 @@ export function ProjectSettingsModal({ isOpen, onClose }: ProjectSettingsModalPr
     }
 
     setHasChanges(false);
+    onClose();
+  };
+
+  // Handle creating generic terminal
+  const handleCreateGeneric = () => {
+    onCreateGenericTerminal();
     onClose();
   };
 
@@ -141,7 +141,7 @@ export function ProjectSettingsModal({ isOpen, onClose }: ProjectSettingsModalPr
             className="text-xs font-medium tracking-widest"
             style={{ color: "var(--term-text-muted)", fontFamily: "var(--font-mono)" }}
           >
-            TERMINAL PROJECTS
+            TERMINALS
           </h2>
           <button
             onClick={onClose}
@@ -162,34 +162,69 @@ export function ProjectSettingsModal({ isOpen, onClose }: ProjectSettingsModalPr
 
         {/* Content */}
         <div className="p-3 max-h-[400px] overflow-y-auto">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={localProjects.map((p) => p.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {localProjects.map((project) => (
-                <SortableProjectRow
-                  key={project.id}
-                  project={project}
-                  onToggle={() => handleToggle(project.id)}
-                  onModeChange={(mode) => handleModeChange(project.id, mode)}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
+          {/* Projects section */}
+          {localProjects.length > 0 && (
+            <>
+              <div
+                className="text-xs font-medium mb-2 px-2"
+                style={{ color: "var(--term-text-muted)", fontFamily: "var(--font-mono)" }}
+              >
+                PROJECTS
+              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={localProjects.map((p) => p.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {localProjects.map((project) => (
+                    <SortableProjectRow
+                      key={project.id}
+                      project={project}
+                      onToggle={() => handleToggle(project.id)}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            </>
+          )}
 
           {localProjects.length === 0 && (
             <p
-              className="text-sm text-center py-8"
+              className="text-sm text-center py-4"
               style={{ color: "var(--term-text-muted)" }}
             >
               No projects found
             </p>
           )}
+
+          {/* New Generic Terminal button */}
+          <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--term-border)" }}>
+            <button
+              onClick={handleCreateGeneric}
+              className="flex items-center gap-2 w-full px-3 py-2.5 rounded-md transition-colors"
+              style={{
+                backgroundColor: "transparent",
+                color: "var(--term-text-muted)",
+                fontFamily: "var(--font-mono)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
+                e.currentTarget.style.color = "var(--term-accent)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.color = "var(--term-text-muted)";
+              }}
+            >
+              <Plus size={16} style={{ color: "var(--term-accent)" }} />
+              <Terminal size={16} />
+              <span className="text-sm">New Generic Terminal</span>
+            </button>
+          </div>
         </div>
 
         {/* Footer */}
@@ -238,15 +273,13 @@ export function ProjectSettingsModal({ isOpen, onClose }: ProjectSettingsModalPr
   );
 }
 
-// Sortable project row
+// Sortable project row (simplified - no mode dropdown)
 function SortableProjectRow({
   project,
   onToggle,
-  onModeChange,
 }: {
   project: ProjectSetting;
   onToggle: () => void;
-  onModeChange: (mode: "shell" | "claude") => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: project.id });
@@ -315,107 +348,6 @@ function SortableProjectRow({
       >
         {project.name}
       </span>
-
-      {/* Mode dropdown */}
-      <ModeDropdown
-        value={project.terminal_mode}
-        onChange={onModeChange}
-        disabled={!project.terminal_enabled}
-      />
-    </div>
-  );
-}
-
-// Mode dropdown
-function ModeDropdown({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: "shell" | "claude";
-  onChange: (v: "shell" | "claude") => void;
-  disabled: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div className="relative">
-      <button
-        className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded transition-colors"
-        style={{
-          backgroundColor: "var(--term-bg-deep)",
-          border: "1px solid var(--term-border)",
-          color: disabled ? "var(--term-text-muted)" : "var(--term-text-primary)",
-          fontFamily: "var(--font-mono)",
-          minWidth: "80px",
-          justifyContent: "space-between",
-          opacity: disabled ? 0.5 : 1,
-          cursor: disabled ? "not-allowed" : "pointer",
-        }}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        disabled={disabled}
-        onMouseEnter={(e) => {
-          if (!disabled) e.currentTarget.style.borderColor = "var(--term-border-active)";
-        }}
-        onMouseLeave={(e) => {
-          if (!disabled) e.currentTarget.style.borderColor = "var(--term-border)";
-        }}
-      >
-        <span>{value === "claude" ? "Claude" : "Shell"}</span>
-        <ChevronDown size={12} />
-      </button>
-
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div
-            className="absolute top-full right-0 mt-1 min-w-full z-11 rounded overflow-hidden"
-            style={{
-              backgroundColor: "var(--term-bg-elevated)",
-              border: "1px solid var(--term-border-active)",
-            }}
-          >
-            <button
-              className="block w-full px-2.5 py-2 text-xs text-left transition-colors"
-              style={{
-                color: value === "shell" ? "var(--term-accent)" : "var(--term-text-primary)",
-                fontFamily: "var(--font-mono)",
-              }}
-              onClick={() => {
-                onChange("shell");
-                setIsOpen(false);
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-              }}
-            >
-              Shell
-            </button>
-            <button
-              className="block w-full px-2.5 py-2 text-xs text-left transition-colors"
-              style={{
-                color: value === "claude" ? "var(--term-accent)" : "var(--term-text-primary)",
-                fontFamily: "var(--font-mono)",
-              }}
-              onClick={() => {
-                onChange("claude");
-                setIsOpen(false);
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-              }}
-            >
-              Claude
-            </button>
-          </div>
-        </>
-      )}
     </div>
   );
 }
