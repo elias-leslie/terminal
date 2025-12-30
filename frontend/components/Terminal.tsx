@@ -8,6 +8,7 @@ import {
   RETRY_BACKOFF,
   SCROLL_THRESHOLD,
   SCROLLBACK,
+  COPY_MODE_TIMEOUT,
   MOBILE_WIDTH_THRESHOLD,
   FIT_DELAY_MS,
   WS_CLOSE_CODE_SESSION_DEAD,
@@ -146,8 +147,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Create terminal with Phosphor theme
       const term = new Terminal({
         cursorBlink: true,
-        cursorStyle: "block",
-        cursorInactiveStyle: "outline",
         fontSize: fontSize,
         fontFamily: fontFamily,
         scrollback: SCROLLBACK,
@@ -227,23 +226,32 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // - Mobile: Touch gestures already send tmux copy-mode commands
       //
       // We handle wheel events to enter tmux copy-mode and scroll within it.
-      // Note: We always send Ctrl+B [ to enter copy-mode before scrolling.
-      // tmux gracefully ignores this if already in copy-mode.
-      // We use Page Up/Down for scrolling since they're safe if accidentally
-      // sent to a normal shell (unlike Ctrl+D which sends EOF and exits).
+      let inCopyMode = false;
+      let copyModeTimeout: ReturnType<typeof setTimeout> | null = null;
 
-      // Helper: Enter tmux copy-mode (always sends, tmux ignores if already in it)
+      // Helper: Enter tmux copy-mode if not already in it
       const enterCopyMode = () => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
+        if (!inCopyMode && wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send('\x02['); // Ctrl+B [
+          inCopyMode = true;
         }
       };
 
-      // Helper: Send scroll command using Page Up/Down (safe in normal shell)
+      // Helper: Send scroll command in copy-mode (Ctrl+U up, Ctrl+D down)
       const sendScrollCommand = (direction: 'up' | 'down') => {
         if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-        // Page Up: \x1b[5~, Page Down: \x1b[6~
-        wsRef.current.send(direction === 'up' ? '\x1b[5~' : '\x1b[6~');
+        wsRef.current.send(direction === 'up' ? '\x15' : '\x04');
+      };
+
+      // Helper: Reset copy-mode exit timeout
+      const resetCopyModeTimeout = () => {
+        if (copyModeTimeout) clearTimeout(copyModeTimeout);
+        copyModeTimeout = setTimeout(() => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send('q'); // 'q' exits copy-mode
+          }
+          inCopyMode = false;
+        }, COPY_MODE_TIMEOUT);
       };
 
       const handleWheel = (e: WheelEvent) => {
@@ -252,6 +260,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         e.stopPropagation();
 
         enterCopyMode();
+        resetCopyModeTimeout();
         sendScrollCommand(e.deltaY < 0 ? 'up' : 'down');
       };
 
@@ -261,6 +270,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Store wheel cleanup
       (term as unknown as { _wheelCleanup?: () => void })._wheelCleanup = () => {
         wheelContainer.removeEventListener('wheel', handleWheel, { capture: true });
+        if (copyModeTimeout) {
+          clearTimeout(copyModeTimeout);
+        }
       };
 
       terminalRef.current = term;
@@ -384,10 +396,17 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
 
         ws.onmessage = (event) => {
           if (!mounted) return;
-          // Note: Scroll preservation is handled by tmux copy-mode, not xterm.js.
-          // When user scrolls (wheel), we enter tmux copy-mode which freezes the view.
-          // User presses 'q' to exit copy-mode and return to live output.
+
+          // Preserve scroll position if user is viewing history
+          const buffer = term.buffer.active;
+          const distanceFromBottom = buffer.baseY - buffer.viewportY;
+
           term.write(event.data);
+
+          // Restore scroll position if user wasn't at bottom
+          if (distanceFromBottom > 0) {
+            term.scrollLines(-distanceFromBottom);
+          }
         };
 
         ws.onclose = (event) => {
