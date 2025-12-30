@@ -63,6 +63,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   const wsRef = useRef<WebSocket | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const connectWebSocketRef = useRef<(() => void) | null>(null);
+  const onDataDisposableRef = useRef<{ dispose: () => void } | null>(null);
 
   // Store callback in ref to avoid re-render loops
   const onStatusChangeRef = useRef(onStatusChange);
@@ -438,7 +439,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           term.writeln("\r\n\x1b[31mConnection error\x1b[0m");
         };
 
-        term.onData((data) => {
+        onDataDisposableRef.current = term.onData((data) => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(data);
             // Typing exits tmux copy-mode, reset our tracking
@@ -466,6 +467,11 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
+      }
+      // Dispose onData listener before terminal
+      if (onDataDisposableRef.current) {
+        onDataDisposableRef.current.dispose();
+        onDataDisposableRef.current = null;
       }
       if (terminalRef.current) {
         const touchCleanup = (terminalRef.current as unknown as { _touchCleanup?: () => void })._touchCleanup;
