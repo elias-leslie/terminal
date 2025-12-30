@@ -310,14 +310,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         const container = containerRef.current;
 
         const handleTouchStart = (e: TouchEvent) => {
-          if (!container.contains(e.target as Node)) return;
           touchStartY = e.touches[0].clientY;
           lastSentY = touchStartY;
           enterCopyMode();
         };
 
         const handleTouchMove = (e: TouchEvent) => {
-          if (!container.contains(e.target as Node)) return;
           e.preventDefault();
           e.stopPropagation();
           const currentY = e.touches[0].clientY;
@@ -333,14 +331,14 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           lastSentY = 0;
         };
 
-        document.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
-        document.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
-        document.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
+        container.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+        container.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+        container.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
 
         (term as unknown as { _touchCleanup?: () => void })._touchCleanup = () => {
-          document.removeEventListener('touchstart', handleTouchStart, { capture: true });
-          document.removeEventListener('touchmove', handleTouchMove, { capture: true });
-          document.removeEventListener('touchend', handleTouchEnd, { capture: true });
+          container.removeEventListener('touchstart', handleTouchStart, { capture: true });
+          container.removeEventListener('touchmove', handleTouchMove, { capture: true });
+          container.removeEventListener('touchend', handleTouchEnd, { capture: true });
         };
       }
 
