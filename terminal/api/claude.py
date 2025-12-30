@@ -125,6 +125,33 @@ async def get_claude_state(session_id: str) -> ClaudeStateResponse:
     )
 
 
+def _is_claude_running_in_session(tmux_session: str) -> bool:
+    """Check if Claude Code is already running in a tmux session.
+
+    Checks the current pane content for Claude Code indicators.
+    """
+    # Capture the current pane content
+    result = subprocess.run(
+        ["tmux", "capture-pane", "-t", tmux_session, "-p"],
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        return False
+
+    content = result.stdout
+    # Check for Claude Code indicators
+    claude_indicators = [
+        "Claude Code",
+        "[Opus",
+        "~/",  # Claude's status bar shows ~/path
+        "> Try ",  # Claude's suggestion prompt
+    ]
+
+    return any(indicator in content for indicator in claude_indicators)
+
+
 @router.post(
     "/api/terminal/sessions/{session_id}/start-claude",
     response_model=StartClaudeResponse,
@@ -132,8 +159,8 @@ async def get_claude_state(session_id: str) -> ClaudeStateResponse:
 async def start_claude(session_id: str) -> StartClaudeResponse:
     """Start Claude Code in a terminal session.
 
-    Sends the 'claude' command to the terminal session.
-    The tclaude script handles session switching and permission flags.
+    Only sends the command if Claude is not already running.
+    Uses --dangerously-skip-permissions flag for auto-approval.
     """
     session = terminal_store.get_session(session_id)
     if not session:
@@ -149,9 +176,24 @@ async def start_claude(session_id: str) -> StartClaudeResponse:
             detail=f"tmux session {tmux_session} does not exist",
         )
 
-    # Send the claude command
+    # Check if Claude is already running
+    if _is_claude_running_in_session(tmux_session):
+        return StartClaudeResponse(
+            session_id=session_id,
+            started=False,
+            message="Claude is already running in this session",
+        )
+
+    # Send the claude command with skip-permissions flag
     result = subprocess.run(
-        ["tmux", "send-keys", "-t", tmux_session, "claude", "Enter"],
+        [
+            "tmux",
+            "send-keys",
+            "-t",
+            tmux_session,
+            "claude --dangerously-skip-permissions",
+            "Enter",
+        ],
         capture_output=True,
         text=True,
     )
