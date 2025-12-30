@@ -56,6 +56,7 @@ class CreateSessionRequest(BaseModel):
     name: str
     project_id: str | None = None
     working_dir: str | None = None
+    mode: str = "shell"  # "shell" or "claude"
 
 
 class UpdateSessionRequest(BaseModel):
@@ -120,6 +121,7 @@ async def create_session(request: CreateSessionRequest) -> TerminalSessionRespon
             name=request.name,
             project_id=request.project_id,
             working_dir=request.working_dir,
+            mode=request.mode,
         )
     except lifecycle.TmuxError as e:
         raise HTTPException(

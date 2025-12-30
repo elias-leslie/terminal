@@ -367,47 +367,24 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                   projectTabRefs.current.delete(pt.projectId);
                 }
               }}
+              onClick={() => handleProjectTabClick(pt)}
               className={clsx(
-                "flex items-center rounded-md transition-all duration-200",
+                "flex items-center rounded-md transition-all duration-200 cursor-pointer",
                 "group min-w-0 flex-shrink-0",
                 isMobile
                   ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
                   : "gap-1.5 px-2 py-1.5 text-sm",
                 isActive
-                  ? "text-white"
-                  : "hover:text-white"
+                  ? "tab-active"
+                  : "tab-inactive"
               )}
-              style={{
-                backgroundColor: isActive ? "var(--term-bg-elevated)" : "transparent",
-                color: isActive ? "var(--term-text-primary)" : "var(--term-text-muted)",
-                boxShadow: isActive
-                  ? "0 0 12px var(--term-accent-glow), inset 0 1px 0 rgba(255,255,255,0.05)"
-                  : "none",
-                border: isActive ? "1px solid var(--term-border-active)" : "1px solid transparent",
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
-                  e.currentTarget.style.boxShadow = "0 0 8px rgba(0, 255, 159, 0.08)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.boxShadow = "none";
-                }
-              }}
             >
               {/* Claude indicator for project tabs */}
               <ClaudeIndicator state={pt.activeMode === "claude" ? "idle" : "none"} />
-              {/* Clickable name area */}
-              <button
-                onClick={() => handleProjectTabClick(pt)}
-                className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[100px]")}
-                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }}
-              >
+              {/* Project name */}
+              <span className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[100px]")}>
                 {pt.projectName}
-              </button>
+              </span>
               {/* Mode dropdown */}
               <TabModeDropdown
                 value={pt.activeMode}
