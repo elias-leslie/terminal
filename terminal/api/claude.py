@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
-import time
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -103,12 +102,33 @@ def _determine_legacy_claude_state(
         return "idle", last_claude_session
 
 
-def _is_claude_running_in_session(tmux_session: str) -> bool:
-    """Check if Claude Code is already running in a tmux session.
+def _is_claude_running_in_session(tmux_session: str, session_id: str | None = None) -> bool:
+    """Check if Claude Code is already running.
+
+    First checks if there's a separate Claude session for this terminal.
+    Falls back to checking the main tmux session.
 
     Uses tmux's pane_current_command to check if 'claude' is the foreground process.
     This is more reliable than string matching on pane content.
     """
+    # If we have a session_id, check for the dedicated Claude session
+    if session_id:
+        claude_session_name = f"claude-{session_id}"
+        result = subprocess.run(
+            ["tmux", "has-session", "-t", claude_session_name],
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            # Claude session exists, check if claude is running in it
+            pane_result = subprocess.run(
+                ["tmux", "list-panes", "-t", claude_session_name, "-F", "#{pane_current_command}"],
+                capture_output=True,
+                text=True,
+            )
+            if pane_result.returncode == 0 and pane_result.stdout.strip() == "claude":
+                return True
+
+    # Fallback: check the main session
     result = subprocess.run(
         ["tmux", "list-panes", "-t", tmux_session, "-F", "#{pane_current_command}"],
         capture_output=True,
@@ -123,37 +143,32 @@ def _is_claude_running_in_session(tmux_session: str) -> bool:
     return current_command == "claude"
 
 
-def _verify_claude_started(tmux_session: str) -> bool:
+def _verify_claude_started(session_id: str) -> bool:
     """Verify Claude Code has started by checking if 'claude' is the foreground process.
+
+    Checks the dedicated Claude session (claude-{session_id}) first.
 
     Returns:
         True if Claude process is running, False otherwise
     """
-    return _is_claude_running_in_session(tmux_session)
+    claude_session_name = f"claude-{session_id}"
+    return _is_claude_running_in_session(claude_session_name, session_id)
 
 
 async def _background_verify_claude_start(session_id: str, tmux_session: str) -> None:
-    """Background task to verify Claude started after 2 seconds.
+    """Background task to verify Claude started after 3 seconds.
 
     Updates the claude_state to 'running' or 'error' based on verification.
-    Also clears the pane history once Claude is running to remove the command line from scrollback.
     """
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)  # Give Claude enough time to start
 
-    # Verify Claude started by checking for TUI
-    if _verify_claude_started(tmux_session):
+    # Verify Claude started by checking the dedicated Claude session
+    if _verify_claude_started(session_id):
         # Only update if still in 'starting' state (handles race conditions)
         updated = terminal_store.update_claude_state(
             session_id, "running", expected_state="starting"
         )
         if updated:
-            # Clear the pane history now that Claude is running
-            # This removes the "claude --dangerously-skip-permissions" command from scrollback
-            subprocess.run(
-                ["tmux", "clear-history", "-t", tmux_session],
-                capture_output=True,
-                text=True,
-            )
             logger.info(
                 "claude_verified_running",
                 session_id=session_id,
@@ -270,7 +285,7 @@ async def start_claude(
 
     # Fallback: Check if Claude is already running via pane content
     # This handles cases where state got out of sync
-    if _is_claude_running_in_session(tmux_session):
+    if _is_claude_running_in_session(tmux_session, session_id):
         # Update state to match reality
         terminal_store.update_claude_state(session_id, "running")
         return StartClaudeResponse(
@@ -296,19 +311,56 @@ async def start_claude(
                 claude_state=new_state or "not_started",
             )
 
-    # Send the claude command with skip-permissions flag
+    # Get the working directory for the session
+    working_dir = session.get("working_dir") or "/tmp"
+
+    # Create a separate Claude session with the command directly
+    # This avoids showing the command in the terminal since it's passed to new-session
+    claude_session_name = f"claude-{session_id}"
+
+    # First, kill any existing Claude session for this terminal
+    subprocess.run(
+        ["tmux", "kill-session", "-t", claude_session_name],
+        capture_output=True,
+        text=True,
+    )
+
+    # Create new Claude session with command directly (no shell prompt visible)
     result = subprocess.run(
         [
             "tmux",
-            "send-keys",
-            "-t",
-            tmux_session,
-            "claude --dangerously-skip-permissions",
-            "Enter",
+            "new-session",
+            "-d",
+            "-s",
+            claude_session_name,
+            "-c",
+            working_dir,
+            "-x",
+            "200",  # Wide enough for Claude's UI
+            "-y",
+            "50",
+            "claude",
+            "--dangerously-skip-permissions",
         ],
         capture_output=True,
         text=True,
     )
+
+    if result.returncode == 0:
+        # Store the Claude session name so WebSocket can switch to it
+        terminal_store.update_claude_session(session_id, claude_session_name)
+
+        # Switch any attached clients to the Claude session
+        subprocess.run(
+            [
+                "tmux",
+                "switch-client",
+                "-t",
+                claude_session_name,
+            ],
+            capture_output=True,
+            text=True,
+        )
 
     if result.returncode != 0:
         # Command failed - set state to error
