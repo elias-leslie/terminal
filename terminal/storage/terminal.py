@@ -6,7 +6,7 @@ Sessions represent persistent tmux terminals that survive browser close.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
@@ -268,7 +268,7 @@ def list_orphaned(older_than_days: int = 30) -> list[dict[str, Any]]:
     Returns:
         List of orphaned session dicts
     """
-    cutoff = datetime.utcnow() - timedelta(days=older_than_days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
 
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
