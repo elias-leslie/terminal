@@ -224,7 +224,7 @@
           ],
           "files_affected": ["terminal/config.py", "terminal/services/lifecycle.py", "terminal/api/terminal.py"],
           "verification": "cd terminal && python -c 'from terminal.config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS'",
-          "passes": false
+          "passes": true
         },
         {
           "id": "3.4",
@@ -347,7 +347,7 @@
           ],
           "files_affected": ["frontend/lib/constants/terminal.ts", "frontend/components/Terminal.tsx"],
           "verification": "npm run build --prefix frontend",
-          "passes": false
+          "passes": true
         },
         {
           "id": "4.4",
@@ -418,7 +418,7 @@
           ],
           "files_affected": ["terminal/storage/terminal.py"],
           "verification": "cd terminal && python -c 'from terminal.storage import terminal'",
-          "passes": false
+          "passes": true
         },
         {
           "id": "5.2",
