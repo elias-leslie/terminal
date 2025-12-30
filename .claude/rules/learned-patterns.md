@@ -71,3 +71,27 @@ Refer to `/home/kasadis/terminal/ARCHITECTURE_REDESIGN.md` for core architectura
 *Rationale: Found to be the key source of truth for the terminal's redesigned architecture.*
 
 <!-- Pattern ID: dae3940d-bcb6-4e98-85df-0b8da6b1cca6 | Applied: 2025-12-30T13:09:10.409901 -->
+
+## Terminal Resize Management
+
+Use `ResizeObserver` within the Terminal component to handle responsive resizing. Ensure the terminal component manages its own addon lifecycle and disposal to prevent memory leaks during layout changes.
+
+*Rationale: Successful implementation of responsive terminal resizing noted in session d620ed19.*
+
+<!-- Pattern ID: 4a0aa943-bd81-451a-a360-f83bc44fda96 | Applied: 2025-12-30T18:06:26.717268 -->
+
+## Terminal Claude State Polling Configuration
+
+Set `CLAUDE_POLL_INTERVAL_MS` to 500 in `TerminalTabs.tsx` for state polling. Ensure the system handles all `ConnectionStatus` types: 'connecting', 'connected', 'disconnected', 'error', 'session_dead', and 'timeout'.
+
+*Rationale: Identified as the standard polling mechanism for synchronizing Claude state with the frontend.*
+
+<!-- Pattern ID: 20028590-7734-4830-8bf7-f6629a0ee4e0 | Applied: 2025-12-30T18:06:26.756080 -->
+
+## Generic Terminal Session Creation
+
+Use the `isGeneric` parameter in the `use-terminal-sessions` hook to create terminal sessions not associated with a specific project. This flag ensures the `project_id` is set to undefined in the session creation request.
+
+*Rationale: Refactored the hook to support ad-hoc terminal sessions across the frontend.*
+
+<!-- Pattern ID: 744c11d1-d538-4625-b030-431eec5dc5c4 | Applied: 2025-12-30T18:06:26.789936 -->

@@ -64,6 +64,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const connectWebSocketRef = useRef<(() => void) | null>(null);
   const onDataDisposableRef = useRef<{ dispose: () => void } | null>(null);
+  const mouseCleanupRef = useRef<(() => void) | null>(null);
 
   // Store callback in ref to avoid re-render loops
   const onStatusChangeRef = useRef(onStatusChange);
@@ -212,9 +213,17 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
 
         e.target?.dispatchEvent(newEvent);
       };
-      containerRef.current.addEventListener('mousedown', forceLocalMouseHandling, { capture: true });
-      containerRef.current.addEventListener('mouseup', forceLocalMouseHandling, { capture: true });
-      containerRef.current.addEventListener('mousemove', forceLocalMouseHandling, { capture: true });
+      const mouseContainer = containerRef.current;
+      mouseContainer.addEventListener('mousedown', forceLocalMouseHandling, { capture: true });
+      mouseContainer.addEventListener('mouseup', forceLocalMouseHandling, { capture: true });
+      mouseContainer.addEventListener('mousemove', forceLocalMouseHandling, { capture: true });
+
+      // Store cleanup function for mouse listeners
+      mouseCleanupRef.current = () => {
+        mouseContainer.removeEventListener('mousedown', forceLocalMouseHandling, { capture: true });
+        mouseContainer.removeEventListener('mouseup', forceLocalMouseHandling, { capture: true });
+        mouseContainer.removeEventListener('mousemove', forceLocalMouseHandling, { capture: true });
+      };
 
       // SCROLLBACK ARCHITECTURE NOTE:
       // xterm.js scrollback does NOT work with tmux because tmux controls what's displayed.
@@ -472,6 +481,11 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       if (onDataDisposableRef.current) {
         onDataDisposableRef.current.dispose();
         onDataDisposableRef.current = null;
+      }
+      // Clean up mouse listeners
+      if (mouseCleanupRef.current) {
+        mouseCleanupRef.current();
+        mouseCleanupRef.current = null;
       }
       if (terminalRef.current) {
         const touchCleanup = (terminalRef.current as unknown as { _touchCleanup?: () => void })._touchCleanup;
