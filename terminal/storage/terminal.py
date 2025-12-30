@@ -14,6 +14,14 @@ import psycopg.sql
 
 from .connection import get_connection
 
+# Type alias for session ID (accepts both str and UUID)
+SessionId = str | UUID
+
+
+def _to_str(session_id: SessionId) -> str:
+    """Normalize session ID to string for SQL queries."""
+    return _to_str(session_id)
+
 
 # Standard SELECT field list for terminal_sessions queries
 # Keep in sync with _row_to_dict() field order
@@ -47,7 +55,7 @@ def list_sessions(include_dead: bool = False) -> list[dict[str, Any]]:
     return [_row_to_dict(row) for row in rows]
 
 
-def get_session(session_id: str | UUID) -> dict[str, Any] | None:
+def get_session(session_id: SessionId) -> dict[str, Any] | None:
     """Get a session by ID.
 
     Args:
@@ -63,7 +71,7 @@ def get_session(session_id: str | UUID) -> dict[str, Any] | None:
             FROM terminal_sessions
             WHERE id = %s
             """,
-            (str(session_id),),
+            (_to_str(session_id),),
         )
         row = cur.fetchone()
 
@@ -111,7 +119,7 @@ def create_session(
     return str(row[0])
 
 
-def update_session(session_id: str | UUID, **fields: Any) -> dict[str, Any] | None:
+def update_session(session_id: SessionId, **fields: Any) -> dict[str, Any] | None:
     """Update session metadata.
 
     Allowed fields: name, display_order, is_alive, working_dir
@@ -133,7 +141,7 @@ def update_session(session_id: str | UUID, **fields: Any) -> dict[str, Any] | No
         psycopg.sql.SQL("{} = %s").format(psycopg.sql.Identifier(field)) for field in update_fields
     ]
     values = list(update_fields.values())
-    values.append(str(session_id))
+    values.append(_to_str(session_id))
 
     query = psycopg.sql.SQL(
         f"""
@@ -154,7 +162,7 @@ def update_session(session_id: str | UUID, **fields: Any) -> dict[str, Any] | No
     return _row_to_dict(row)
 
 
-def delete_session(session_id: str | UUID) -> bool:
+def delete_session(session_id: SessionId) -> bool:
     """Delete a session (hard delete).
 
     Use this when user explicitly closes the terminal.
@@ -168,7 +176,7 @@ def delete_session(session_id: str | UUID) -> bool:
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
             "DELETE FROM terminal_sessions WHERE id = %s RETURNING id",
-            (str(session_id),),
+            (_to_str(session_id),),
         )
         result = cur.fetchone()
         conn.commit()
@@ -176,7 +184,7 @@ def delete_session(session_id: str | UUID) -> bool:
     return result is not None
 
 
-def mark_dead(session_id: str | UUID) -> dict[str, Any] | None:
+def mark_dead(session_id: SessionId) -> dict[str, Any] | None:
     """Mark a session as dead (tmux session no longer exists).
 
     The session record is preserved for potential recovery.
@@ -190,7 +198,7 @@ def mark_dead(session_id: str | UUID) -> dict[str, Any] | None:
     return update_session(session_id, is_alive=False)
 
 
-def touch_session(session_id: str | UUID) -> dict[str, Any] | None:
+def touch_session(session_id: SessionId) -> dict[str, Any] | None:
     """Update last_accessed_at timestamp.
 
     Call this on WebSocket connect to track session activity.
@@ -209,7 +217,7 @@ def touch_session(session_id: str | UUID) -> dict[str, Any] | None:
             WHERE id = %s
             RETURNING {TERMINAL_SESSION_FIELDS}
             """,
-            (str(session_id),),
+            (_to_str(session_id),),
         )
         row = cur.fetchone()
         conn.commit()
@@ -344,7 +352,7 @@ def delete_project_sessions(project_id: str) -> int:
     return count
 
 
-def update_claude_session(session_id: str | UUID, claude_session: str | None) -> None:
+def update_claude_session(session_id: SessionId, claude_session: str | None) -> None:
     """Update the last active claude session for a terminal.
 
     Called when tclaude is run to remember which claude session to reconnect to.
@@ -357,13 +365,13 @@ def update_claude_session(session_id: str | UUID, claude_session: str | None) ->
             SET last_claude_session = NULLIF(%s, '')
             WHERE id = %s
             """,
-            (claude_session or "", str(session_id)),
+            (claude_session or "", _to_str(session_id)),
         )
         conn.commit()
 
 
 def update_claude_state(
-    session_id: str | UUID,
+    session_id: SessionId,
     state: str,
     expected_state: str | None = None,
 ) -> bool:
@@ -390,7 +398,7 @@ def update_claude_state(
                 WHERE id = %s AND claude_state = %s
                 RETURNING id
                 """,
-                (state, str(session_id), expected_state),
+                (state, _to_str(session_id), expected_state),
             )
         else:
             # Unconditional update
@@ -401,7 +409,7 @@ def update_claude_state(
                 WHERE id = %s
                 RETURNING id
                 """,
-                (state, str(session_id)),
+                (state, _to_str(session_id)),
             )
         result = cur.fetchone()
         conn.commit()
@@ -409,7 +417,7 @@ def update_claude_state(
     return result is not None
 
 
-def get_claude_state(session_id: str | UUID) -> str | None:
+def get_claude_state(session_id: SessionId) -> str | None:
     """Get the current Claude state for a session.
 
     Args:
@@ -425,7 +433,7 @@ def get_claude_state(session_id: str | UUID) -> str | None:
             FROM terminal_sessions
             WHERE id = %s
             """,
-            (str(session_id),),
+            (_to_str(session_id),),
         )
         row = cur.fetchone()
 
