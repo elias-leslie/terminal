@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { clsx } from "clsx";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { TerminalComponent, TerminalHandle, ConnectionStatus } from "./Terminal";
-import { Plus, X, Terminal as TerminalIcon, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Plus, X, Terminal as TerminalIcon, Loader2, RefreshCw } from "lucide-react";
+import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
 import { LayoutModeButtons, LayoutMode } from "./LayoutModeButton";
 import { useTerminalSessions } from "@/lib/hooks/use-terminal-sessions";
 import { useActiveSession } from "@/lib/hooks/use-active-session";
@@ -813,37 +814,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                   onStatusChange={(status) => handleStatusChange(session.id, status)}
                 />
                 {/* Claude loading overlay - hides terminal until Claude is ready */}
-                {showClaudeOverlay && (
-                  <div
-                    className="absolute inset-0 flex flex-col items-center justify-center z-20"
-                    style={{ backgroundColor: "var(--term-bg-deep)" }}
-                  >
-                    <div className="flex items-center gap-3 mb-4">
-                      <Sparkles
-                        className="w-8 h-8 animate-pulse"
-                        style={{ color: "var(--term-accent)" }}
-                      />
-                      <span
-                        className="text-lg font-medium"
-                        style={{ color: "var(--term-text-primary)" }}
-                      >
-                        Starting Claude...
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Loader2
-                        className="w-4 h-4 animate-spin"
-                        style={{ color: "var(--term-text-muted)" }}
-                      />
-                      <span
-                        className="text-sm"
-                        style={{ color: "var(--term-text-muted)" }}
-                      >
-                        Initializing Claude Code
-                      </span>
-                    </div>
-                  </div>
-                )}
+                {showClaudeOverlay && <ClaudeLoadingOverlay variant="normal" />}
               </div>
             );
           })
@@ -1028,29 +999,7 @@ function SplitPane({
                 slot.activeMode === "claude" &&
                 slot.claudeState !== "running" &&
                 slot.claudeState !== "stopped" &&
-                slot.claudeState !== "error" && (
-                <div
-                  className="absolute inset-0 flex flex-col items-center justify-center z-20"
-                  style={{ backgroundColor: "var(--term-bg-deep)" }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles
-                      className="w-5 h-5 animate-pulse"
-                      style={{ color: "var(--term-accent)" }}
-                    />
-                    <span
-                      className="text-sm font-medium"
-                      style={{ color: "var(--term-text-primary)" }}
-                    >
-                      Starting Claude...
-                    </span>
-                  </div>
-                  <Loader2
-                    className="w-4 h-4 animate-spin"
-                    style={{ color: "var(--term-text-muted)" }}
-                  />
-                </div>
-              )}
+                slot.claudeState !== "error" && <ClaudeLoadingOverlay variant="compact" />}
             </>
           ) : (
             <div
