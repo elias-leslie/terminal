@@ -33,8 +33,8 @@ TERMINAL_PROJECT_SETTINGS_TABLE = """
 CREATE TABLE IF NOT EXISTS terminal_project_settings (
     project_id VARCHAR(64) PRIMARY KEY,
     enabled BOOLEAN NOT NULL DEFAULT false,
-    default_mode VARCHAR(16) NOT NULL DEFAULT 'shell'
-        CHECK (default_mode IN ('shell', 'claude')),
+    active_mode VARCHAR(16) NOT NULL DEFAULT 'shell'
+        CHECK (active_mode IN ('shell', 'claude')),
     display_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
