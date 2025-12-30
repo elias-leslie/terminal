@@ -12,140 +12,19 @@ The database is the source of truth; tmux is the implementation detail.
 
 from __future__ import annotations
 
-import subprocess
-
-from ..config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS
 from ..logging_config import get_logger
 from ..storage import project_settings as settings_store
 from ..storage import terminal as terminal_store
+from ..utils.tmux import (
+    TmuxError,
+    create_tmux_session,
+    get_tmux_session_name,
+    list_tmux_sessions,
+    run_tmux_command,
+    tmux_session_exists,
+)
 
 logger = get_logger(__name__)
-
-TMUX_COMMAND_TIMEOUT = 10  # seconds for tmux subprocess calls
-
-
-class TmuxError(Exception):
-    """Error interacting with tmux."""
-
-
-def _run_tmux_command(args: list[str], check: bool = False) -> tuple[bool, str]:
-    """Run a tmux command with standardized error handling.
-
-    Args:
-        args: Command arguments (tmux is prepended automatically)
-        check: If True, raise TmuxError on failure
-
-    Returns:
-        Tuple of (success, output_or_error)
-
-    Raises:
-        TmuxError: If check=True and command fails
-    """
-    cmd = ["tmux", *args]
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=TMUX_COMMAND_TIMEOUT,
-        )
-        if result.returncode == 0:
-            return True, result.stdout.strip()
-        else:
-            error_msg = result.stderr.strip() or f"tmux exited with code {result.returncode}"
-            logger.debug("tmux_command_failed", cmd=args, error=error_msg)
-            if check:
-                raise TmuxError(error_msg)
-            return False, error_msg
-    except subprocess.TimeoutExpired:
-        error_msg = f"tmux command timed out after {TMUX_COMMAND_TIMEOUT}s"
-        logger.error("tmux_command_timeout", cmd=args)
-        if check:
-            raise TmuxError(error_msg)
-        return False, error_msg
-
-
-def _get_tmux_session_name(session_id: str) -> str:
-    """Convert session ID to tmux session name.
-
-    Args:
-        session_id: Session UUID
-
-    Returns:
-        tmux session name (e.g., summitflow-abc123)
-    """
-    return f"summitflow-{session_id}"
-
-
-def _tmux_session_exists_by_name(session_name: str) -> bool:
-    """Check if a tmux session exists by its direct name.
-
-    Args:
-        session_name: Direct tmux session name
-
-    Returns:
-        True if tmux session exists
-    """
-    success, _ = _run_tmux_command(["has-session", "-t", session_name])
-    return success
-
-
-def _tmux_session_exists(session_id: str) -> bool:
-    """Check if a tmux session exists.
-
-    Args:
-        session_id: Session UUID
-
-    Returns:
-        True if tmux session exists
-    """
-    session_name = _get_tmux_session_name(session_id)
-    success, _ = _run_tmux_command(["has-session", "-t", session_name])
-    return success
-
-
-def _create_tmux_session(session_id: str, working_dir: str | None = None) -> None:
-    """Create a tmux session.
-
-    Args:
-        session_id: Session UUID
-        working_dir: Optional working directory
-
-    Raises:
-        TmuxError: If tmux session creation fails
-    """
-    session_name = _get_tmux_session_name(session_id)
-
-    # Check if already exists
-    if _tmux_session_exists(session_id):
-        logger.info("tmux_session_exists", session=session_name)
-        return
-
-    # Create new session
-    args = [
-        "new-session",
-        "-d",
-        "-s",
-        session_name,
-        "-x",
-        str(TMUX_DEFAULT_COLS),
-        "-y",
-        str(TMUX_DEFAULT_ROWS),
-    ]
-    if working_dir:
-        args.extend(["-c", working_dir])
-
-    success, output = _run_tmux_command(args)
-
-    if not success:
-        logger.error(
-            "tmux_create_failed",
-            session=session_name,
-            error=output,
-        )
-        raise TmuxError(f"Failed to create tmux session: {output}")
-
-    logger.info("tmux_session_created", session=session_name, working_dir=working_dir)
 
 
 def _kill_tmux_session(session_id: str, ignore_missing: bool = True) -> bool:
@@ -161,9 +40,9 @@ def _kill_tmux_session(session_id: str, ignore_missing: bool = True) -> bool:
     Raises:
         TmuxError: If kill fails (and ignore_missing is False)
     """
-    session_name = _get_tmux_session_name(session_id)
+    session_name = get_tmux_session_name(session_id)
 
-    success, error = _run_tmux_command(["kill-session", "-t", session_name])
+    success, error = run_tmux_command(["kill-session", "-t", session_name])
 
     if not success:
         if ignore_missing and "session not found" in error.lower():
@@ -175,24 +54,6 @@ def _kill_tmux_session(session_id: str, ignore_missing: bool = True) -> bool:
 
     logger.info("tmux_session_killed", session=session_name)
     return True
-
-
-def _list_tmux_sessions() -> set[str]:
-    """List all summitflow tmux sessions.
-
-    Returns:
-        Set of session IDs (without summitflow- prefix)
-    """
-    success, output = _run_tmux_command(["list-sessions", "-F", "#{session_name}"])
-
-    sessions = set()
-    if success:
-        for line in output.split("\n"):
-            if line.startswith("summitflow-"):
-                session_id = line.replace("summitflow-", "")
-                sessions.add(session_id)
-
-    return sessions
 
 
 def create_session(

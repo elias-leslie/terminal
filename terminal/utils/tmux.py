@@ -1,0 +1,176 @@
+"""tmux session management utilities.
+
+Provides core tmux operations used across the terminal service:
+- Session naming conventions
+- Session existence checks
+- Session creation with error handling
+- Session listing
+"""
+
+from __future__ import annotations
+
+import subprocess
+
+from ..config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS
+from ..logging_config import get_logger
+
+logger = get_logger(__name__)
+
+TMUX_COMMAND_TIMEOUT = 10  # seconds for tmux subprocess calls
+
+
+class TmuxError(Exception):
+    """Error interacting with tmux."""
+
+
+def run_tmux_command(args: list[str], check: bool = False) -> tuple[bool, str]:
+    """Run a tmux command with standardized error handling.
+
+    Args:
+        args: Command arguments (tmux is prepended automatically)
+        check: If True, raise TmuxError on failure
+
+    Returns:
+        Tuple of (success, output_or_error)
+
+    Raises:
+        TmuxError: If check=True and command fails
+    """
+    cmd = ["tmux", *args]
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=TMUX_COMMAND_TIMEOUT,
+        )
+        if result.returncode == 0:
+            return True, result.stdout.strip()
+        else:
+            error_msg = result.stderr.strip() or f"tmux exited with code {result.returncode}"
+            logger.debug("tmux_command_failed", cmd=args, error=error_msg)
+            if check:
+                raise TmuxError(error_msg)
+            return False, error_msg
+    except subprocess.TimeoutExpired:
+        error_msg = f"tmux command timed out after {TMUX_COMMAND_TIMEOUT}s"
+        logger.error("tmux_command_timeout", cmd=args)
+        if check:
+            raise TmuxError(error_msg)
+        return False, error_msg
+
+
+def get_tmux_session_name(session_id: str) -> str:
+    """Convert session ID to tmux session name.
+
+    Args:
+        session_id: Session UUID
+
+    Returns:
+        tmux session name (e.g., summitflow-abc123)
+    """
+    return f"summitflow-{session_id}"
+
+
+def tmux_session_exists_by_name(session_name: str) -> bool:
+    """Check if a tmux session exists by its direct name.
+
+    Args:
+        session_name: Direct tmux session name
+
+    Returns:
+        True if tmux session exists
+    """
+    success, _ = run_tmux_command(["has-session", "-t", session_name])
+    return success
+
+
+def tmux_session_exists(session_id: str) -> bool:
+    """Check if a tmux session exists.
+
+    Args:
+        session_id: Session UUID
+
+    Returns:
+        True if tmux session exists
+    """
+    session_name = get_tmux_session_name(session_id)
+    return tmux_session_exists_by_name(session_name)
+
+
+def create_tmux_session(
+    session_id: str,
+    working_dir: str | None = None,
+    disable_mouse: bool = True,
+) -> str:
+    """Create a tmux session.
+
+    Args:
+        session_id: Session UUID
+        working_dir: Optional working directory
+        disable_mouse: Disable mouse mode (default True, lets xterm.js handle selection)
+
+    Returns:
+        tmux session name
+
+    Raises:
+        TmuxError: If tmux session creation fails
+    """
+    session_name = get_tmux_session_name(session_id)
+
+    # Check if already exists
+    if tmux_session_exists(session_id):
+        logger.info("tmux_session_exists", session=session_name)
+        # Ensure mouse is disabled for existing sessions
+        if disable_mouse:
+            run_tmux_command(["set-option", "-t", session_name, "mouse", "off"])
+        return session_name
+
+    # Create new session
+    args = [
+        "new-session",
+        "-d",
+        "-s",
+        session_name,
+        "-x",
+        str(TMUX_DEFAULT_COLS),
+        "-y",
+        str(TMUX_DEFAULT_ROWS),
+    ]
+    if working_dir:
+        args.extend(["-c", working_dir])
+
+    success, output = run_tmux_command(args)
+
+    if not success:
+        logger.error(
+            "tmux_create_failed",
+            session=session_name,
+            error=output,
+        )
+        raise TmuxError(f"Failed to create tmux session: {output}")
+
+    # Disable mouse mode so xterm.js handles selection natively
+    if disable_mouse:
+        run_tmux_command(["set-option", "-t", session_name, "mouse", "off"])
+
+    logger.info("tmux_session_created", session=session_name, working_dir=working_dir)
+    return session_name
+
+
+def list_tmux_sessions() -> set[str]:
+    """List all summitflow tmux sessions.
+
+    Returns:
+        Set of session IDs (without summitflow- prefix)
+    """
+    success, output = run_tmux_command(["list-sessions", "-F", "#{session_name}"])
+
+    sessions = set()
+    if success:
+        for line in output.split("\n"):
+            if line.startswith("summitflow-"):
+                session_id = line.replace("summitflow-", "")
+                sessions.add(session_id)
+
+    return sessions
