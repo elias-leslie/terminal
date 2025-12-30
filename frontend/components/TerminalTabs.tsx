@@ -46,6 +46,8 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     create,
     update,
     remove,
+    reset,
+    resetAll,
     isLoading,
     isCreating,
   } = useTerminalSessions(projectId);
@@ -362,15 +364,14 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           const isActive = session.id === activeId;
 
           return (
-            <button
+            <div
               key={session.id}
-              onClick={() => setActiveId(session.id)}
               className={clsx(
                 "flex items-center rounded-md transition-all duration-200",
                 "group min-w-0 flex-shrink-0",
                 isMobile
-                  ? "gap-1.5 px-2 py-1 text-xs min-h-[36px]"
-                  : "gap-2 px-3 py-1.5 text-sm",
+                  ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
+                  : "gap-1.5 px-2 py-1.5 text-sm",
                 isActive
                   ? "text-white"
                   : "hover:text-white"
@@ -412,48 +413,49 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                 }}
                 title={sessionStatus || "unknown"}
               />
-              {editingId === session.id ? (
-                <input
-                  ref={editInputRef}
-                  type="text"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={handleSaveEdit}
-                  onKeyDown={handleEditKeyDown}
-                  className="rounded px-1 py-0 text-sm w-24 focus:outline-none focus:ring-1"
-                  style={{
-                    backgroundColor: "var(--term-bg-deep)",
-                    borderColor: "var(--term-accent)",
-                    color: "var(--term-text-primary)",
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <span
-                  className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[120px]")}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    handleStartEdit(session.id, session.name);
-                  }}
-                >
-                  {session.name}
-                  {!session.is_alive && " (dead)"}
-                </span>
-              )}
+              {/* Clickable area for tab selection */}
               <button
-                onClick={(e) => handleCloseTab(session.id, e)}
-                className={clsx(
-                  "p-0.5 rounded transition-all duration-150",
-                  isActive ? "opacity-60 hover:opacity-100" : "opacity-0 group-hover:opacity-60 hover:!opacity-100"
-                )}
-                style={{ color: "var(--term-text-muted)" }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.1)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                title="Close terminal"
+                onClick={() => setActiveId(session.id)}
+                className="flex items-center"
+                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }}
               >
-                <X className="w-3 h-3" />
+                {editingId === session.id ? (
+                  <input
+                    ref={editInputRef}
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={handleSaveEdit}
+                    onKeyDown={handleEditKeyDown}
+                    className="rounded px-1 py-0 text-sm w-24 focus:outline-none focus:ring-1"
+                    style={{
+                      backgroundColor: "var(--term-bg-deep)",
+                      borderColor: "var(--term-accent)",
+                      color: "var(--term-text-primary)",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span
+                    className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[100px]")}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      handleStartEdit(session.id, session.name);
+                    }}
+                  >
+                    {session.name}
+                    {!session.is_alive && " (dead)"}
+                  </span>
+                )}
               </button>
-            </button>
+              {/* Action menu */}
+              <TabActionMenu
+                tabType="adhoc"
+                onReset={() => reset(session.id)}
+                onClose={() => remove(session.id)}
+                isMobile={isMobile}
+              />
+            </div>
           );
         })}
 
