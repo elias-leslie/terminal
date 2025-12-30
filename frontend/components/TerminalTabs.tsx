@@ -16,6 +16,7 @@ import { ClaudeIndicator } from "./ClaudeIndicator";
 import { TabModeDropdown } from "./TabModeDropdown";
 import { TabActionMenu } from "./TabActionMenu";
 import { TerminalManagerModal } from "./TerminalManagerModal";
+import { GlobalActionMenu } from "./GlobalActionMenu";
 
 // Maximum number of split panes
 const MAX_SPLIT_PANES = 4;
@@ -246,6 +247,18 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     setEditingId(null);
     setEditValue("");
   }, []);
+
+  // Close all terminals (ad-hoc + disable all projects)
+  const handleCloseAll = useCallback(async () => {
+    // Remove all ad-hoc sessions
+    for (const session of adHocSessions) {
+      await remove(session.id);
+    }
+    // Disable all project terminals
+    for (const pt of projectTerminals) {
+      await disableProject(pt.projectId);
+    }
+  }, [adHocSessions, projectTerminals, remove, disableProject]);
 
   // Handle keyboard events in edit mode
   const handleEditKeyDown = useCallback(
@@ -539,6 +552,12 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               <RefreshCw className="w-4 h-4" />
             </button>
           )}
+          {/* Global action menu */}
+          <GlobalActionMenu
+            onResetAll={resetAll}
+            onCloseAll={handleCloseAll}
+            isMobile={isMobile}
+          />
           <SettingsDropdown
             fontId={fontId}
             fontSize={fontSize}
