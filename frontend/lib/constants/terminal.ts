@@ -29,8 +29,8 @@ export const RESIZE_DEBOUNCE_MS = 50;
 export const PHOSPHOR_THEME = {
   background: "#0a0e14",
   foreground: "#e6edf3",
-  cursor: "#ffffff",
-  cursorAccent: "#000000",
+  cursor: "#00ff9f",
+  cursorAccent: "#0a0e14",
   selectionBackground: "rgba(0, 255, 159, 0.3)",
   selectionForeground: "#e6edf3",
   black: "#0f1419",

@@ -3,6 +3,18 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { clsx } from "clsx";
 import "@xterm/xterm/css/xterm.css";
+import {
+  CONNECTION_TIMEOUT,
+  RETRY_BACKOFF,
+  SCROLL_THRESHOLD,
+  SCROLLBACK,
+  COPY_MODE_TIMEOUT,
+  MOBILE_WIDTH_THRESHOLD,
+  FIT_DELAY_MS,
+  WS_CLOSE_CODE_SESSION_DEAD,
+  RESIZE_DEBOUNCE_MS,
+  PHOSPHOR_THEME,
+} from "../lib/constants/terminal";
 
 // Dynamic imports for xterm (client-side only)
 let Terminal: typeof import("@xterm/xterm").Terminal;
@@ -34,7 +46,7 @@ function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false;
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
-  ) || window.innerWidth < 768;
+  ) || window.innerWidth < MOBILE_WIDTH_THRESHOLD;
 }
 
 export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(function TerminalComponent({
@@ -137,36 +149,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         cursorBlink: true,
         fontSize: fontSize,
         fontFamily: fontFamily,
-        scrollback: 5000,
+        scrollback: SCROLLBACK,
         allowProposedApi: true,
         rightClickSelectsWord: true,
         macOptionClickForcesSelection: true,
         altClickMovesCursor: false,
-        theme: {
-          // Phosphor Terminal Theme
-          background: "#0a0e14",
-          foreground: "#e6edf3",
-          cursor: "#00ff9f",
-          cursorAccent: "#0a0e14",
-          selectionBackground: "rgba(0, 255, 159, 0.3)",
-          selectionForeground: "#e6edf3",
-          black: "#0f1419",
-          red: "#f85149",
-          green: "#00ff9f",
-          yellow: "#d29922",
-          blue: "#58a6ff",
-          magenta: "#bc8cff",
-          cyan: "#39c5cf",
-          white: "#e6edf3",
-          brightBlack: "#7d8590",
-          brightRed: "#ffa198",
-          brightGreen: "#56d364",
-          brightYellow: "#e3b341",
-          brightBlue: "#79c0ff",
-          brightMagenta: "#d2a8ff",
-          brightCyan: "#56d4dd",
-          brightWhite: "#ffffff",
-        },
+        theme: PHOSPHOR_THEME,
       });
 
       // Create and load addons
@@ -239,34 +227,41 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       //
       // We handle wheel events to enter tmux copy-mode and scroll within it.
       let inCopyMode = false;
+      let copyModeTimeout: ReturnType<typeof setTimeout> | null = null;
 
-      const handleWheel = (e: WheelEvent) => {
-        // Only handle if WS is connected
-        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-
-        // Prevent default browser scroll
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Enter tmux copy-mode if not already in it
-        if (!inCopyMode) {
+      // Helper: Enter tmux copy-mode if not already in it
+      const enterCopyMode = () => {
+        if (!inCopyMode && wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send('\x02['); // Ctrl+B [
           inCopyMode = true;
         }
+      };
 
-        // No auto-exit timeout - user must press 'q' to exit copy-mode
-        // (Removes the 2-second snap-back issue)
+      // Helper: Send scroll command in copy-mode (Ctrl+U up, Ctrl+D down)
+      const sendScrollCommand = (direction: 'up' | 'down') => {
+        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(direction === 'up' ? '\x15' : '\x04');
+      };
 
-        // Send scroll commands to tmux copy-mode
-        // In copy-mode: Ctrl+U = half page up, Ctrl+D = half page down
-        // These actually scroll the view, not just move cursor
-        if (e.deltaY < 0) {
-          // Scroll up (see older content)
-          wsRef.current.send('\x15'); // Ctrl+U = half page up
-        } else {
-          // Scroll down (see newer content)
-          wsRef.current.send('\x04'); // Ctrl+D = half page down
-        }
+      // Helper: Reset copy-mode exit timeout
+      const resetCopyModeTimeout = () => {
+        if (copyModeTimeout) clearTimeout(copyModeTimeout);
+        copyModeTimeout = setTimeout(() => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send('q'); // 'q' exits copy-mode
+          }
+          inCopyMode = false;
+        }, COPY_MODE_TIMEOUT);
+      };
+
+      const handleWheel = (e: WheelEvent) => {
+        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        enterCopyMode();
+        resetCopyModeTimeout();
+        sendScrollCommand(e.deltaY < 0 ? 'up' : 'down');
       };
 
       const wheelContainer = containerRef.current;
@@ -275,6 +270,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Store wheel cleanup
       (term as unknown as { _wheelCleanup?: () => void })._wheelCleanup = () => {
         wheelContainer.removeEventListener('wheel', handleWheel, { capture: true });
+        if (copyModeTimeout) {
+          clearTimeout(copyModeTimeout);
+        }
       };
 
       terminalRef.current = term;
@@ -292,21 +290,16 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         containerRef.current.style.overscrollBehavior = 'none';
         containerRef.current.style.touchAction = 'none';
 
-        // Touch scrolling - send scroll commands to tmux via WebSocket
+        // Touch scrolling - uses shared copy-mode helpers
         let touchStartY = 0;
         let lastSentY = 0;
-        let inCopyMode = false;
-        const SCROLL_THRESHOLD = 50;
         const container = containerRef.current;
 
         const handleTouchStart = (e: TouchEvent) => {
           if (!container.contains(e.target as Node)) return;
           touchStartY = e.touches[0].clientY;
           lastSentY = touchStartY;
-          if (!inCopyMode && wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send('\x02[');
-            inCopyMode = true;
-          }
+          enterCopyMode();
         };
 
         const handleTouchMove = (e: TouchEvent) => {
@@ -316,13 +309,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
           const currentY = e.touches[0].clientY;
           const deltaY = lastSentY - currentY;
           if (Math.abs(deltaY) >= SCROLL_THRESHOLD) {
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-              if (deltaY > 0) {
-                wsRef.current.send('\x04');
-              } else {
-                wsRef.current.send('\x15');
-              }
-            }
+            sendScrollCommand(deltaY > 0 ? 'down' : 'up');
             lastSentY = currentY;
           }
         };
@@ -349,11 +336,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         if (mounted && fitAddonRef.current) {
           fitAddonRef.current.fit();
         }
-      }, 100);
+      }, FIT_DELAY_MS);
 
       // Connect to WebSocket with timeout and auto-retry
-      const CONNECTION_TIMEOUT = 10000;
-      const RETRY_BACKOFF = 2000;
       let hasRetried = false;
 
       function connectWebSocket() {
@@ -411,13 +396,23 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
 
         ws.onmessage = (event) => {
           if (!mounted) return;
+
+          // Preserve scroll position if user is viewing history
+          const buffer = term.buffer.active;
+          const distanceFromBottom = buffer.baseY - buffer.viewportY;
+
           term.write(event.data);
+
+          // Restore scroll position if user wasn't at bottom
+          if (distanceFromBottom > 0) {
+            term.scrollLines(-distanceFromBottom);
+          }
         };
 
         ws.onclose = (event) => {
           clearTimeout(timeoutId);
           if (!mounted) return;
-          if (event.code === 4000) {
+          if (event.code === WS_CLOSE_CODE_SESSION_DEAD) {
             setStatus("session_dead");
             try {
               const reason = JSON.parse(event.reason);
@@ -487,7 +482,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       lastWidth = width;
       lastHeight = height;
       if (resizeTimeout) clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => handleResize(), 50);
+      resizeTimeout = setTimeout(() => handleResize(), RESIZE_DEBOUNCE_MS);
     });
 
     resizeObserver.observe(containerRef.current);
@@ -514,7 +509,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       <div
         ref={containerRef}
         className="w-full h-full overflow-hidden"
-        style={{ backgroundColor: "#0a0e14" }}
+        style={{ backgroundColor: PHOSPHOR_THEME.background }}
       />
     </div>
   );
