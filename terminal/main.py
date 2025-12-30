@@ -12,7 +12,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import sessions, terminal
+from .api import projects, sessions, terminal
 from .config import CORS_ORIGINS, TERMINAL_PORT
 from .logging_config import get_logger
 from .services import lifecycle
@@ -94,6 +94,7 @@ app.add_middleware(
 # Include routers
 app.include_router(terminal.router)
 app.include_router(sessions.router)
+app.include_router(projects.router)
 
 
 @app.get("/health")
