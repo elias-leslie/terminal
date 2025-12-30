@@ -12,13 +12,13 @@ export interface ProjectSetting {
   name: string;
   root_path: string | null;
   terminal_enabled: boolean;
-  terminal_mode: "shell" | "claude";
+  active_mode: "shell" | "claude";
   display_order: number;
 }
 
 interface ProjectSettingsUpdate {
   enabled?: boolean;
-  default_mode?: "shell" | "claude";
+  active_mode?: "shell" | "claude";
   display_order?: number;
 }
 
@@ -57,6 +57,22 @@ async function bulkUpdateOrder(projectIds: string[]): Promise<ProjectSetting[]> 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: "Failed to update order" }));
     throw new Error(error.detail || "Failed to update order");
+  }
+  return res.json();
+}
+
+async function switchProjectMode(
+  projectId: string,
+  mode: "shell" | "claude"
+): Promise<ProjectSetting> {
+  const res = await fetch(`/api/terminal/projects/${projectId}/mode`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: "Failed to switch mode" }));
+    throw new Error(error.detail || "Failed to switch mode");
   }
   return res.json();
 }
@@ -123,6 +139,15 @@ export function useProjectSettings() {
     },
   });
 
+  // Mutation: switch project mode
+  const switchModeMutation = useMutation({
+    mutationFn: ({ projectId, mode }: { projectId: string; mode: "shell" | "claude" }) =>
+      switchProjectMode(projectId, mode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["terminal-projects"] });
+    },
+  });
+
   // Update settings for a project
   const updateSettings = useCallback(
     async (projectId: string, update: ProjectSettingsUpdate) => {
@@ -139,14 +164,23 @@ export function useProjectSettings() {
     [orderMutation]
   );
 
+  // Switch project mode (shell <-> claude)
+  const switchMode = useCallback(
+    async (projectId: string, mode: "shell" | "claude") => {
+      return switchModeMutation.mutateAsync({ projectId, mode });
+    },
+    [switchModeMutation]
+  );
+
   return {
     projects,
     enabledProjects,
     updateSettings,
     updateOrder,
+    switchMode,
     isLoading,
     isError,
     error,
-    isUpdating: updateMutation.isPending || orderMutation.isPending,
+    isUpdating: updateMutation.isPending || orderMutation.isPending || switchModeMutation.isPending,
   };
 }
