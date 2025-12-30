@@ -187,8 +187,8 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, [activeId]);
 
-  // Number of panes to show in split mode (1:1 with sessions, capped)
-  const splitPaneCount = Math.min(sessions.length, MAX_SPLIT_PANES);
+  // Number of panes to show in split mode (1:1 with slots, capped)
+  const splitPaneCount = Math.min(terminalSlots.length, MAX_SPLIT_PANES);
 
   // Handle layout mode change - create session if needed for split
   const handleLayoutModeChange = useCallback(async (mode: LayoutMode) => {
@@ -666,31 +666,33 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
             </div>
           ))
         ) : (
-          // Split pane layout - 1:1 mapping with sessions
+          // Split pane layout - 1:1 mapping with terminal slots
           <Group
             orientation={layoutMode === "horizontal" ? "vertical" : "horizontal"}
             className="h-full"
           >
-            {sessions.slice(0, splitPaneCount).map((session, index) => (
-              <SplitPane
-                key={session.id}
-                session={session}
-                projectPath={projectPath}
-                layoutMode={layoutMode}
-                isLast={index === splitPaneCount - 1}
-                paneCount={splitPaneCount}
-                fontFamily={fontFamily}
-                fontSize={fontSize}
-                onTerminalRef={(handle) => {
-                  if (handle) {
-                    terminalRefs.current.set(session.id, handle);
-                  } else {
-                    terminalRefs.current.delete(session.id);
-                  }
-                }}
-                onStatusChange={(status) => handleStatusChange(session.id, status)}
-              />
-            ))}
+            {terminalSlots.slice(0, splitPaneCount).map((slot, index) => {
+              const key = slot.type === "project" ? `project-${slot.projectId}` : `adhoc-${slot.sessionId}`;
+              return (
+                <SplitPane
+                  key={key}
+                  slot={slot}
+                  layoutMode={layoutMode}
+                  isLast={index === splitPaneCount - 1}
+                  paneCount={splitPaneCount}
+                  fontFamily={fontFamily}
+                  fontSize={fontSize}
+                  onTerminalRef={(sessionId, handle) => {
+                    if (handle) {
+                      terminalRefs.current.set(sessionId, handle);
+                    } else {
+                      terminalRefs.current.delete(sessionId);
+                    }
+                  }}
+                  onStatusChange={(sessionId, status) => handleStatusChange(sessionId, status)}
+                />
+              );
+            })}
           </Group>
         )}
       </div>
@@ -719,51 +721,109 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
 // Split pane component for cleaner rendering
 interface SplitPaneProps {
-  session: { id: string; name: string; working_dir: string | null; is_alive: boolean };
-  projectPath?: string;
+  slot: TerminalSlot;
   layoutMode: LayoutMode;
   isLast: boolean;
   paneCount: number;
   fontFamily: string;
   fontSize: number;
-  onTerminalRef?: (handle: TerminalHandle | null) => void;
-  onStatusChange?: (status: ConnectionStatus) => void;
+  onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
+  onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
 }
 
-function SplitPane({ session, projectPath, layoutMode, isLast, paneCount, fontFamily, fontSize, onTerminalRef, onStatusChange }: SplitPaneProps) {
+function SplitPane({
+  slot,
+  layoutMode,
+  isLast,
+  paneCount,
+  fontFamily,
+  fontSize,
+  onTerminalRef,
+  onStatusChange,
+}: SplitPaneProps) {
   const defaultSize = 100 / paneCount;
-  const minSize = `${Math.max(10, 100 / (paneCount * 2))}%`; // String percentage for proper sizing
+  const minSize = `${Math.max(10, 100 / (paneCount * 2))}%`;
+
+  // Get session ID and info based on slot type
+  const getSessionId = (): string | null => {
+    if (slot.type === "project") {
+      return slot.activeMode === "claude" ? slot.claudeSessionId : slot.shellSessionId;
+    }
+    return slot.sessionId;
+  };
+
+  const getPanelId = (): string => {
+    if (slot.type === "project") {
+      return `project-${slot.projectId}`;
+    }
+    return `adhoc-${slot.sessionId}`;
+  };
+
+  const getName = (): string => {
+    if (slot.type === "project") {
+      return slot.projectName;
+    }
+    return slot.name;
+  };
+
+  const getWorkingDir = (): string | null => {
+    if (slot.type === "project") {
+      return slot.rootPath;
+    }
+    return slot.workingDir;
+  };
+
+  const sessionId = getSessionId();
 
   return (
     <>
       <Panel
-        id={session.id}
+        id={getPanelId()}
         defaultSize={defaultSize}
         minSize={minSize}
         className="flex flex-col h-full min-h-0 overflow-hidden"
       >
         {/* Small header showing terminal name */}
         <div
-          className="flex-shrink-0 flex items-center px-2 py-0.5"
+          className="flex-shrink-0 flex items-center gap-1.5 px-2 py-0.5"
           style={{
             backgroundColor: "var(--term-bg-surface)",
             borderBottom: "1px solid var(--term-border)",
           }}
         >
-          <TerminalIcon className="w-3 h-3 mr-1.5" style={{ color: "var(--term-text-muted)" }} />
-          <span className="text-xs truncate" style={{ color: "var(--term-text-muted)" }}>{session.name}</span>
-          {!session.is_alive && <span className="text-xs ml-1" style={{ color: "var(--term-error)" }}>(dead)</span>}
+          {/* Mode indicator for projects */}
+          {slot.type === "project" && (
+            <ClaudeIndicator state={slot.activeMode === "claude" ? "idle" : "none"} />
+          )}
+          {slot.type === "adhoc" && (
+            <TerminalIcon className="w-3 h-3" style={{ color: "var(--term-text-muted)" }} />
+          )}
+          <span className="text-xs truncate" style={{ color: "var(--term-text-muted)" }}>
+            {getName()}
+          </span>
+          {!sessionId && (
+            <span className="text-xs" style={{ color: "var(--term-text-muted)" }}>(no session)</span>
+          )}
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
-          <TerminalComponent
-            ref={onTerminalRef}
-            sessionId={session.id}
-            workingDir={session.working_dir || projectPath}
-            className="h-full"
-            fontFamily={fontFamily}
-            fontSize={fontSize}
-            onStatusChange={onStatusChange}
-          />
+          {sessionId ? (
+            <TerminalComponent
+              ref={(handle) => onTerminalRef?.(sessionId, handle)}
+              sessionId={sessionId}
+              workingDir={getWorkingDir() || undefined}
+              className="h-full"
+              fontFamily={fontFamily}
+              fontSize={fontSize}
+              onStatusChange={(status) => onStatusChange?.(sessionId, status)}
+            />
+          ) : (
+            <div
+              className="flex items-center justify-center h-full text-xs"
+              style={{ color: "var(--term-text-muted)", backgroundColor: "var(--term-bg-deep)" }}
+            >
+              Click tab to start session
+            </div>
+          )}
         </div>
       </Panel>
       {!isLast && (
