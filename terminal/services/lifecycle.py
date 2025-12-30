@@ -591,9 +591,3 @@ def get_or_create_project_session(
     )
 
     return session_id
-
-
-# Backward compatibility alias
-def get_or_create_project_shell(project_id: str, root_path: str | None = None) -> str:
-    """Backward compatible alias for get_or_create_project_session."""
-    return get_or_create_project_session(project_id, root_path, mode="shell")
