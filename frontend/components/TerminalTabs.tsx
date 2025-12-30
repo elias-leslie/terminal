@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useRef, useEffect } from "react";
+import { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import { clsx } from "clsx";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { TerminalComponent, TerminalHandle, ConnectionStatus } from "./Terminal";
@@ -33,6 +33,26 @@ function getNextTerminalName(sessions: Array<{ name: string }>): string {
   }
   return `Terminal ${maxNum + 1}`;
 }
+
+// Slot types for split-pane terminals
+interface ProjectSlot {
+  type: "project";
+  projectId: string;
+  projectName: string;
+  rootPath: string | null;
+  activeMode: "shell" | "claude";
+  shellSessionId: string | null;
+  claudeSessionId: string | null;
+}
+
+interface AdHocSlot {
+  type: "adhoc";
+  sessionId: string;
+  name: string;
+  workingDir: string | null;
+}
+
+type TerminalSlot = ProjectSlot | AdHocSlot;
 
 interface TerminalTabsProps {
   projectId?: string;
@@ -71,6 +91,36 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   const [showSettings, setShowSettings] = useState(false);
   const [keyboardSize, setKeyboardSize] = useState<KeyboardSizePreset>("medium");
   const [showTerminalManager, setShowTerminalManager] = useState(false);
+
+  // Unified slots array for split-pane terminals
+  const terminalSlots: TerminalSlot[] = useMemo(() => {
+    const slots: TerminalSlot[] = [];
+
+    // Add project slots first
+    for (const pt of projectTerminals) {
+      slots.push({
+        type: "project",
+        projectId: pt.projectId,
+        projectName: pt.projectName,
+        rootPath: pt.rootPath,
+        activeMode: pt.activeMode,
+        shellSessionId: pt.shellSessionId,
+        claudeSessionId: pt.claudeSessionId,
+      });
+    }
+
+    // Add ad-hoc slots
+    for (const session of adHocSessions) {
+      slots.push({
+        type: "adhoc",
+        sessionId: session.id,
+        name: session.name,
+        workingDir: session.working_dir,
+      });
+    }
+
+    return slots;
+  }, [projectTerminals, adHocSessions]);
 
   // Load keyboard size from localStorage
   useEffect(() => {
