@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import subprocess
 
+from ..config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS
 from ..logging_config import get_logger
 from ..storage import project_settings as settings_store
 from ..storage import terminal as terminal_store
@@ -88,7 +89,17 @@ def _create_tmux_session(session_id: str, working_dir: str | None = None) -> Non
         return
 
     # Create new session
-    cmd = ["tmux", "new-session", "-d", "-s", session_name, "-x", "120", "-y", "30"]
+    cmd = [
+        "tmux",
+        "new-session",
+        "-d",
+        "-s",
+        session_name,
+        "-x",
+        str(TMUX_DEFAULT_COLS),
+        "-y",
+        str(TMUX_DEFAULT_ROWS),
+    ]
     if working_dir:
         cmd.extend(["-c", working_dir])
 

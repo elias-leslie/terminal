@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { clsx } from "clsx";
 import "@xterm/xterm/css/xterm.css";
+import {
+  CONNECTION_TIMEOUT,
+  RETRY_BACKOFF,
+  SCROLL_THRESHOLD,
+  SCROLLBACK,
+  COPY_MODE_TIMEOUT,
+} from "../lib/constants/terminal";
 
 // Dynamic imports for xterm (client-side only)
 let Terminal: typeof import("@xterm/xterm").Terminal;

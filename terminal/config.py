@@ -23,3 +23,7 @@ CORS_ORIGINS = [
     "https://dev.summitflow.dev",
     "https://terminal.summitflow.dev",  # Standalone terminal frontend (production)
 ]
+
+# Terminal dimensions
+TMUX_DEFAULT_COLS = 120
+TMUX_DEFAULT_ROWS = 30
