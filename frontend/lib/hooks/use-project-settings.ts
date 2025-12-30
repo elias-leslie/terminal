@@ -1,0 +1,152 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface ProjectSetting {
+  id: string;
+  name: string;
+  root_path: string | null;
+  terminal_enabled: boolean;
+  terminal_mode: "shell" | "claude";
+  display_order: number;
+}
+
+interface ProjectSettingsUpdate {
+  enabled?: boolean;
+  default_mode?: "shell" | "claude";
+  display_order?: number;
+}
+
+// ============================================================================
+// API Functions
+// ============================================================================
+
+async function fetchProjects(): Promise<ProjectSetting[]> {
+  const res = await fetch("/api/terminal/projects");
+  if (!res.ok) throw new Error("Failed to fetch projects");
+  return res.json();
+}
+
+async function updateProjectSettings(
+  projectId: string,
+  update: ProjectSettingsUpdate
+): Promise<ProjectSetting> {
+  const res = await fetch(`/api/terminal/project-settings/${projectId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: "Failed to update settings" }));
+    throw new Error(error.detail || "Failed to update settings");
+  }
+  return res.json();
+}
+
+async function bulkUpdateOrder(projectIds: string[]): Promise<ProjectSetting[]> {
+  const res = await fetch("/api/terminal/project-settings/bulk-order", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project_ids: projectIds }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: "Failed to update order" }));
+    throw new Error(error.detail || "Failed to update order");
+  }
+  return res.json();
+}
+
+// ============================================================================
+// Hook
+// ============================================================================
+
+/**
+ * Hook for managing terminal project settings.
+ *
+ * Provides:
+ * - projects: List of all projects with terminal settings
+ * - enabledProjects: Only projects where terminal_enabled=true
+ * - updateSettings: Update enabled/mode/order for a project
+ * - updateOrder: Bulk update display order (for drag-and-drop)
+ * - isLoading, isError: Query state
+ *
+ * @example
+ * ```tsx
+ * const { projects, updateSettings, updateOrder } = useProjectSettings();
+ *
+ * // Toggle a project
+ * await updateSettings(projectId, { enabled: !project.terminal_enabled });
+ *
+ * // Reorder after drag-drop
+ * await updateOrder(newOrderedIds);
+ * ```
+ */
+export function useProjectSettings() {
+  const queryClient = useQueryClient();
+
+  // Query: fetch projects with settings
+  const {
+    data: projects = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["terminal-projects"],
+    queryFn: fetchProjects,
+    staleTime: 30000, // Consider fresh for 30s
+  });
+
+  // Derived: only enabled projects, sorted by display_order
+  const enabledProjects = projects
+    .filter((p) => p.terminal_enabled)
+    .sort((a, b) => a.display_order - b.display_order);
+
+  // Mutation: update single project settings
+  const updateMutation = useMutation({
+    mutationFn: ({ projectId, ...update }: ProjectSettingsUpdate & { projectId: string }) =>
+      updateProjectSettings(projectId, update),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["terminal-projects"] });
+    },
+  });
+
+  // Mutation: bulk update order
+  const orderMutation = useMutation({
+    mutationFn: bulkUpdateOrder,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["terminal-projects"] });
+    },
+  });
+
+  // Update settings for a project
+  const updateSettings = useCallback(
+    async (projectId: string, update: ProjectSettingsUpdate) => {
+      return updateMutation.mutateAsync({ projectId, ...update });
+    },
+    [updateMutation]
+  );
+
+  // Bulk update order (for drag-and-drop)
+  const updateOrder = useCallback(
+    async (projectIds: string[]) => {
+      return orderMutation.mutateAsync(projectIds);
+    },
+    [orderMutation]
+  );
+
+  return {
+    projects,
+    enabledProjects,
+    updateSettings,
+    updateOrder,
+    isLoading,
+    isError,
+    error,
+    isUpdating: updateMutation.isPending || orderMutation.isPending,
+  };
+}
