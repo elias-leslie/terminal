@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import errno
 import fcntl
 import json
 import os
@@ -380,7 +381,14 @@ async def _read_output(websocket: WebSocket, master_fd: int) -> None:
                             if "[exited]" in decoded:
                                 logger.info("tmux_session_exited_detected")
                                 break
-                except OSError:
+                except OSError as e:
+                    # EIO is expected when terminal closes
+                    if e.errno != errno.EIO:
+                        logger.warning(
+                            "pty_read_error",
+                            error=str(e),
+                            errno=e.errno,
+                        )
                     break
             else:
                 await asyncio.sleep(0.01)
