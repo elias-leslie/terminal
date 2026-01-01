@@ -317,7 +317,8 @@
           "description": "Run full build and verify services",
           "category": "verification",
           "severity": "high",
-          "passes": false,
+          "passes": true,
+          "notes": "Verified: Frontend build passes, backend imports OK, services healthy (local and production).",
           "files_affected": [],
           "steps": [
             "cd ~/terminal/frontend && npm run build",
