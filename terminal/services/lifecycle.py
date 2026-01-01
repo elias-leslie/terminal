@@ -66,6 +66,9 @@ def _resurrect_dead_session(
 ) -> str:
     """Resurrect a dead session by updating DB and creating new tmux session.
 
+    Rollback strategy: On tmux creation failure, marks session as dead
+    (mark_dead) rather than deleting, since DB record already existed.
+
     Args:
         dead_session: Dead session dict from storage
         mode: Session mode ('shell' or 'claude')
@@ -100,7 +103,12 @@ def _resurrect_dead_session(
     try:
         create_tmux_session(session_id, working_dir)
     except TmuxError as e:
-        # Mark dead again on failure
+        # Rollback: mark dead again (resurrection failed)
+        logger.error(
+            "tmux_create_failed_rolling_back_resurrection",
+            session_id=session_id,
+            error=str(e),
+        )
         terminal_store.mark_dead(session_id)
         raise
 
@@ -126,6 +134,10 @@ def create_session(
 
     If a dead session exists for the same project_id+mode, resurrects it
     instead of creating a new one (to avoid unique constraint violations).
+
+    Rollback strategy:
+    - Resurrection path: Uses mark_dead (preserves existing DB record)
+    - New creation path: Uses delete_session (removes newly created record)
 
     Creates DB record first, then tmux session. If tmux creation fails,
     rolls back the DB record.
@@ -162,9 +174,9 @@ def create_session(
     try:
         create_tmux_session(session_id, working_dir)
     except TmuxError as e:
-        # Rollback: delete DB record
+        # Rollback: delete newly created DB record
         logger.error(
-            "tmux_create_failed_rolling_back",
+            "tmux_create_failed_rolling_back_new_session",
             session_id=session_id,
             error=str(e),
         )
@@ -367,6 +379,9 @@ def ensure_session_alive(session_id: str) -> bool:
     Called on WebSocket connect. If tmux session died but DB record
     exists, attempts to recreate the tmux session.
 
+    Rollback strategy: On tmux creation failure, marks session as dead
+    (mark_dead) since DB record already existed.
+
     Args:
         session_id: Session UUID
 
@@ -397,8 +412,9 @@ def ensure_session_alive(session_id: str) -> bool:
         logger.info("session_resurrected", session_id=session_id)
         return True
     except TmuxError as e:
+        # Rollback: mark dead (resurrection failed)
         logger.error(
-            "session_resurrection_failed",
+            "tmux_create_failed_rolling_back_ensure_alive",
             session_id=session_id,
             error=str(e),
         )
