@@ -280,7 +280,11 @@ async def terminal_websocket(
                                 rows=rows,
                             )
                         except json.JSONDecodeError:
-                            pass
+                            logger.warning(
+                                "malformed_resize_command",
+                                session_id=session_id,
+                                text=text[:100],
+                            )
                     else:
                         # Regular input - write to PTY
                         os.write(master_fd, text.encode("utf-8"))
@@ -328,6 +332,8 @@ async def _read_output(websocket: WebSocket, master_fd: int) -> None:
     loop = asyncio.get_event_loop()
     # Buffer for incomplete UTF-8 sequences at end of reads
     utf8_buffer = b""
+    # Max buffer size - UTF-8 chars are max 4 bytes
+    MAX_UTF8_BUFFER = 4
 
     try:
         while True:
@@ -352,7 +358,14 @@ async def _read_output(websocket: WebSocket, master_fd: int) -> None:
                             # Check if error is at the end (incomplete sequence)
                             if e.start >= len(output) - 3:
                                 # Buffer the incomplete bytes for next read
-                                utf8_buffer = output[e.start :]
+                                utf8_buffer = output[e.start:]
+                                # Safety: clear buffer if it grows too large
+                                if len(utf8_buffer) > MAX_UTF8_BUFFER:
+                                    logger.debug(
+                                        "utf8_buffer_overflow",
+                                        buffer_size=len(utf8_buffer),
+                                    )
+                                    utf8_buffer = b""
                                 decoded = output[: e.start].decode(
                                     "utf-8", errors="replace"
                                 )

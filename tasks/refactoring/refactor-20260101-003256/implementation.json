@@ -365,7 +365,7 @@
           "description": "Log malformed resize commands in terminal_websocket",
           "category": "error_handling",
           "severity": "low",
-          "passes": false,
+          "passes": true,
           "files_affected": ["terminal/api/terminal.py"],
           "steps": [
             "Read terminal/api/terminal.py lines 225-226",
@@ -382,7 +382,7 @@
           "description": "Add buffer size limit to _read_output UTF-8 handling",
           "category": "error_handling",
           "severity": "low",
-          "passes": false,
+          "passes": true,
           "files_affected": ["terminal/api/terminal.py"],
           "steps": [
             "Read terminal/api/terminal.py lines 294-304",
