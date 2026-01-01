@@ -56,7 +56,7 @@
             "Run backend service health check"
           ],
           "verification": "curl -s http://localhost:8002/health | grep -q ok",
-          "passes": false
+          "passes": true
         },
         {
           "id": "1.3",
