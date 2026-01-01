@@ -52,6 +52,22 @@ export function TerminalManagerModal({
     defaultColor: "var(--term-text-muted)",
   });
 
+  // Hover styles for "New Generic Terminal" button
+  const newTerminalHover = useHoverStyle({
+    hoverBg: "var(--term-bg-surface)",
+    defaultBg: "transparent",
+    hoverColor: "var(--term-accent)",
+    defaultColor: "var(--term-text-muted)",
+  });
+
+  // Hover styles for Cancel button
+  const cancelButtonHover = useHoverStyle({
+    defaultBorderColor: "var(--term-border)",
+    hoverBorderColor: "var(--term-border-active)",
+    hoverColor: "var(--term-text-primary)",
+    defaultColor: "var(--term-text-muted)",
+  });
+
   // Sync local state with server state
   useEffect(() => {
     if (isOpen) {
@@ -210,18 +226,11 @@ export function TerminalManagerModal({
               onClick={handleCreateGeneric}
               className="flex items-center gap-2 w-full px-3 py-2.5 rounded-md transition-colors"
               style={{
-                backgroundColor: "transparent",
-                color: "var(--term-text-muted)",
+                ...newTerminalHover.style,
                 fontFamily: "var(--font-mono)",
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
-                e.currentTarget.style.color = "var(--term-accent)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "var(--term-text-muted)";
-              }}
+              onMouseEnter={newTerminalHover.onMouseEnter}
+              onMouseLeave={newTerminalHover.onMouseLeave}
             >
               <Plus size={16} style={{ color: "var(--term-accent)" }} />
               <Terminal size={16} />
@@ -240,18 +249,12 @@ export function TerminalManagerModal({
             className="px-4 py-2 text-sm rounded transition-colors"
             style={{
               backgroundColor: "transparent",
-              border: "1px solid var(--term-border)",
-              color: "var(--term-text-muted)",
+              border: `1px solid ${cancelButtonHover.style.borderColor || "var(--term-border)"}`,
+              color: cancelButtonHover.style.color,
               fontFamily: "var(--font-mono)",
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--term-border-active)";
-              e.currentTarget.style.color = "var(--term-text-primary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--term-border)";
-              e.currentTarget.style.color = "var(--term-text-muted)";
-            }}
+            onMouseEnter={cancelButtonHover.onMouseEnter}
+            onMouseLeave={cancelButtonHover.onMouseLeave}
           >
             Cancel
           </button>
@@ -287,10 +290,16 @@ function SortableProjectRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: project.id });
 
+  const rowHover = useHoverStyle({
+    hoverBg: "var(--term-bg-surface)",
+    defaultBg: "transparent",
+  });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    ...rowHover.style,
   };
 
   return (
@@ -298,12 +307,8 @@ function SortableProjectRow({
       ref={setNodeRef}
       style={style}
       className="flex items-center gap-3 px-2 py-2.5 rounded"
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "transparent";
-      }}
+      onMouseEnter={rowHover.onMouseEnter}
+      onMouseLeave={rowHover.onMouseLeave}
     >
       {/* Drag handle */}
       <button

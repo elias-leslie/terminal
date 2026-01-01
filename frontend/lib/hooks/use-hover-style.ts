@@ -5,6 +5,8 @@ export interface UseHoverStyleOptions {
   defaultBg?: string;
   hoverColor?: string;
   defaultColor?: string;
+  hoverBorderColor?: string;
+  defaultBorderColor?: string;
 }
 
 export interface UseHoverStyleReturn {
@@ -13,6 +15,7 @@ export interface UseHoverStyleReturn {
   style: {
     backgroundColor: string;
     color: string;
+    borderColor?: string;
   };
   isHovered: boolean;
 }
@@ -38,6 +41,8 @@ export function useHoverStyle({
   defaultBg = "transparent",
   hoverColor,
   defaultColor,
+  hoverBorderColor,
+  defaultBorderColor,
 }: UseHoverStyleOptions): UseHoverStyleReturn {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -47,6 +52,9 @@ export function useHoverStyle({
     style: {
       backgroundColor: isHovered ? hoverBg : defaultBg,
       color: isHovered ? (hoverColor || defaultColor || "") : (defaultColor || ""),
+      ...(defaultBorderColor && {
+        borderColor: isHovered ? (hoverBorderColor || defaultBorderColor) : defaultBorderColor,
+      }),
     },
     isHovered,
   };

@@ -103,3 +103,19 @@ Modify the PreToolUse hook to block tool execution if there are more than 10 unc
 *Rationale: Observed a transition from warnings to hard blocks to maintain development hygiene and prevent large, uncommitted diffs.*
 
 <!-- Pattern ID: e14fc161-59e8-4a92-8cfc-c70d9aadde3c | Applied: 2026-01-01T07:47:05.598129 -->
+
+## Automated Refactoring Session Management
+
+The `/og_refactor_it` command must operate without user prompts. Automatically resume an incomplete session if `REMAINING > 0` or start a new session if `REMAINING == 0` or no session is found. Never ask for user confirmation when initiating these transitions.
+
+*Rationale: Documentation and logic updates in entry d3467766 explicitly enforce a non-interactive, automated workflow for refactoring orchestration.*
+
+<!-- Pattern ID: aa736048-e07a-4670-894e-1d201bbe52d8 | Applied: 2026-01-01T09:59:44.839368 -->
+
+## Terminal Session Normalization Utilities
+
+Use `from .terminal_utils import SessionId, _to_str` for session identification and string normalization within terminal storage modules. This ensures architectural consistency and a single source of truth for session identifiers across the storage layer.
+
+*Rationale: Observed in a successful refactoring session (0841b83e) where local definitions were replaced with imports from a centralized utility module to reduce duplication.*
+
+<!-- Pattern ID: 5013a30b-81e9-4ddf-881c-15a061e41a61 | Applied: 2026-01-01T09:59:44.880823 -->
