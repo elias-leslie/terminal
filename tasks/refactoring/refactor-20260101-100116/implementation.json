@@ -80,7 +80,7 @@
             "Verify: cd frontend && npx tsc --noEmit"
           ],
           "verification": "cd /home/kasadis/terminal/frontend && npx tsc --noEmit",
-          "passes": false
+          "passes": true
         }
       ]
     },
