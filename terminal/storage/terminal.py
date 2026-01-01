@@ -89,8 +89,7 @@ def list_sessions(include_dead: bool = False) -> list[dict[str, Any]]:
             WHERE is_alive = true
             ORDER BY display_order, created_at
         """
-    result = _execute_session_query(query, (), fetch_mode="all")
-    return result if result else []
+    return _execute_session_query(query, (), fetch_mode="all")
 
 
 def get_session(session_id: SessionId) -> dict[str, Any] | None:
@@ -304,8 +303,7 @@ def list_orphaned(older_than_days: int = 30) -> list[dict[str, Any]]:
         WHERE last_accessed_at < %s
         ORDER BY last_accessed_at
     """
-    result = _execute_session_query(query, (cutoff,), fetch_mode="all")
-    return result if result else []
+    return _execute_session_query(query, (cutoff,), fetch_mode="all")
 
 
 def _row_to_dict(row: tuple) -> dict[str, Any]:
@@ -392,7 +390,7 @@ def get_project_sessions(project_id: str) -> dict[str, dict[str, Any] | None]:
     """
     sessions = _execute_session_query(query, (project_id,), fetch_mode="all")
     result: dict[str, dict[str, Any] | None] = {"shell": None, "claude": None}
-    for session in sessions or []:
+    for session in sessions:
         if session["mode"] in result:
             result[session["mode"]] = session
     return result
