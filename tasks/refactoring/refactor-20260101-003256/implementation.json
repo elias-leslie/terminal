@@ -251,7 +251,7 @@
           "description": "Create useTerminalScrolling hook from Terminal.tsx",
           "category": "hook_extraction",
           "severity": "medium",
-          "passes": false,
+          "passes": true,
           "files_affected": ["frontend/components/Terminal.tsx", "frontend/lib/hooks/use-terminal-scrolling.ts"],
           "steps": [
             "Read frontend/components/Terminal.tsx lines 242-342",

@@ -14,6 +14,7 @@ import { useActiveSession } from "@/lib/hooks/use-active-session";
 import { useTerminalSettings } from "@/lib/hooks/use-terminal-settings";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { useProjectTerminals, ProjectTerminal } from "@/lib/hooks/use-project-terminals";
+import { useClaudePolling } from "@/lib/hooks/use-claude-polling";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { SettingsDropdown, KeyboardSizePreset } from "./SettingsDropdown";
 import { ClaudeIndicator } from "./ClaudeIndicator";
@@ -25,9 +26,7 @@ import { GlobalActionMenu } from "./GlobalActionMenu";
 // Maximum number of split panes
 const MAX_SPLIT_PANES = 4;
 
-// Claude polling constants
-const CLAUDE_POLL_INTERVAL_MS = 500;  // Poll interval for Claude state check
-const CLAUDE_POLL_TIMEOUT_MS = 10000; // Max time to poll before giving up
+// Init delay for tmux session
 const TMUX_INIT_DELAY_MS = 300;       // Delay for tmux session initialization
 
 // Helper to get next terminal name (Terminal 1, Terminal 2, etc.)
@@ -188,8 +187,8 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   // Tab refs for scroll into view
   const projectTabRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // Claude state polling interval ref for cleanup
-  const claudePollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Claude polling hook for starting Claude and polling for state changes
+  const { startClaude } = useClaudePolling();
 
   // Get active terminal status for showing reconnect button
   const activeStatus = activeSessionId ? terminalStatuses.get(activeSessionId) : undefined;
@@ -246,16 +245,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, [editingId]);
 
-  // Cleanup Claude polling interval on unmount
-  useEffect(() => {
-    return () => {
-      if (claudePollIntervalRef.current) {
-        clearInterval(claudePollIntervalRef.current);
-        claudePollIntervalRef.current = null;
-      }
-    };
-  }, []);
-
   // Create new terminal session (ad-hoc / generic)
   const handleAddTab = useCallback(async () => {
     const name = getNextTerminalName(sessions);
@@ -275,62 +264,10 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     router.push(`?${params.toString()}`, { scroll: false });
   }, [searchParams, router]);
 
-  // Helper to start Claude in a session and wait for confirmation
+  // Helper to start Claude in a session and wait for confirmation (via hook)
   const startClaudeInSession = useCallback(async (sessionId: string): Promise<boolean> => {
-    try {
-      const res = await fetch(`/api/terminal/sessions/${sessionId}/start-claude`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        console.error("Failed to start Claude:", await res.text());
-        return false;
-      }
-      const data = await res.json();
-
-      // Invalidate sessions query to pick up new claude_state
-      // This ensures the overlay updates when state changes
-      queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
-
-      // If Claude is starting, poll for completion
-      if (data.claude_state === "starting") {
-        // Clear any existing polling interval
-        if (claudePollIntervalRef.current) {
-          clearInterval(claudePollIntervalRef.current);
-        }
-
-        // Poll until Claude is running (or timeout)
-        const pollStart = Date.now();
-        claudePollIntervalRef.current = setInterval(async () => {
-          if (Date.now() - pollStart > CLAUDE_POLL_TIMEOUT_MS) {
-            if (claudePollIntervalRef.current) {
-              clearInterval(claudePollIntervalRef.current);
-              claudePollIntervalRef.current = null;
-            }
-            return;
-          }
-          // Fetch latest state
-          const stateRes = await fetch(`/api/terminal/sessions/${sessionId}/claude-state`);
-          if (stateRes.ok) {
-            const stateData = await stateRes.json();
-            if (stateData.claude_state === "running" || stateData.claude_state === "error") {
-              if (claudePollIntervalRef.current) {
-                clearInterval(claudePollIntervalRef.current);
-                claudePollIntervalRef.current = null;
-              }
-              // Invalidate to update UI
-              queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
-            }
-          }
-        }, CLAUDE_POLL_INTERVAL_MS);
-      }
-
-      // Return true if started or already running
-      return data.started || data.message?.includes("already running");
-    } catch (e) {
-      console.error("Failed to start Claude:", e);
-      return false;
-    }
-  }, [queryClient]);
+    return startClaude(sessionId);
+  }, [startClaude]);
 
   // Handle clicking a project tab - create session if needed
   const handleProjectTabClick = useCallback(async (pt: ProjectTerminal) => {
