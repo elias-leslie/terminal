@@ -347,119 +347,23 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         }
       }, FIT_DELAY_MS);
 
-      // Connect to WebSocket with timeout and auto-retry
-      let hasRetried = false;
-
-      function connectWebSocket() {
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        let wsHost: string;
-
-        if (window.location.host === "terminal.summitflow.dev") {
-          wsHost = "terminalapi.summitflow.dev";
-        } else if (window.location.host.includes("localhost")) {
-          wsHost = "localhost:8002";
-        } else {
-          wsHost = window.location.host;
+      // Set up terminal input handler - forward to WebSocket and reset copy-mode on typing
+      onDataDisposableRef.current = term.onData((data) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(data);
+          // Typing exits tmux copy-mode, reset our tracking
+          if (copyModeState.inCopyMode) {
+            copyModeState.inCopyMode = false;
+            if (copyModeState.timeout) {
+              clearTimeout(copyModeState.timeout);
+              copyModeState.timeout = null;
+            }
+          }
         }
+      });
 
-        let wsUrl = `${protocol}//${wsHost}/ws/terminal/${sessionId}`;
-        if (workingDir) {
-          wsUrl += `?working_dir=${encodeURIComponent(workingDir)}`;
-        }
-
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
-
-        const timeoutId = setTimeout(() => {
-          if (ws.readyState === WebSocket.CONNECTING) {
-            ws.close();
-            if (!mounted) return;
-            if (!hasRetried) {
-              hasRetried = true;
-              term.writeln("\x1b[33mConnection timeout, retrying...\x1b[0m");
-              setStatus("connecting");
-              setTimeout(() => {
-                if (mounted) connectWebSocket();
-              }, RETRY_BACKOFF);
-            } else {
-              setStatus("timeout");
-              term.writeln("\r\n\x1b[31mConnection timeout\x1b[0m");
-              onDisconnect?.();
-            }
-          }
-        }, CONNECTION_TIMEOUT);
-
-        ws.onopen = () => {
-          clearTimeout(timeoutId);
-          if (!mounted) return;
-          setStatus("connected");
-          term.writeln("Connected to terminal session: " + sessionId);
-          term.writeln("");
-
-          // Send initial size
-          const dims = fitAddon.proposeDimensions();
-          if (dims) {
-            ws.send(JSON.stringify({ resize: { cols: dims.cols, rows: dims.rows } }));
-          }
-        };
-
-        ws.onmessage = (event) => {
-          if (!mounted) return;
-
-          // Preserve scroll position if user is viewing history
-          const buffer = term.buffer.active;
-          const distanceFromBottom = buffer.baseY - buffer.viewportY;
-
-          term.write(event.data);
-
-          // Restore scroll position if user wasn't at bottom
-          if (distanceFromBottom > 0) {
-            term.scrollLines(-distanceFromBottom);
-          }
-        };
-
-        ws.onclose = (event) => {
-          clearTimeout(timeoutId);
-          if (!mounted) return;
-          if (event.code === WS_CLOSE_CODE_SESSION_DEAD) {
-            setStatus("session_dead");
-            try {
-              const reason = JSON.parse(event.reason);
-              term.writeln(`\r\n\x1b[31m${reason.message || "Session not found"}\x1b[0m`);
-            } catch {
-              term.writeln("\r\n\x1b[31mSession not found or could not be restored\x1b[0m");
-            }
-          } else {
-            setStatus("disconnected");
-            term.writeln("\r\n\x1b[31mDisconnected from terminal\x1b[0m");
-          }
-          onDisconnect?.();
-        };
-
-        ws.onerror = () => {
-          clearTimeout(timeoutId);
-          if (!mounted) return;
-          setStatus("error");
-          term.writeln("\r\n\x1b[31mConnection error\x1b[0m");
-        };
-
-        onDataDisposableRef.current = term.onData((data) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(data);
-            // Typing exits tmux copy-mode, reset our tracking
-            if (inCopyMode) {
-              inCopyMode = false;
-              if (copyModeTimeout) {
-                clearTimeout(copyModeTimeout);
-                copyModeTimeout = null;
-              }
-            }
-          }
-        });
-      }
-
-      connectWebSocketRef.current = connectWebSocket;
-      connectWebSocket();
+      // Connect to WebSocket via hook
+      connect();
       window.addEventListener("resize", handleResize);
     }
 
@@ -468,10 +372,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
     return () => {
       mounted = false;
       window.removeEventListener("resize", handleResize);
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
       // Dispose onData listener before terminal
       if (onDataDisposableRef.current) {
         onDataDisposableRef.current.dispose();
@@ -481,6 +381,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       if (mouseCleanupRef.current) {
         mouseCleanupRef.current();
         mouseCleanupRef.current = null;
+      }
+      // Clean up copy-mode timeout
+      const copyModeState = copyModeStateRef.current;
+      if (copyModeState.timeout) {
+        clearTimeout(copyModeState.timeout);
+        copyModeState.timeout = null;
       }
       if (terminalRef.current) {
         const touchCleanup = (terminalRef.current as unknown as { _touchCleanup?: () => void })._touchCleanup;
@@ -492,7 +398,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, workingDir, handleResize, onDisconnect]);
+  }, [sessionId, workingDir, handleResize, connect]);
 
   // Handle container resize with debounce
   useEffect(() => {
