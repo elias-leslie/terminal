@@ -23,10 +23,9 @@ from ..services.pty_manager import (
     read_pty_output,
     resize_pty,
     spawn_pty_for_tmux,
-    validate_session_name,
 )
 from ..storage import terminal as terminal_store
-from ..utils.tmux import create_tmux_session
+from ..utils.tmux import create_tmux_session, validate_session_name
 
 logger = get_logger(__name__)
 router = APIRouter()

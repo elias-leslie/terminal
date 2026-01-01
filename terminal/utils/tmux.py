@@ -9,6 +9,7 @@ Provides core tmux operations used across the terminal service:
 
 from __future__ import annotations
 
+import re
 import subprocess
 
 from ..config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS
@@ -18,9 +19,24 @@ logger = get_logger(__name__)
 
 TMUX_COMMAND_TIMEOUT = 10  # seconds for tmux subprocess calls
 
+# Regex for valid session names (alphanumeric + hyphen/underscore/colon)
+_SESSION_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-:]+$")
+
 
 class TmuxError(Exception):
     """Error interacting with tmux."""
+
+
+def validate_session_name(name: str) -> bool:
+    """Validate tmux session name to prevent injection attacks.
+
+    Args:
+        name: Session name to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    return bool(_SESSION_NAME_PATTERN.match(name)) and len(name) < 256
 
 
 def run_tmux_command(args: list[str], check: bool = False) -> tuple[bool, str]:
@@ -47,7 +63,9 @@ def run_tmux_command(args: list[str], check: bool = False) -> tuple[bool, str]:
         if result.returncode == 0:
             return True, result.stdout.strip()
         else:
-            error_msg = result.stderr.strip() or f"tmux exited with code {result.returncode}"
+            error_msg = (
+                result.stderr.strip() or f"tmux exited with code {result.returncode}"
+            )
             logger.debug("tmux_command_failed", cmd=args, error=error_msg)
             if check:
                 raise TmuxError(error_msg)

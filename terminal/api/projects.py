@@ -8,11 +8,12 @@ This module provides:
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from ..constants import SessionMode
 from ..services import lifecycle, summitflow_client
 from ..storage import project_settings as settings_store
 
@@ -32,7 +33,7 @@ class ProjectResponse(BaseModel):
     root_path: str | None
     # Terminal-specific settings
     terminal_enabled: bool = False
-    mode: Literal["shell", "claude"] = "shell"  # Active mode (shell or claude)
+    mode: SessionMode = "shell"  # Active mode (shell or claude)
     display_order: int = 0
 
 
@@ -40,14 +41,14 @@ class ProjectSettingsUpdate(BaseModel):
     """Request to update terminal settings for a project."""
 
     enabled: bool | None = None
-    active_mode: Literal["shell", "claude"] | None = None
+    active_mode: SessionMode | None = None
     display_order: int | None = None
 
 
 class SetModeRequest(BaseModel):
     """Request to set active mode for a project."""
 
-    mode: Literal["shell", "claude"]
+    mode: SessionMode
 
 
 class BulkOrderUpdate(BaseModel):
@@ -97,7 +98,9 @@ async def list_projects() -> list[ProjectResponse]:
     return result
 
 
-@router.put("/api/terminal/project-settings/{project_id}", response_model=ProjectResponse)
+@router.put(
+    "/api/terminal/project-settings/{project_id}", response_model=ProjectResponse
+)
 async def update_project_settings(
     project_id: str,
     update: ProjectSettingsUpdate,
@@ -128,7 +131,9 @@ async def update_project_settings(
     )
 
 
-@router.post("/api/terminal/project-settings/bulk-order", response_model=list[ProjectResponse])
+@router.post(
+    "/api/terminal/project-settings/bulk-order", response_model=list[ProjectResponse]
+)
 async def bulk_update_order(update: BulkOrderUpdate) -> list[ProjectResponse]:
     """Bulk update display order for drag-and-drop reordering.
 

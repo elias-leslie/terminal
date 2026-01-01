@@ -7,10 +7,11 @@ the active mode (shell or claude) which syncs across devices.
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
 import psycopg.sql
 
+from ..constants import SessionMode
 from .connection import get_connection
 
 
@@ -37,7 +38,7 @@ def get_all_settings() -> dict[str, dict[str, Any]]:
 def upsert_settings(
     project_id: str,
     enabled: bool | None = None,
-    active_mode: Literal["shell", "claude"] | None = None,
+    active_mode: SessionMode | None = None,
     display_order: int | None = None,
 ) -> dict[str, Any]:
     """Create or update project settings.
@@ -104,13 +105,17 @@ def bulk_update_order(project_ids: list[str]) -> None:
         # Use a single query with CASE for efficiency
         # Build CASE clauses: WHEN project_id = %s THEN 0, WHEN project_id = %s THEN 1, ...
         case_parts = [
-            psycopg.sql.SQL("WHEN project_id = %s THEN {}").format(psycopg.sql.Literal(i))
+            psycopg.sql.SQL("WHEN project_id = %s THEN {}").format(
+                psycopg.sql.Literal(i)
+            )
             for i in range(len(project_ids))
         ]
         cases = psycopg.sql.SQL(" ").join(case_parts)
 
         # Build IN clause placeholders
-        placeholders = psycopg.sql.SQL(", ").join([psycopg.sql.SQL("%s")] * len(project_ids))
+        placeholders = psycopg.sql.SQL(", ").join(
+            [psycopg.sql.SQL("%s")] * len(project_ids)
+        )
 
         query = psycopg.sql.SQL("""
             UPDATE terminal_project_settings
@@ -123,7 +128,7 @@ def bulk_update_order(project_ids: list[str]) -> None:
         conn.commit()
 
 
-def set_active_mode(project_id: str, mode: Literal["shell", "claude"]) -> dict[str, Any] | None:
+def set_active_mode(project_id: str, mode: SessionMode) -> dict[str, Any] | None:
     """Set the active mode for a project.
 
     This is called when user switches between shell and claude modes.

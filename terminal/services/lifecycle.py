@@ -12,6 +12,7 @@ The database is the source of truth; tmux is the implementation detail.
 
 from __future__ import annotations
 
+from ..constants import SESSION_MODES
 from ..logging_config import get_logger
 from ..storage import project_settings as settings_store
 from ..storage import terminal as terminal_store
@@ -25,8 +26,6 @@ from ..utils.tmux import (
 )
 
 logger = get_logger(__name__)
-
-SESSION_MODES = ["shell", "claude"]
 
 
 def _kill_tmux_session(session_id: str, ignore_missing: bool = True) -> bool:
@@ -477,5 +476,3 @@ def reconcile_on_startup(purge_after_days: int = 7) -> dict[str, int]:
     logger.info("reconciliation_complete", **stats)
 
     return stats
-
-

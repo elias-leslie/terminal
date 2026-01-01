@@ -14,7 +14,6 @@ import errno
 import fcntl
 import os
 import pty
-import re
 import select
 import shlex
 import struct
@@ -22,27 +21,12 @@ import termios
 from typing import TYPE_CHECKING
 
 from ..logging_config import get_logger
-from ..utils.tmux import run_tmux_command
+from ..utils.tmux import run_tmux_command, validate_session_name
 
 if TYPE_CHECKING:
     from fastapi import WebSocket
 
 logger = get_logger(__name__)
-
-# Regex for valid session names (alphanumeric + hyphen/underscore/colon)
-_SESSION_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-:]+$")
-
-
-def validate_session_name(name: str) -> bool:
-    """Validate tmux session name to prevent injection attacks.
-
-    Args:
-        name: Session name to validate
-
-    Returns:
-        True if valid, False otherwise
-    """
-    return bool(_SESSION_NAME_PATTERN.match(name)) and len(name) < 256
 
 
 def spawn_pty_for_tmux(
