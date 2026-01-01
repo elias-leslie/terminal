@@ -224,7 +224,7 @@
           "description": "Extract _handle_websocket_message from terminal_websocket",
           "category": "function_size",
           "severity": "medium",
-          "passes": false,
+          "passes": true,
           "files_affected": ["terminal/api/terminal.py"],
           "steps": [
             "Read terminal/api/terminal.py lines 258-295 (input handling)",
@@ -244,7 +244,7 @@
           "description": "Extract _validate_and_prepare_session from terminal_websocket",
           "category": "separation_of_concerns",
           "severity": "medium",
-          "passes": false,
+          "passes": true,
           "files_affected": ["terminal/api/terminal.py"],
           "steps": [
             "Read terminal/api/terminal.py lines 206-244 (session initialization)",
