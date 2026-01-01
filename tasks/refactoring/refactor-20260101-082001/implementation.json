@@ -89,7 +89,7 @@
           "description": "Extract isMobileDevice to shared utility",
           "category": "dry_violation",
           "severity": "low",
-          "passes": false,
+          "passes": true,
           "files_affected": ["frontend/components/Terminal.tsx", "frontend/lib/utils/device.ts"],
           "steps": [
             "Create frontend/lib/utils/device.ts",
@@ -109,7 +109,7 @@
           "description": "Extract useHoverStyle hook for button hover effects",
           "category": "dry_violation",
           "severity": "medium",
-          "passes": false,
+          "passes": true,
           "files_affected": ["frontend/lib/hooks/use-hover-style.ts", "frontend/components/TerminalManagerModal.tsx"],
           "steps": [
             "Create frontend/lib/hooks/use-hover-style.ts",
