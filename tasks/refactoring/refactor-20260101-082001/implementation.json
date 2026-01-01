@@ -271,7 +271,7 @@
           "description": "Extract _resurrect_dead_session from create_session",
           "category": "function_size",
           "severity": "medium",
-          "passes": false,
+          "passes": true,
           "files_affected": ["terminal/services/lifecycle.py"],
           "steps": [
             "Read terminal/services/lifecycle.py lines 59-151 (create_session)",
@@ -291,7 +291,7 @@
           "description": "Standardize error rollback in lifecycle.py",
           "category": "inconsistent_error_handling",
           "severity": "medium",
-          "passes": false,
+          "passes": true,
           "files_affected": ["terminal/services/lifecycle.py"],
           "steps": [
             "Read lines 106-110 (resurrection rollback - marks dead)",
