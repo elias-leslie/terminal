@@ -93,7 +93,7 @@
             "Run npm run build to verify no type errors"
           ],
           "verification": "npm run build --prefix /home/kasadis/terminal/frontend",
-          "passes": false
+          "passes": true
         }
       ]
     },
@@ -116,7 +116,7 @@
             "Verify no console warnings about undefined functions"
           ],
           "verification": "cd /home/kasadis/terminal/frontend && npm run build && npx tsc --noEmit",
-          "passes": false
+          "passes": true
         }
       ]
     }
