@@ -17,6 +17,7 @@ import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { useProjectTerminals, ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import { useClaudePolling } from "@/lib/hooks/use-claude-polling";
 import { useTabEditing } from "@/lib/hooks/use-tab-editing";
+import { useProjectModeSwitch } from "@/lib/hooks/use-project-mode-switch";
 import { createProjectSession } from "@/lib/utils/session";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { KeyboardSizePreset } from "./SettingsDropdown";
@@ -28,7 +29,7 @@ import { TerminalManagerModal } from "./TerminalManagerModal";
 const MAX_SPLIT_PANES = 4;
 
 // Init delay for tmux session
-const TMUX_INIT_DELAY_MS = 300;       // Delay for tmux session initialization
+const TMUX_INIT_DELAY_MS = 300;
 
 // Helper to get next terminal name (Terminal 1, Terminal 2, etc.)
 function getNextTerminalName(sessions: Array<{ name: string }>): string {
@@ -191,6 +192,13 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   // Claude polling hook for starting Claude and polling for state changes
   const { startClaude } = useClaudePolling();
 
+  // Project mode switch hook - orchestrates mode changes with session creation and Claude startup
+  const { switchProjectMode } = useProjectModeSwitch({
+    switchMode,
+    sessions,
+    projectTabRefs,
+  });
+
   // Get active terminal status for showing reconnect button
   const activeStatus = activeSessionId ? terminalStatuses.get(activeSessionId) : undefined;
   const showReconnect = activeStatus && ["disconnected", "error", "timeout"].includes(activeStatus);
@@ -302,68 +310,25 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, [navigateToSession, getProjectSessionId, startClaudeInSession]);
 
-  // Atomic mode switch handler for project tabs
-  // Encapsulates: 1) Update backend mode, 2) Get/create session, 3) Start Claude if needed, 4) Switch via URL
-  const handleProjectModeChange = useCallback(async (
-    projectId: string,
-    newMode: "shell" | "claude",
-    currentShellSessionId: string | null,
-    currentClaudeSessionId: string | null,
-    rootPath: string | null
-  ): Promise<void> => {
-    // 1. Update mode in backend (optimistic update happens in switchMode)
-    await switchMode(projectId, newMode);
-
-    // 2. Determine which session to use
-    let targetSessionId = newMode === "claude" ? currentClaudeSessionId : currentShellSessionId;
-    let needsClaudeStart = false;
-    let isNewSession = false;
-
-    // 3. Create session if it doesn't exist
-    if (!targetSessionId) {
-      const newSession = await createProjectSession({
+  // Handler for project mode changes - delegates to hook
+  const handleProjectModeChange = useCallback(
+    async (
+      projectId: string,
+      newMode: "shell" | "claude",
+      currentShellSessionId: string | null,
+      currentClaudeSessionId: string | null,
+      rootPath: string | null
+    ): Promise<void> => {
+      await switchProjectMode({
         projectId,
         mode: newMode,
-        workingDir: rootPath,
+        shellSessionId: currentShellSessionId,
+        claudeSessionId: currentClaudeSessionId,
+        rootPath,
       });
-      targetSessionId = newSession.id;
-      isNewSession = true;
-      // New claude session always needs Claude started
-      if (newMode === "claude") {
-        needsClaudeStart = true;
-      }
-    } else if (newMode === "claude") {
-      // Existing claude session - check if Claude is already running
-      // Look up session in the cache to check claude_state
-      const existingSession = sessions.find(s => s.id === targetSessionId);
-      const claudeState = existingSession?.claude_state;
-      // Only start Claude if NOT already running or starting
-      needsClaudeStart = claudeState !== "running" && claudeState !== "starting";
-    }
-
-    // 4. If switching to Claude mode AND Claude needs to be started
-    if (newMode === "claude" && targetSessionId && needsClaudeStart) {
-      // Delay for new sessions to let tmux initialize
-      if (isNewSession) {
-        await new Promise(resolve => setTimeout(resolve, TMUX_INIT_DELAY_MS));
-      }
-      await startClaudeInSession(targetSessionId);
-    }
-
-    // 5. Switch to the session via URL
-    if (targetSessionId) {
-      navigateToSession(targetSessionId);
-    }
-
-    // 6. Scroll tab into view after mode switch
-    setTimeout(() => {
-      projectTabRefs.current.get(projectId)?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "nearest",
-      });
-    }, 100);
-  }, [switchMode, startClaudeInSession, navigateToSession, sessions]);
+    },
+    [switchProjectMode]
+  );
 
   // Close terminal session
   const handleCloseTab = useCallback(
