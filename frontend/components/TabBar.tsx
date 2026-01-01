@@ -15,6 +15,23 @@ import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 import { TerminalFontId, TerminalFontSize } from "@/lib/hooks/use-terminal-settings";
 
 // ============================================================================
+// Utility Functions
+// ============================================================================
+
+function getTabClassName(isActive: boolean, isMobile: boolean): string {
+  return clsx(
+    "flex items-center rounded-md transition-all duration-200 cursor-pointer",
+    "group min-w-0 flex-shrink-0",
+    isMobile
+      ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
+      : "gap-1.5 px-2 py-1.5 text-sm",
+    isActive
+      ? "tab-active"
+      : "tab-inactive"
+  );
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -154,16 +171,7 @@ export function TabBar({
               }
             }}
             onClick={() => onProjectTabClick(pt)}
-            className={clsx(
-              "flex items-center rounded-md transition-all duration-200 cursor-pointer",
-              "group min-w-0 flex-shrink-0",
-              isMobile
-                ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
-                : "gap-1.5 px-2 py-1.5 text-sm",
-              isActive
-                ? "tab-active"
-                : "tab-inactive"
-            )}
+            className={getTabClassName(isActive, isMobile)}
           >
             {/* Claude indicator for project tabs */}
             <ClaudeIndicator state={pt.activeMode === "claude" ? "idle" : "none"} />
@@ -215,16 +223,7 @@ export function TabBar({
           <div
             key={session.id}
             onClick={() => onAdHocTabClick(session.id)}
-            className={clsx(
-              "flex items-center rounded-md transition-all duration-200 cursor-pointer",
-              "group min-w-0 flex-shrink-0",
-              isMobile
-                ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
-                : "gap-1.5 px-2 py-1.5 text-sm",
-              isActive
-                ? "tab-active"
-                : "tab-inactive"
-            )}
+            className={getTabClassName(isActive, isMobile)}
           >
             {/* Status dot for ad-hoc tabs */}
             <span
