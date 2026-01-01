@@ -10,16 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import errno
-import fcntl
 import json
 import os
-import pty
-import re
-import select
-import shlex
-import struct
-import termios
 from typing import Any
 
 from fastapi import APIRouter, Query, Request, WebSocket, WebSocketDisconnect
@@ -27,8 +19,14 @@ from fastapi import APIRouter, Query, Request, WebSocket, WebSocketDisconnect
 from ..config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS
 from ..logging_config import get_logger
 from ..services import lifecycle
+from ..services.pty_manager import (
+    read_pty_output,
+    resize_pty,
+    spawn_pty_for_tmux,
+    validate_session_name,
+)
 from ..storage import terminal as terminal_store
-from ..utils.tmux import create_tmux_session, run_tmux_command
+from ..utils.tmux import create_tmux_session
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -38,21 +36,6 @@ _sessions: dict[str, dict[str, Any]] = {}
 
 # Prefix for terminal base sessions
 _BASE_SESSION_PREFIX = "summitflow-"
-
-# Regex for valid session names (alphanumeric + hyphen/underscore/colon)
-_SESSION_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-:]+$")
-
-
-def _validate_session_name(name: str) -> bool:
-    """Validate tmux session name to prevent injection attacks.
-
-    Args:
-        name: Session name to validate
-
-    Returns:
-        True if valid, False otherwise
-    """
-    return bool(_SESSION_NAME_PATTERN.match(name)) and len(name) < 256
 
 
 @router.get("/api/internal/session-switch")
@@ -79,7 +62,7 @@ async def session_switch_hook(
         return {"status": "rejected", "reason": "unauthorized"}
 
     # Validate session names to prevent injection
-    if not _validate_session_name(from_session) or not _validate_session_name(to_session):
+    if not validate_session_name(from_session) or not validate_session_name(to_session):
         logger.warning(
             "session_switch_rejected",
             reason="invalid_session_name",
@@ -93,7 +76,7 @@ async def session_switch_hook(
         return {"status": "ignored", "reason": "not from base session"}
 
     # Extract terminal session ID from "summitflow-{uuid}"
-    terminal_session_id = from_session[len(_BASE_SESSION_PREFIX):]
+    terminal_session_id = from_session[len(_BASE_SESSION_PREFIX) :]
 
     # Don't store if switching back to base session
     if to_session.startswith(_BASE_SESSION_PREFIX):
@@ -102,82 +85,12 @@ async def session_switch_hook(
         return {"status": "cleared"}
 
     # Store the target session
-    logger.info("session_switch_detected", terminal=terminal_session_id, target=to_session)
+    logger.info(
+        "session_switch_detected", terminal=terminal_session_id, target=to_session
+    )
     terminal_store.update_claude_session(terminal_session_id, to_session)
 
     return {"status": "stored", "target": to_session}
-
-
-def _spawn_pty_for_tmux(
-    tmux_session: str,
-    stored_target_session: str | None = None,
-) -> tuple[int, int]:
-    """Spawn a PTY attached to a tmux session.
-
-    Args:
-        tmux_session: Base tmux session name to attach to
-        stored_target_session: Previously stored target session to auto-switch to
-
-    Returns:
-        Tuple of (master_fd, pid)
-
-    Security:
-        Session names are validated with _validate_session_name() before use.
-        shlex.quote() provides additional protection for shell commands.
-    """
-    # Validate session names to prevent command injection
-    if not _validate_session_name(tmux_session):
-        raise ValueError(f"Invalid tmux session name: {tmux_session[:50]}")
-
-    # Check if stored target session still exists
-    target_session = None
-    if stored_target_session:
-        if not _validate_session_name(stored_target_session):
-            logger.warning(
-                "invalid_target_session_name",
-                session=stored_target_session[:50],
-            )
-        else:
-            success, _ = run_tmux_command(["has-session", "-t", stored_target_session])
-            if success:
-                target_session = stored_target_session
-                logger.info("using_stored_target_session", session=stored_target_session)
-
-    # Fork a PTY
-    pid, master_fd = pty.fork()
-
-    if pid == 0:
-        # Child process - set TERM and attach to tmux
-        os.environ["TERM"] = "xterm-256color"
-        if target_session:
-            # Attach to base session then immediately switch to target session
-            # Use shlex.quote for additional shell injection protection
-            safe_base = shlex.quote(tmux_session)
-            safe_target = shlex.quote(target_session)
-            os.execvp(
-                "bash",
-                ["bash", "-c", f"tmux attach-session -t {safe_base} \\; switch-client -t {safe_target}"],
-            )
-        else:
-            os.execvp("tmux", ["tmux", "attach-session", "-t", tmux_session])
-    else:
-        # Parent process - configure the master FD
-        # Set non-blocking
-        flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
-        fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-        return master_fd, pid
-
-
-def _resize_pty(master_fd: int, cols: int, rows: int) -> None:
-    """Resize a PTY.
-
-    Args:
-        master_fd: Master file descriptor
-        cols: Number of columns
-        rows: Number of rows
-    """
-    winsize = struct.pack("HHHH", rows, cols, 0, 0)
-    fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
 
 
 def _validate_and_prepare_session(session_id: str) -> tuple[dict[str, Any], str]:
@@ -222,7 +135,7 @@ def _validate_and_prepare_session(session_id: str) -> tuple[dict[str, Any], str]
 
 
 def _handle_websocket_message(
-    message: dict[str, Any],
+    message: Any,
     master_fd: int,
     session_id: str,
 ) -> None:
@@ -249,7 +162,7 @@ def _handle_websocket_message(
                 resize = data.get("resize", {})
                 cols = resize.get("cols", TMUX_DEFAULT_COLS)
                 rows = resize.get("rows", TMUX_DEFAULT_ROWS)
-                _resize_pty(master_fd, cols, rows)
+                resize_pty(master_fd, cols, rows)
                 logger.info(
                     "terminal_resized",
                     session_id=session_id,
@@ -313,7 +226,7 @@ async def terminal_websocket(
         stored_target_session = session.get("last_claude_session")
 
         # Spawn PTY for tmux (pass stored target session for auto-reconnect)
-        master_fd, pid = _spawn_pty_for_tmux(tmux_session_name, stored_target_session)
+        master_fd, pid = spawn_pty_for_tmux(tmux_session_name, stored_target_session)
 
         # Store session info
         _sessions[session_id] = {
@@ -328,7 +241,7 @@ async def terminal_websocket(
         # The xterm.js scrollback buffer handles new content correctly.
 
         # Start output reader task
-        output_task = asyncio.create_task(_read_output(websocket, master_fd))
+        output_task = asyncio.create_task(read_pty_output(websocket, master_fd))
 
         # Session tracking is now handled by tmux hooks (see main.py)
         # No polling needed - hooks notify us instantly on session switch
@@ -370,79 +283,3 @@ async def terminal_websocket(
         _sessions.pop(session_id, None)
 
         logger.info("terminal_cleanup_complete", session_id=session_id)
-
-
-async def _read_output(websocket: WebSocket, master_fd: int) -> None:
-    """Read output from PTY and send to WebSocket.
-
-    Args:
-        websocket: WebSocket connection
-        master_fd: Master file descriptor
-    """
-    loop = asyncio.get_event_loop()
-    # Buffer for incomplete UTF-8 sequences at end of reads
-    utf8_buffer = b""
-    # Max buffer size - UTF-8 chars are max 4 bytes
-    MAX_UTF8_BUFFER = 4
-
-    try:
-        while True:
-            # Use select to wait for data with timeout
-            ready, _, _ = await loop.run_in_executor(
-                None,
-                lambda: select.select([master_fd], [], [], 0.1),
-            )
-
-            if ready:
-                try:
-                    output = os.read(master_fd, 8192)
-                    if output:
-                        # Prepend any buffered incomplete sequence
-                        output = utf8_buffer + output
-                        utf8_buffer = b""
-
-                        # Try to decode, handling incomplete sequences at the end
-                        try:
-                            decoded = output.decode("utf-8")
-                        except UnicodeDecodeError as e:
-                            # Check if error is at the end (incomplete sequence)
-                            if e.start >= len(output) - 3:
-                                # Buffer the incomplete bytes for next read
-                                utf8_buffer = output[e.start:]
-                                # Safety: clear buffer if it grows too large
-                                if len(utf8_buffer) > MAX_UTF8_BUFFER:
-                                    logger.debug(
-                                        "utf8_buffer_overflow",
-                                        buffer_size=len(utf8_buffer),
-                                    )
-                                    utf8_buffer = b""
-                                decoded = output[: e.start].decode(
-                                    "utf-8", errors="replace"
-                                )
-                            else:
-                                # Error in middle, replace and continue
-                                decoded = output.decode("utf-8", errors="replace")
-
-                        if decoded:
-                            await websocket.send_text(decoded)
-
-                            # Detect tmux session exit - triggers disconnect for reconnect
-                            if "[exited]" in decoded:
-                                logger.info("tmux_session_exited_detected")
-                                break
-                except OSError as e:
-                    # EIO is expected when terminal closes
-                    if e.errno != errno.EIO:
-                        logger.warning(
-                            "pty_read_error",
-                            error=str(e),
-                            errno=e.errno,
-                        )
-                    break
-            else:
-                await asyncio.sleep(0.01)
-
-    except asyncio.CancelledError:
-        pass
-    except Exception as e:
-        logger.error("terminal_output_error", error=str(e))
