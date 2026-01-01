@@ -16,6 +16,7 @@ import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { useProjectTerminals, ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import { useClaudePolling } from "@/lib/hooks/use-claude-polling";
 import { useTabEditing } from "@/lib/hooks/use-tab-editing";
+import { createProjectSession } from "@/lib/utils/session";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { SettingsDropdown, KeyboardSizePreset } from "./SettingsDropdown";
 import { ClaudeIndicator } from "./ClaudeIndicator";
@@ -280,20 +281,13 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
       // Session exists, just switch to it via URL
       navigateToSession(currentSessionId);
     } else {
-      // Create session for this project via direct API call (includes project_id and mode)
+      // Create session for this project using utility function
       try {
-        const res = await fetch("/api/terminal/sessions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: `Project: ${pt.projectId}`,
-            project_id: pt.projectId,
-            working_dir: pt.rootPath,
-            mode: pt.activeMode,
-          }),
+        const newSession = await createProjectSession({
+          projectId: pt.projectId,
+          mode: pt.activeMode,
+          workingDir: pt.rootPath,
         });
-        if (!res.ok) throw new Error("Failed to create session");
-        const newSession = await res.json();
 
         // Switch to new session via URL
         navigateToSession(newSession.id);
@@ -304,7 +298,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           await startClaudeInSession(newSession.id);
         }
       } catch (e) {
-        console.error("Failed to create project session:", e);
+        // Error already logged by createProjectSession
       }
     }
   }, [navigateToSession, getProjectSessionId, startClaudeInSession]);
@@ -328,20 +322,11 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
     // 3. Create session if it doesn't exist
     if (!targetSessionId) {
-      const res = await fetch("/api/terminal/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: `Project: ${projectId}`,
-          project_id: projectId,
-          working_dir: rootPath,
-          mode: newMode,
-        }),
+      const newSession = await createProjectSession({
+        projectId,
+        mode: newMode,
+        workingDir: rootPath,
       });
-      if (!res.ok) {
-        throw new Error("Failed to create session");
-      }
-      const newSession = await res.json();
       targetSessionId = newSession.id;
       isNewSession = true;
       // New claude session always needs Claude started
