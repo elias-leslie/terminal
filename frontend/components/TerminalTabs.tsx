@@ -19,7 +19,7 @@ import { useClaudePolling } from "@/lib/hooks/use-claude-polling";
 import { useTabEditing } from "@/lib/hooks/use-tab-editing";
 import { useProjectModeSwitch } from "@/lib/hooks/use-project-mode-switch";
 import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
-import { createProjectSession, getNextTerminalName } from "@/lib/utils/session";
+import { createProjectSession, getNextTerminalName, getProjectSessionId } from "@/lib/utils/session";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { KeyboardSizePreset } from "./SettingsDropdown";
 import { ClaudeIndicator } from "./ClaudeIndicator";
