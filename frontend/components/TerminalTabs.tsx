@@ -25,34 +25,21 @@ import { KeyboardSizePreset } from "./SettingsDropdown";
 import { ClaudeIndicator } from "./ClaudeIndicator";
 import { TabModeDropdown } from "./TabModeDropdown";
 import { TerminalManagerModal } from "./TerminalManagerModal";
+import {
+  type TerminalSlot,
+  type ProjectSlot,
+  type AdHocSlot,
+  getSlotSessionId,
+  getSlotPanelId,
+  getSlotName,
+  getSlotWorkingDir,
+} from "@/lib/utils/slot";
 
 // Maximum number of split panes
 const MAX_SPLIT_PANES = 4;
 
 // Init delay for tmux session
 const TMUX_INIT_DELAY_MS = 300;
-
-// Slot types for split-pane terminals
-interface ProjectSlot {
-  type: "project";
-  projectId: string;
-  projectName: string;
-  rootPath: string | null;
-  activeMode: "shell" | "claude";
-  shellSessionId: string | null;
-  claudeSessionId: string | null;
-  // Claude state for overlay (from the claude session if in claude mode)
-  claudeState?: "not_started" | "starting" | "running" | "stopped" | "error";
-}
-
-interface AdHocSlot {
-  type: "adhoc";
-  sessionId: string;
-  name: string;
-  workingDir: string | null;
-}
-
-type TerminalSlot = ProjectSlot | AdHocSlot;
 
 interface TerminalTabsProps {
   projectId?: string;
@@ -529,41 +516,16 @@ function SplitPane({
   const defaultSize = 100 / paneCount;
   const minSize = `${Math.max(10, 100 / (paneCount * 2))}%`;
 
-  // Get session ID and info based on slot type
-  const getSessionId = (): string | null => {
-    if (slot.type === "project") {
-      return slot.activeMode === "claude" ? slot.claudeSessionId : slot.shellSessionId;
-    }
-    return slot.sessionId;
-  };
-
-  const getPanelId = (): string => {
-    if (slot.type === "project") {
-      return `project-${slot.projectId}`;
-    }
-    return `adhoc-${slot.sessionId}`;
-  };
-
-  const getName = (): string => {
-    if (slot.type === "project") {
-      return slot.projectName;
-    }
-    return slot.name;
-  };
-
-  const getWorkingDir = (): string | null => {
-    if (slot.type === "project") {
-      return slot.rootPath;
-    }
-    return slot.workingDir;
-  };
-
-  const sessionId = getSessionId();
+  // Use slot utilities for discriminated union access
+  const sessionId = getSlotSessionId(slot);
+  const panelId = getSlotPanelId(slot);
+  const name = getSlotName(slot);
+  const workingDir = getSlotWorkingDir(slot);
 
   return (
     <>
       <Panel
-        id={getPanelId()}
+        id={panelId}
         defaultSize={defaultSize}
         minSize={minSize}
         className="flex flex-col h-full min-h-0 overflow-hidden"
@@ -584,7 +546,7 @@ function SplitPane({
             <TerminalIcon className="w-3 h-3" style={{ color: "var(--term-text-muted)" }} />
           )}
           <span className="text-xs truncate flex-1" style={{ color: "var(--term-text-muted)" }}>
-            {getName()}
+            {name}
           </span>
           {/* Mode dropdown for project slots */}
           {slot.type === "project" && onModeChange && (
@@ -609,7 +571,7 @@ function SplitPane({
               <TerminalComponent
                 ref={(handle) => onTerminalRef?.(sessionId, handle)}
                 sessionId={sessionId}
-                workingDir={getWorkingDir() || undefined}
+                workingDir={workingDir || undefined}
                 className="h-full"
                 fontFamily={fontFamily}
                 fontSize={fontSize}
