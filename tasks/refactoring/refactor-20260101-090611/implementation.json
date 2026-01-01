@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "title": "Terminal Service Layer Extraction",
+    "created": "2026-01-01",
+    "session_id": "refactor-20260101-090611",
+    "baseline": {
+      "targets": 7,
+      "total_complexity": 43.01
+    }
+  },
+  "phases": [
+    {
+      "id": 1,
+      "name": "Backend Modularization",
+      "goal": "Extract PTY management from API layer and split storage module by responsibility",
+      "tasks": [
+        {
+          "id": "1.1",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Extract PTY management from terminal/api/terminal.py to terminal/services/pty_manager.py",
+          "files_affected": [
+            "terminal/api/terminal.py",
+            "terminal/services/pty_manager.py"
+          ],
+          "steps": [
+            "Create terminal/services/pty_manager.py",
+            "Move _spawn_pty_for_tmux function to pty_manager.py",
+            "Move _resize_pty function to pty_manager.py",
+            "Move _read_output function to pty_manager.py",
+            "Move _validate_session_name and _SESSION_NAME_PATTERN to pty_manager.py",
+            "Add imports in pty_manager.py: os, pty, termios, struct, fcntl, select, re, shlex, asyncio",
+            "Update terminal/api/terminal.py to import from pty_manager",
+            "Run ruff check and format",
+            "Verify: python -c 'from terminal.services.pty_manager import spawn_pty_for_tmux, resize_pty, read_output'"
+          ],
+          "verification": "python -c 'from terminal.services.pty_manager import spawn_pty_for_tmux'",
+          "passes": false
+        },
+        {
+          "id": "1.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Split terminal/storage/terminal.py - extract Claude functions to terminal_claude.py",
+          "files_affected": [
+            "terminal/storage/terminal.py",
+            "terminal/storage/terminal_claude.py"
+          ],
+          "steps": [
+            "Create terminal/storage/terminal_claude.py",
+            "Move update_claude_session function",
+            "Move update_claude_state function",
+            "Move get_claude_state function",
+            "Add necessary imports (get_connection, _to_str, logging)",
+            "Add __all__ export list",
+            "Update terminal/storage/__init__.py if exists to include new module",
+            "Update any imports in terminal/api/claude.py",
+            "Run ruff check and format",
+            "Verify: python -c 'from terminal.storage.terminal_claude import update_claude_session, get_claude_state'"
+          ],
+          "verification": "python -c 'from terminal.storage.terminal_claude import update_claude_session'",
+          "passes": false
+        },
+        {
+          "id": "1.3",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Split terminal/storage/terminal.py - extract lifecycle functions to terminal_lifecycle.py",
+          "files_affected": [
+            "terminal/storage/terminal.py",
+            "terminal/storage/terminal_lifecycle.py"
+          ],
+          "steps": [
+            "Create terminal/storage/terminal_lifecycle.py",
+            "Move mark_dead function",
+            "Move purge_dead_sessions function",
+            "Move touch_session function",
+            "Move list_orphaned_tmux_sessions function",
+            "Add necessary imports",
+            "Add __all__ export list",
+            "Update imports in terminal/services/lifecycle.py to use new module",
+            "Run ruff check and format",
+            "Verify: python -c 'from terminal.storage.terminal_lifecycle import mark_dead, purge_dead_sessions'"
+          ],
+          "verification": "python -c 'from terminal.storage.terminal_lifecycle import mark_dead'",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "DRY Consolidation",
+      "goal": "Consolidate duplicated constants and validation logic",
+      "tasks": [
+        {
+          "id": "2.1",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Move SESSION_MODES constant to shared terminal/constants.py",
+          "files_affected": [
+            "terminal/constants.py",
+            "terminal/services/lifecycle.py",
+            "terminal/api/sessions.py"
+          ],
+          "steps": [
+            "Create terminal/constants.py if not exists",
+            "Add SESSION_MODES = ['shell', 'claude'] to constants.py",
+            "Add SessionMode = Literal['shell', 'claude'] type alias",
+            "Update terminal/services/lifecycle.py to import from constants",
+            "Update terminal/api/sessions.py to import from constants",
+            "Run ruff check and format"
+          ],
+          "verification": "python -c 'from terminal.constants import SESSION_MODES, SessionMode'",
+          "passes": false
+        },
+        {
+          "id": "2.2",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Move session name validation to terminal/utils/tmux.py",
+          "files_affected": [
+            "terminal/utils/tmux.py",
+            "terminal/services/pty_manager.py"
+          ],
+          "steps": [
+            "Add _SESSION_NAME_PATTERN to terminal/utils/tmux.py",
+            "Add validate_session_name function to terminal/utils/tmux.py",
+            "Update pty_manager.py to import from utils.tmux",
+            "Remove duplicate pattern from pty_manager.py",
+            "Run ruff check and format"
+          ],
+          "verification": "python -c 'from terminal.utils.tmux import validate_session_name'",
+          "passes": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Final Verification",
+      "goal": "Verify all services healthy and tests pass",
+      "tasks": [
+        {
+          "id": "3.1",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": false,
+          "description": "Run full verification: lint, type check, service restart",
+          "files_affected": [],
+          "steps": [
+            "Run ruff check terminal/",
+            "Run ruff format terminal/",
+            "Run python -c 'import terminal.main' to verify imports",
+            "Restart backend service: systemctl --user restart summitflow-terminal",
+            "Check service health: curl -s http://localhost:8002/health",
+            "Verify no import errors in logs"
+          ],
+          "verification": "curl -s http://localhost:8002/health | grep -q ok",
+          "passes": false
+        }
+      ]
+    }
+  ]
+}
