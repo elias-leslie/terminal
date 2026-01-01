@@ -104,7 +104,7 @@
             "Restart backend service and verify health"
           ],
           "verification": "python -c \"from terminal.services.lifecycle import create_session, reset_all_sessions, reconcile_on_startup; print('OK')\" && curl -s http://localhost:8002/health | grep -q ok",
-          "passes": false
+          "passes": true
         },
         {
           "id": "2.2",
