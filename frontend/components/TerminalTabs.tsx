@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState, useRef, useEffect, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { clsx } from "clsx";
 import { Group } from "react-resizable-panels";
@@ -45,7 +44,6 @@ interface TerminalTabsProps {
 export function TerminalTabs({ projectId, projectPath, className }: TerminalTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
 
   // URL-based active session (single source of truth)
   const {
