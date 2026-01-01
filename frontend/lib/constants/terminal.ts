@@ -22,6 +22,9 @@ export const WS_CLOSE_CODE_SESSION_DEAD = 4000;
 /** ResizeObserver debounce delay in milliseconds */
 export const RESIZE_DEBOUNCE_MS = 150;
 
+/** Copy-mode timeout in milliseconds (auto-exit after inactivity) */
+export const COPY_MODE_TIMEOUT_MS = 10000;
+
 /** Phosphor terminal theme colors */
 export const PHOSPHOR_THEME = {
   background: "#0a0e14",

@@ -231,7 +231,7 @@
           "description": "Create useTerminalWebSocket hook from Terminal.tsx",
           "category": "hook_extraction",
           "severity": "high",
-          "passes": false,
+          "passes": true,
           "files_affected": ["frontend/components/Terminal.tsx", "frontend/lib/hooks/use-terminal-websocket.ts"],
           "steps": [
             "Read frontend/components/Terminal.tsx lines 356-465",

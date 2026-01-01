@@ -4,7 +4,6 @@ import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 
 import { clsx } from "clsx";
 import "@xterm/xterm/css/xterm.css";
 import {
-  SCROLL_THRESHOLD,
   SCROLLBACK,
   MOBILE_WIDTH_THRESHOLD,
   FIT_DELAY_MS,
@@ -12,6 +11,7 @@ import {
   PHOSPHOR_THEME,
 } from "../lib/constants/terminal";
 import { useTerminalWebSocket } from "../lib/hooks/use-terminal-websocket";
+import { useTerminalScrolling } from "../lib/hooks/use-terminal-scrolling";
 
 // Dynamic imports for xterm (client-side only)
 let Terminal: typeof import("@xterm/xterm").Terminal;
@@ -60,11 +60,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   const fitAddonRef = useRef<InstanceType<typeof FitAddon> | null>(null);
   const onDataDisposableRef = useRef<{ dispose: () => void } | null>(null);
   const mouseCleanupRef = useRef<(() => void) | null>(null);
-  // Track copy-mode state for reset on input
-  const copyModeStateRef = useRef<{ inCopyMode: boolean; timeout: ReturnType<typeof setTimeout> | null }>({
-    inCopyMode: false,
-    timeout: null,
-  });
+  const scrollCleanupRef = useRef<{ wheelCleanup: () => void; touchCleanup: () => void } | null>(null);
 
   // WebSocket connection management via hook
   const { status, wsRef, reconnect, sendInput, connect } = useTerminalWebSocket({
@@ -87,6 +83,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       terminalRef.current?.writeln(message);
     },
     getDimensions: () => fitAddonRef.current?.proposeDimensions() ?? null,
+  });
+
+  // Scrolling management via hook
+  const { setupScrolling, resetCopyMode } = useTerminalScrolling({
+    wsRef,
+    isMobile: isMobileDevice(),
   });
 
   // Expose functions to parent
@@ -223,68 +225,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         mouseContainer.removeEventListener('mousemove', forceLocalMouseHandling, { capture: true });
       };
 
-      // SCROLLBACK ARCHITECTURE NOTE:
-      // xterm.js scrollback does NOT work with tmux because tmux controls what's displayed.
-      // xterm.js only receives the current viewport from tmux (e.g., 37 lines).
-      // The scrollback history is stored in tmux's buffer, not xterm.js's buffer.
-      //
-      // For scrollback, users must use tmux copy-mode:
-      // - Desktop: Ctrl+B [ to enter copy-mode, then scroll with arrows/PgUp/PgDn
-      // - Mobile: Touch gestures already send tmux copy-mode commands
-      //
-      // We handle wheel events to enter tmux copy-mode and scroll within it.
-      // User exits copy-mode manually by pressing 'q' or typing.
-      //
-      // Copy-mode tracking: We can't detect when user exits via 'q', so we use a timeout.
-      // After 10 seconds of no scroll activity, assume user has exited copy-mode.
-      const COPY_MODE_TIMEOUT_MS = 10000; // 10 seconds
-      const copyModeState = copyModeStateRef.current;
-
-      const enterCopyMode = () => {
-        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-
-        // Clear existing timeout
-        if (copyModeState.timeout) clearTimeout(copyModeState.timeout);
-
-        // Enter copy-mode if not already in it
-        if (!copyModeState.inCopyMode) {
-          wsRef.current.send('\x02['); // Ctrl+B [
-          copyModeState.inCopyMode = true;
-        }
-
-        // Reset timeout - assume exit after inactivity
-        copyModeState.timeout = setTimeout(() => {
-          copyModeState.inCopyMode = false;
-          copyModeState.timeout = null;
-        }, COPY_MODE_TIMEOUT_MS);
-      };
-
-      // Helper: Send scroll command in copy-mode (Ctrl+U up, Ctrl+D down)
-      const sendScrollCommand = (direction: 'up' | 'down') => {
-        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-        wsRef.current.send(direction === 'up' ? '\x15' : '\x04');
-      };
-
-      const handleWheel = (e: WheelEvent) => {
-        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-        e.preventDefault();
-        e.stopPropagation();
-
-        enterCopyMode();
-        sendScrollCommand(e.deltaY < 0 ? 'up' : 'down');
-      };
-
-      const wheelContainer = containerRef.current;
-      wheelContainer.addEventListener('wheel', handleWheel, { capture: true, passive: false });
-
-      // Store wheel cleanup (includes copy-mode timeout cleanup)
-      (term as unknown as { _wheelCleanup?: () => void })._wheelCleanup = () => {
-        wheelContainer.removeEventListener('wheel', handleWheel, { capture: true });
-        if (copyModeState.timeout) {
-          clearTimeout(copyModeState.timeout);
-          copyModeState.timeout = null;
-        }
-      };
+      // Set up scrolling via hook (handles wheel and touch events for tmux copy-mode)
+      scrollCleanupRef.current = setupScrolling(containerRef.current);
 
       terminalRef.current = term;
       fitAddonRef.current = fitAddon;
@@ -300,43 +242,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         // Prevent pull-to-refresh via CSS
         containerRef.current.style.overscrollBehavior = 'none';
         containerRef.current.style.touchAction = 'none';
-
-        // Touch scrolling - uses shared copy-mode helpers
-        let touchStartY = 0;
-        let lastSentY = 0;
-        const container = containerRef.current;
-
-        const handleTouchStart = (e: TouchEvent) => {
-          touchStartY = e.touches[0].clientY;
-          lastSentY = touchStartY;
-          enterCopyMode();
-        };
-
-        const handleTouchMove = (e: TouchEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const currentY = e.touches[0].clientY;
-          const deltaY = lastSentY - currentY;
-          if (Math.abs(deltaY) >= SCROLL_THRESHOLD) {
-            sendScrollCommand(deltaY > 0 ? 'down' : 'up');
-            lastSentY = currentY;
-          }
-        };
-
-        const handleTouchEnd = () => {
-          touchStartY = 0;
-          lastSentY = 0;
-        };
-
-        container.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
-        container.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
-        container.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
-
-        (term as unknown as { _touchCleanup?: () => void })._touchCleanup = () => {
-          container.removeEventListener('touchstart', handleTouchStart, { capture: true });
-          container.removeEventListener('touchmove', handleTouchMove, { capture: true });
-          container.removeEventListener('touchend', handleTouchEnd, { capture: true });
-        };
       }
 
       // Fit immediately and again after a short delay to ensure proper sizing
@@ -352,13 +257,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(data);
           // Typing exits tmux copy-mode, reset our tracking
-          if (copyModeState.inCopyMode) {
-            copyModeState.inCopyMode = false;
-            if (copyModeState.timeout) {
-              clearTimeout(copyModeState.timeout);
-              copyModeState.timeout = null;
-            }
-          }
+          resetCopyMode();
         }
       });
 
@@ -382,23 +281,19 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         mouseCleanupRef.current();
         mouseCleanupRef.current = null;
       }
-      // Clean up copy-mode timeout
-      const copyModeState = copyModeStateRef.current;
-      if (copyModeState.timeout) {
-        clearTimeout(copyModeState.timeout);
-        copyModeState.timeout = null;
+      // Clean up scroll listeners
+      if (scrollCleanupRef.current) {
+        scrollCleanupRef.current.wheelCleanup();
+        scrollCleanupRef.current.touchCleanup();
+        scrollCleanupRef.current = null;
       }
       if (terminalRef.current) {
-        const touchCleanup = (terminalRef.current as unknown as { _touchCleanup?: () => void })._touchCleanup;
-        if (touchCleanup) touchCleanup();
-        const wheelCleanup = (terminalRef.current as unknown as { _wheelCleanup?: () => void })._wheelCleanup;
-        if (wheelCleanup) wheelCleanup();
         terminalRef.current.dispose();
         terminalRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, workingDir, handleResize, connect]);
+  }, [sessionId, workingDir, handleResize, connect, setupScrolling, resetCopyMode]);
 
   // Handle container resize with debounce
   useEffect(() => {
