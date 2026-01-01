@@ -231,11 +231,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     router.push(`?${params.toString()}`, { scroll: false });
   }, [searchParams, router]);
 
-  // Helper to start Claude in a session and wait for confirmation (via hook)
-  const startClaudeInSession = useCallback(async (sessionId: string): Promise<boolean> => {
-    return startClaude(sessionId);
-  }, [startClaude]);
-
   // Handle clicking a project tab - create session if needed
   const handleProjectTabClick = useCallback(async (pt: ProjectTerminal) => {
     const currentSessionId = getProjectSessionId(pt);
@@ -257,13 +252,13 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         // If mode is claude, start Claude after a brief delay
         if (pt.activeMode === "claude") {
           await new Promise(resolve => setTimeout(resolve, TMUX_INIT_DELAY_MS));
-          await startClaudeInSession(newSession.id);
+          await startClaude(newSession.id);
         }
       } catch (e) {
         // Error already logged by createProjectSession
       }
     }
-  }, [navigateToSession, startClaudeInSession]);
+  }, [navigateToSession, startClaude]);
 
   // Handler for project mode changes - delegates to hook
   const handleProjectModeChange = useCallback(
