@@ -136,7 +136,7 @@
           "description": "Extract useTabEditing hook from TerminalTabs",
           "category": "hook_extraction",
           "severity": "medium",
-          "passes": false,
+          "passes": true,
           "files_affected": ["frontend/components/TerminalTabs.tsx", "frontend/lib/hooks/use-tab-editing.ts"],
           "steps": [
             "Read TerminalTabs.tsx lines 235-270 for editing state and handlers",
@@ -157,7 +157,7 @@
           "description": "Extract createProjectSession utility function",
           "category": "dry_violation",
           "severity": "medium",
-          "passes": false,
+          "passes": true,
           "files_affected": ["frontend/components/TerminalTabs.tsx", "frontend/lib/utils/session.ts"],
           "steps": [
             "Read TerminalTabs.tsx lines 280-304 (handleProjectTabClick session creation)",
@@ -177,7 +177,7 @@
           "description": "Extract TabBar sub-component from TerminalTabs",
           "category": "component_size",
           "severity": "high",
-          "passes": false,
+          "passes": true,
           "files_affected": ["frontend/components/TerminalTabs.tsx", "frontend/components/TabBar.tsx"],
           "steps": [
             "Read TerminalTabs.tsx lines 516-620 (tab rendering section)",
@@ -197,7 +197,7 @@
           "description": "Extract useProjectModeSwitch hook",
           "category": "business_logic",
           "severity": "high",
-          "passes": false,
+          "passes": true,
           "files_affected": ["frontend/components/TerminalTabs.tsx", "frontend/lib/hooks/use-project-mode-switch.ts"],
           "steps": [
             "Read TerminalTabs.tsx lines 310-378 (handleProjectModeChange - 68 lines)",
