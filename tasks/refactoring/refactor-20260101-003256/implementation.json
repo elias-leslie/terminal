@@ -1,0 +1,463 @@
+{
+  "meta": {
+    "title": "Terminal Project Full Refactor",
+    "created": "2026-01-01",
+    "project": "terminal",
+    "session_dir": "/home/kasadis/terminal/tasks/refactoring/refactor-20260101-003256",
+    "total_tasks": 22,
+    "summary": {
+      "high_priority_issues": 8,
+      "medium_priority_issues": 18,
+      "low_priority_issues": 11,
+      "security_critical": 2
+    }
+  },
+  "phases": [
+    {
+      "id": 1,
+      "name": "Security Fixes",
+      "goal": "Address critical security vulnerabilities before any other changes",
+      "tasks": [
+        {
+          "id": "1.1",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Fix shell command injection in _spawn_pty_for_tmux",
+          "category": "security",
+          "severity": "high",
+          "passes": false,
+          "files_affected": ["terminal/api/terminal.py", "terminal/utils/tmux.py"],
+          "steps": [
+            "Read terminal/api/terminal.py lines 99-101",
+            "Import shlex at top of file",
+            "Refactor _spawn_pty_for_tmux to use subprocess.run(['tmux', 'attach-session', '-t', session]) instead of bash -c with f-string",
+            "Or use shlex.quote() on all session name interpolations",
+            "Add session name validation regex (alphanumeric + hyphen/underscore only)",
+            "Run pytest to verify no regressions"
+          ],
+          "verification": "grep -E 'shlex\\.quote|subprocess\\.run' terminal/api/terminal.py && pytest tests/ -x -q"
+        },
+        {
+          "id": "1.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Add authentication to session_switch_hook endpoint",
+          "category": "security",
+          "severity": "medium",
+          "passes": false,
+          "files_affected": ["terminal/api/terminal.py"],
+          "steps": [
+            "Read terminal/api/terminal.py lines 40-67",
+            "Add IP whitelist check for localhost (127.0.0.1, ::1)",
+            "Add session name validation regex before storing",
+            "Return 403 if IP not localhost or validation fails",
+            "Add logging for rejected requests"
+          ],
+          "verification": "grep -E 'request\\.client\\.host|127\\.0\\.0\\.1' terminal/api/terminal.py"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "SQL Safety",
+      "goal": "Replace f-string SQL interpolation with psycopg.sql composition",
+      "tasks": [
+        {
+          "id": "2.1",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Add psycopg.sql imports to storage/terminal.py",
+          "category": "security",
+          "severity": "high",
+          "passes": false,
+          "files_affected": ["terminal/storage/terminal.py"],
+          "steps": [
+            "Read terminal/storage/terminal.py lines 1-20",
+            "Add: from psycopg import sql",
+            "Verify import doesn't conflict with existing imports"
+          ],
+          "verification": "grep 'from psycopg import sql' terminal/storage/terminal.py"
+        },
+        {
+          "id": "2.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Refactor SELECT queries to use sql.SQL composition",
+          "category": "security",
+          "severity": "medium",
+          "passes": false,
+          "files_affected": ["terminal/storage/terminal.py"],
+          "steps": [
+            "Read terminal/storage/terminal.py fully",
+            "Create SQL_SELECT_FIELDS = sql.SQL(TERMINAL_SESSION_FIELDS) constant",
+            "Refactor get_session, list_sessions, get_session_by_project, get_dead_session_by_project, get_project_sessions, touch_session to use sql.SQL().format()",
+            "Run pytest to verify queries still work"
+          ],
+          "verification": "grep -c 'sql\\.SQL' terminal/storage/terminal.py"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Backend DRY Consolidation",
+      "goal": "Reduce duplicate patterns in Python backend",
+      "tasks": [
+        {
+          "id": "3.1",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Extract _create_session_internal helper in lifecycle.py",
+          "category": "dry_violation",
+          "severity": "medium",
+          "passes": false,
+          "files_affected": ["terminal/services/lifecycle.py"],
+          "steps": [
+            "Read terminal/services/lifecycle.py lines 59-151",
+            "Identify common logic between resurrection path (99-119) and new session path (122-150)",
+            "Create _create_session_internal(session_id, name, project_id, working_dir, user_id, mode, is_resurrection=False) helper",
+            "Refactor create_session to use helper",
+            "Run pytest"
+          ],
+          "verification": "grep '_create_session_internal' terminal/services/lifecycle.py"
+        },
+        {
+          "id": "3.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Extract _reset_single_session helper in lifecycle.py",
+          "category": "dry_violation",
+          "severity": "medium",
+          "passes": false,
+          "files_affected": ["terminal/services/lifecycle.py"],
+          "steps": [
+            "Read terminal/services/lifecycle.py lines 208-271",
+            "Identify common logic between reset_session and reset_project_sessions",
+            "Create _reset_single_session(old_session, new_working_dir=None) helper",
+            "Refactor both functions to use helper",
+            "Run pytest"
+          ],
+          "verification": "grep '_reset_single_session' terminal/services/lifecycle.py"
+        },
+        {
+          "id": "3.3",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Consolidate update_claude_state duplicate code paths",
+          "category": "dry_violation",
+          "severity": "low",
+          "passes": false,
+          "files_affected": ["terminal/storage/terminal.py"],
+          "steps": [
+            "Read terminal/storage/terminal.py lines 430-456",
+            "Build WHERE clause conditionally using sql.SQL composition",
+            "Merge duplicate code paths into single query construction",
+            "Run pytest"
+          ],
+          "verification": "wc -l terminal/storage/terminal.py | awk '{print $1 < 470}'"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "API Layer Decomposition",
+      "goal": "Split oversized functions and improve separation of concerns",
+      "tasks": [
+        {
+          "id": "4.1",
+          "tier": 3,
+          "model": "opus",
+          "parallelizable": false,
+          "description": "Extract PTY management to services/pty.py",
+          "category": "separation_of_concerns",
+          "severity": "medium",
+          "passes": false,
+          "files_affected": ["terminal/api/terminal.py", "terminal/services/pty.py"],
+          "steps": [
+            "Read terminal/api/terminal.py fully",
+            "Create terminal/services/pty.py",
+            "Move _spawn_pty_for_tmux and _resize_pty to pty.py",
+            "Export spawn_pty_for_session(session_id, target_session=None) -> tuple[int, pid]",
+            "Update terminal.py imports",
+            "Run pytest"
+          ],
+          "verification": "test -f terminal/services/pty.py && grep 'from terminal.services.pty import' terminal/api/terminal.py"
+        },
+        {
+          "id": "4.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Split terminal_websocket into focused functions",
+          "category": "function_size",
+          "severity": "medium",
+          "passes": false,
+          "files_affected": ["terminal/api/terminal.py"],
+          "steps": [
+            "Read terminal/api/terminal.py lines 126-262",
+            "Extract _validate_and_setup_session(session_id, websocket)",
+            "Extract _handle_websocket_input(websocket, master_fd, resize_pty)",
+            "Extract _cleanup_pty_resources(session_id, master_fd, read_task)",
+            "Refactor terminal_websocket to orchestrate these helpers",
+            "Run pytest"
+          ],
+          "verification": "grep -c 'def _' terminal/api/terminal.py"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Frontend Hook Extraction",
+      "goal": "Extract reusable hooks from large React components",
+      "tasks": [
+        {
+          "id": "5.1",
+          "tier": 3,
+          "model": "opus",
+          "parallelizable": false,
+          "description": "Create useTerminalWebSocket hook from Terminal.tsx",
+          "category": "hook_extraction",
+          "severity": "high",
+          "passes": false,
+          "files_affected": ["frontend/components/Terminal.tsx", "frontend/lib/hooks/use-terminal-websocket.ts"],
+          "steps": [
+            "Read frontend/components/Terminal.tsx lines 356-465",
+            "Create frontend/lib/hooks/use-terminal-websocket.ts",
+            "Extract WebSocket connection, retry, timeout, and message handling logic",
+            "Export { status, reconnect, sendInput, wsRef }",
+            "Update Terminal.tsx to use hook",
+            "Verify terminal still connects and works"
+          ],
+          "verification": "test -f frontend/lib/hooks/use-terminal-websocket.ts && npm run build"
+        },
+        {
+          "id": "5.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Create useTerminalScrolling hook from Terminal.tsx",
+          "category": "hook_extraction",
+          "severity": "medium",
+          "passes": false,
+          "files_affected": ["frontend/components/Terminal.tsx", "frontend/lib/hooks/use-terminal-scrolling.ts"],
+          "steps": [
+            "Read frontend/components/Terminal.tsx lines 242-342",
+            "Create frontend/lib/hooks/use-terminal-scrolling.ts",
+            "Extract copy-mode state, wheel handler, touch handlers",
+            "Export { setupScrolling, cleanupScrolling }",
+            "Move COPY_MODE_TIMEOUT_MS to constants/terminal.ts",
+            "Update Terminal.tsx to use hook",
+            "Verify scrolling still works"
+          ],
+          "verification": "test -f frontend/lib/hooks/use-terminal-scrolling.ts && grep 'COPY_MODE_TIMEOUT_MS' frontend/lib/constants/terminal.ts"
+        },
+        {
+          "id": "5.3",
+          "tier": 3,
+          "model": "opus",
+          "parallelizable": false,
+          "description": "Create useClaudePolling hook from TerminalTabs.tsx",
+          "category": "hook_extraction",
+          "severity": "high",
+          "passes": false,
+          "files_affected": ["frontend/components/TerminalTabs.tsx", "frontend/lib/hooks/use-claude-polling.ts"],
+          "steps": [
+            "Read frontend/components/TerminalTabs.tsx lines 279-333",
+            "Create frontend/lib/hooks/use-claude-polling.ts",
+            "Extract polling interval, state management, timeout, query invalidation",
+            "Export { startClaude, isPolling, stopPolling }",
+            "Update TerminalTabs.tsx to use hook",
+            "Verify Claude mode switching still works"
+          ],
+          "verification": "test -f frontend/lib/hooks/use-claude-polling.ts && npm run build"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Frontend Component Decomposition",
+      "goal": "Split large React components into focused sub-components",
+      "tasks": [
+        {
+          "id": "6.1",
+          "tier": 3,
+          "model": "opus",
+          "parallelizable": false,
+          "description": "Extract TabBar component from TerminalTabs.tsx",
+          "category": "component_size",
+          "severity": "high",
+          "passes": false,
+          "files_affected": ["frontend/components/TerminalTabs.tsx", "frontend/components/TabBar.tsx"],
+          "steps": [
+            "Read frontend/components/TerminalTabs.tsx lines 516-773",
+            "Create frontend/components/TabBar.tsx",
+            "Extract tab rendering logic with props for callbacks",
+            "Create sub-components: ProjectTab, AdHocTab",
+            "Update TerminalTabs.tsx to use TabBar",
+            "Verify tabs render and respond to clicks"
+          ],
+          "verification": "test -f frontend/components/TabBar.tsx && npm run build"
+        },
+        {
+          "id": "6.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Extract useTabEditing hook from TerminalTabs.tsx",
+          "category": "state_management",
+          "severity": "high",
+          "passes": false,
+          "files_affected": ["frontend/components/TerminalTabs.tsx", "frontend/lib/hooks/use-tab-editing.ts"],
+          "steps": [
+            "Read frontend/components/TerminalTabs.tsx for editingId, editValue state",
+            "Create frontend/lib/hooks/use-tab-editing.ts",
+            "Extract handleStartEdit, handleSaveEdit, handleCancelEdit, handleEditKeyDown",
+            "Export { editingId, editValue, startEdit, saveEdit, cancelEdit, handleKeyDown }",
+            "Update TerminalTabs.tsx to use hook",
+            "Verify tab renaming still works"
+          ],
+          "verification": "test -f frontend/lib/hooks/use-tab-editing.ts && npm run build"
+        },
+        {
+          "id": "6.3",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": false,
+          "description": "Extract useHoverStyles hook from TerminalManagerModal.tsx",
+          "category": "event_handlers",
+          "severity": "medium",
+          "passes": false,
+          "files_affected": ["frontend/components/TerminalManagerModal.tsx", "frontend/lib/hooks/use-hover-styles.ts"],
+          "steps": [
+            "Read frontend/components/TerminalManagerModal.tsx for hover handlers",
+            "Create frontend/lib/hooks/use-hover-styles.ts",
+            "Export useHoverStyles({hoverBg, defaultBg, hoverColor, defaultColor}) => {onMouseEnter, onMouseLeave, style}",
+            "Replace 8 inline handlers with hook usage",
+            "Verify hover effects still work"
+          ],
+          "verification": "test -f frontend/lib/hooks/use-hover-styles.ts && npm run build"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Error Handling Improvements",
+      "goal": "Add proper error handling and logging where missing",
+      "tasks": [
+        {
+          "id": "7.1",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Log malformed resize commands in terminal_websocket",
+          "category": "error_handling",
+          "severity": "low",
+          "passes": false,
+          "files_affected": ["terminal/api/terminal.py"],
+          "steps": [
+            "Read terminal/api/terminal.py lines 225-226",
+            "Replace 'pass' with logger.warning('malformed_resize_command', session_id=session_id, text=text[:100])",
+            "Verify logging import exists"
+          ],
+          "verification": "grep 'malformed_resize_command' terminal/api/terminal.py"
+        },
+        {
+          "id": "7.2",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": true,
+          "description": "Add buffer size limit to _read_output UTF-8 handling",
+          "category": "error_handling",
+          "severity": "low",
+          "passes": false,
+          "files_affected": ["terminal/api/terminal.py"],
+          "steps": [
+            "Read terminal/api/terminal.py lines 294-304",
+            "Add MAX_UTF8_BUFFER = 4 constant",
+            "If len(buffered_bytes) > MAX_UTF8_BUFFER, force decode with 'replace' and clear buffer",
+            "Add debug logging when buffer accumulates"
+          ],
+          "verification": "grep 'MAX_UTF8_BUFFER' terminal/api/terminal.py"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Type Safety Improvements",
+      "goal": "Replace unsafe patterns with proper TypeScript/Python types",
+      "tasks": [
+        {
+          "id": "8.1",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Replace terminal monkey-patching with WeakMap in Terminal.tsx",
+          "category": "type_safety",
+          "severity": "low",
+          "passes": false,
+          "files_affected": ["frontend/components/Terminal.tsx"],
+          "steps": [
+            "Read frontend/components/Terminal.tsx lines 182, 284, 338, 489, 491",
+            "Create WeakMap<Terminal, {wheelCleanup: () => void, touchCleanup: () => void}> at module level",
+            "Replace terminal._wheelCleanup and terminal._touchCleanup with WeakMap access",
+            "Update cleanup code to use WeakMap",
+            "Verify cleanup still works"
+          ],
+          "verification": "grep 'WeakMap' frontend/components/Terminal.tsx"
+        },
+        {
+          "id": "8.2",
+          "tier": 2,
+          "model": "sonnet",
+          "parallelizable": true,
+          "description": "Use RealDictCursor or cursor.description in storage/terminal.py",
+          "category": "type_safety",
+          "severity": "low",
+          "passes": false,
+          "files_affected": ["terminal/storage/terminal.py"],
+          "steps": [
+            "Read terminal/storage/terminal.py _row_to_dict function",
+            "Option A: Use RealDictCursor from psycopg for dict results",
+            "Option B: Use cursor.description to build column name mapping",
+            "Remove fragile len(row) > X checks",
+            "Run pytest"
+          ],
+          "verification": "grep -E 'RealDictCursor|cursor\\.description' terminal/storage/terminal.py"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Final Verification",
+      "goal": "Ensure all changes work together and tests pass",
+      "tasks": [
+        {
+          "id": "9.1",
+          "tier": 1,
+          "model": "haiku",
+          "parallelizable": false,
+          "description": "Run full test suite and type checks",
+          "category": "verification",
+          "severity": "high",
+          "passes": false,
+          "files_affected": [],
+          "steps": [
+            "cd ~/terminal && source .venv/bin/activate",
+            "python -m pytest tests/ -v --tb=short",
+            "cd frontend && npm run build",
+            "npm run lint (if available)",
+            "Restart services: bash ~/terminal/scripts/restart.sh",
+            "Verify https://terminal.summitflow.dev loads (if accessible)"
+          ],
+          "verification": "pytest tests/ && npm run build"
+        }
+      ]
+    }
+  ]
+}

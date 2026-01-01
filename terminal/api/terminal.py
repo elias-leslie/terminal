@@ -14,12 +14,14 @@ import fcntl
 import json
 import os
 import pty
+import re
 import select
+import shlex
 import struct
 import termios
 from typing import Any
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, Request, WebSocket, WebSocketDisconnect
 
 from ..config import TMUX_DEFAULT_COLS, TMUX_DEFAULT_ROWS
 from ..logging_config import get_logger
@@ -36,9 +38,25 @@ _sessions: dict[str, dict[str, Any]] = {}
 # Prefix for terminal base sessions
 _BASE_SESSION_PREFIX = "summitflow-"
 
+# Regex for valid session names (alphanumeric + hyphen/underscore/colon)
+_SESSION_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-:]+$")
+
+
+def _validate_session_name(name: str) -> bool:
+    """Validate tmux session name to prevent injection attacks.
+
+    Args:
+        name: Session name to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    return bool(_SESSION_NAME_PATTERN.match(name)) and len(name) < 256
+
 
 @router.get("/api/internal/session-switch")
 async def session_switch_hook(
+    request: Request,
     from_session: str = Query(..., alias="from"),
     to_session: str = Query(..., alias="to"),
 ) -> dict:
@@ -46,7 +64,29 @@ async def session_switch_hook(
 
     Called by tmux hook when a client switches sessions.
     Extracts terminal session ID from the base session name and stores the target.
+
+    Security: Only accepts requests from localhost (tmux hooks).
     """
+    # Security: Only allow localhost
+    client_host = request.client.host if request.client else None
+    if client_host not in ("127.0.0.1", "::1", "localhost"):
+        logger.warning(
+            "session_switch_rejected",
+            reason="not_localhost",
+            client=client_host,
+        )
+        return {"status": "rejected", "reason": "unauthorized"}
+
+    # Validate session names to prevent injection
+    if not _validate_session_name(from_session) or not _validate_session_name(to_session):
+        logger.warning(
+            "session_switch_rejected",
+            reason="invalid_session_name",
+            from_session=from_session[:50],
+            to_session=to_session[:50],
+        )
+        return {"status": "rejected", "reason": "invalid session name"}
+
     # Only track switches FROM a terminal base session
     if not from_session.startswith(_BASE_SESSION_PREFIX):
         return {"status": "ignored", "reason": "not from base session"}
@@ -79,14 +119,28 @@ def _spawn_pty_for_tmux(
 
     Returns:
         Tuple of (master_fd, pid)
+
+    Security:
+        Session names are validated with _validate_session_name() before use.
+        shlex.quote() provides additional protection for shell commands.
     """
+    # Validate session names to prevent command injection
+    if not _validate_session_name(tmux_session):
+        raise ValueError(f"Invalid tmux session name: {tmux_session[:50]}")
+
     # Check if stored target session still exists
     target_session = None
     if stored_target_session:
-        success, _ = run_tmux_command(["has-session", "-t", stored_target_session])
-        if success:
-            target_session = stored_target_session
-            logger.info("using_stored_target_session", session=stored_target_session)
+        if not _validate_session_name(stored_target_session):
+            logger.warning(
+                "invalid_target_session_name",
+                session=stored_target_session[:50],
+            )
+        else:
+            success, _ = run_tmux_command(["has-session", "-t", stored_target_session])
+            if success:
+                target_session = stored_target_session
+                logger.info("using_stored_target_session", session=stored_target_session)
 
     # Fork a PTY
     pid, master_fd = pty.fork()
@@ -96,9 +150,12 @@ def _spawn_pty_for_tmux(
         os.environ["TERM"] = "xterm-256color"
         if target_session:
             # Attach to base session then immediately switch to target session
+            # Use shlex.quote for additional shell injection protection
+            safe_base = shlex.quote(tmux_session)
+            safe_target = shlex.quote(target_session)
             os.execvp(
                 "bash",
-                ["bash", "-c", f"tmux attach-session -t {tmux_session} \\; switch-client -t {target_session}"],
+                ["bash", "-c", f"tmux attach-session -t {safe_base} \\; switch-client -t {safe_target}"],
             )
         else:
             os.execvp("tmux", ["tmux", "attach-session", "-t", tmux_session])
