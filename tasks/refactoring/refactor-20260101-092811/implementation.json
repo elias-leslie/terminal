@@ -218,7 +218,7 @@
             "Verify no TypeScript errors: npx tsc --noEmit"
           ],
           "verification": "cd frontend && npx tsc --noEmit",
-          "passes": false
+          "passes": true
         },
         {
           "id": "4.2",
@@ -237,7 +237,7 @@
             "Verify no TypeScript errors: npx tsc --noEmit"
           ],
           "verification": "cd frontend && npx tsc --noEmit",
-          "passes": false
+          "passes": true
         }
       ]
     },
