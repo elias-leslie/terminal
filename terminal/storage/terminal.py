@@ -14,6 +14,14 @@ import psycopg.sql
 
 from .connection import get_connection
 
+# Claude-related functions moved to terminal_claude.py
+# Re-export for backward compatibility
+from .terminal_claude import (
+    get_claude_state,
+    update_claude_session,
+    update_claude_state,
+)
+
 # Type alias for session ID (accepts both str and UUID)
 SessionId = str | UUID
 
@@ -147,7 +155,8 @@ def update_session(session_id: SessionId, **fields: Any) -> dict[str, Any] | Non
         return get_session(session_id)
 
     set_clauses = [
-        psycopg.sql.SQL("{} = %s").format(psycopg.sql.Identifier(field)) for field in update_fields
+        psycopg.sql.SQL("{} = %s").format(psycopg.sql.Identifier(field))
+        for field in update_fields
     ]
     values = list(update_fields.values())
     values.append(_to_str(session_id))
@@ -310,7 +319,9 @@ def _row_to_dict(row: tuple) -> dict[str, Any]:
     }
 
 
-def get_session_by_project(project_id: str, mode: str = "shell") -> dict[str, Any] | None:
+def get_session_by_project(
+    project_id: str, mode: str = "shell"
+) -> dict[str, Any] | None:
     """Get the active session for a project and mode.
 
     Each project can have one shell session and one claude session.
@@ -340,7 +351,9 @@ def get_session_by_project(project_id: str, mode: str = "shell") -> dict[str, An
     return _row_to_dict(row)
 
 
-def get_dead_session_by_project(project_id: str, mode: str = "shell") -> dict[str, Any] | None:
+def get_dead_session_by_project(
+    project_id: str, mode: str = "shell"
+) -> dict[str, Any] | None:
     """Get a dead session for a project and mode (for resurrection).
 
     The unique constraint covers all sessions including dead ones.
@@ -400,91 +413,24 @@ def get_project_sessions(project_id: str) -> dict[str, dict[str, Any] | None]:
     return result
 
 
-def update_claude_session(session_id: SessionId, claude_session: str | None) -> None:
-    """Update the last active claude session for a terminal.
-
-    Called when tclaude is run to remember which claude session to reconnect to.
-    Pass None or empty string to clear the stored session.
-    """
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            """
-            UPDATE terminal_sessions
-            SET last_claude_session = NULLIF(%s, '')
-            WHERE id = %s
-            """,
-            (claude_session or "", _to_str(session_id)),
-        )
-        conn.commit()
-
-
-def update_claude_state(
-    session_id: SessionId,
-    state: str,
-    expected_state: str | None = None,
-) -> bool:
-    """Update the Claude state for a terminal session.
-
-    Uses conditional update when expected_state is provided to handle
-    race conditions (e.g., two simultaneous start requests).
-
-    Args:
-        session_id: Session UUID
-        state: New state value (not_started, starting, running, stopped, error)
-        expected_state: If provided, only update if current state matches this
-
-    Returns:
-        True if update was applied, False if conditional check failed
-    """
-    with get_connection() as conn, conn.cursor() as cur:
-        if expected_state is not None:
-            # Conditional update - prevents race conditions
-            cur.execute(
-                """
-                UPDATE terminal_sessions
-                SET claude_state = %s
-                WHERE id = %s AND claude_state = %s
-                RETURNING id
-                """,
-                (state, _to_str(session_id), expected_state),
-            )
-        else:
-            # Unconditional update
-            cur.execute(
-                """
-                UPDATE terminal_sessions
-                SET claude_state = %s
-                WHERE id = %s
-                RETURNING id
-                """,
-                (state, _to_str(session_id)),
-            )
-        result = cur.fetchone()
-        conn.commit()
-
-    return result is not None
-
-
-def get_claude_state(session_id: SessionId) -> str | None:
-    """Get the current Claude state for a session.
-
-    Args:
-        session_id: Session UUID
-
-    Returns:
-        Current claude_state or None if session not found
-    """
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT claude_state
-            FROM terminal_sessions
-            WHERE id = %s
-            """,
-            (_to_str(session_id),),
-        )
-        row = cur.fetchone()
-
-    if not row:
-        return None
-    return row[0] or "not_started"
+__all__ = [
+    # CRUD
+    "list_sessions",
+    "get_session",
+    "create_session",
+    "update_session",
+    "delete_session",
+    # Lifecycle
+    "mark_dead",
+    "purge_dead_sessions",
+    "touch_session",
+    "list_orphaned",
+    # Project queries
+    "get_session_by_project",
+    "get_dead_session_by_project",
+    "get_project_sessions",
+    # Claude (re-exported from terminal_claude.py)
+    "update_claude_session",
+    "update_claude_state",
+    "get_claude_state",
+]

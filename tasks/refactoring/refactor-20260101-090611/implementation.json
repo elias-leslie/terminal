@@ -36,7 +36,7 @@
             "Verify: python -c 'from terminal.services.pty_manager import spawn_pty_for_tmux, resize_pty, read_output'"
           ],
           "verification": "python -c 'from terminal.services.pty_manager import spawn_pty_for_tmux'",
-          "passes": false
+          "passes": true
         },
         {
           "id": "1.2",
