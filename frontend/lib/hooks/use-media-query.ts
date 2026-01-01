@@ -27,7 +27,8 @@ export function useMediaQuery(query: string, defaultValue = false): boolean {
 
     const mediaQuery = window.matchMedia(query);
 
-    // Set initial value
+    // Set initial value - sync with actual browser state after hydration
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: SSR-safe hydration sync
     setMatches(mediaQuery.matches);
 
     // Listen for changes

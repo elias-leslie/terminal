@@ -71,6 +71,7 @@ export function TerminalManagerModal({
   // Sync local state with server state
   useLayoutEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: sync local copy with props when modal opens
       setLocalProjects([...projects]);
       setHasChanges(false);
     }

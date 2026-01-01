@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useLayoutEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 
 // Popular monospace fonts for terminals
 // Mix of Google Fonts (loaded) and system fonts (fallback)
@@ -58,14 +58,10 @@ function saveSettings(settings: TerminalSettings): void {
 }
 
 export function useTerminalSettings() {
-  const [settings, setSettings] = useState<TerminalSettings>(DEFAULT_SETTINGS);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // Load settings on mount
-  useLayoutEffect(() => {
-    setSettings(loadSettings());
-    setIsLoaded(true);
-  }, []);
+  // Use lazy initialization to load settings synchronously
+  const [settings, setSettings] = useState<TerminalSettings>(() => loadSettings());
+  // isLoaded is now always true after initial render since we use lazy init
+  const isLoaded = true;
 
   // Get the font family string for the current font
   const fontFamily = TERMINAL_FONTS.find(f => f.id === settings.fontId)?.family ?? TERMINAL_FONTS[0].family;

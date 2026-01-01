@@ -46,6 +46,7 @@ export function TabActionMenu({
     const openAbove = spaceBelow < menuHeight;
     const openLeft = spaceRight < menuWidth;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: position must be calculated from DOM before paint
     setMenuStyle({
       position: "fixed",
       top: openAbove ? undefined : rect.bottom + 4,

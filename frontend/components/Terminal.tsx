@@ -116,7 +116,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         }
       }
     }
-  }, []);
+  }, [wsRef]);
 
   // Initialize terminal
   useEffect(() => {

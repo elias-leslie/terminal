@@ -249,7 +249,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           await new Promise(resolve => setTimeout(resolve, TMUX_INIT_DELAY_MS));
           await startClaude(newSession.id);
         }
-      } catch (e) {
+      } catch {
         // Error already logged by createProjectSession
       }
     }
@@ -273,16 +273,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
       });
     },
     [switchProjectMode]
-  );
-
-  // Close terminal session
-  const handleCloseTab = useCallback(
-    async (sessionId: string, e: React.MouseEvent) => {
-      e.stopPropagation();
-      await remove(sessionId);
-      // Standalone app: no panel to close, session removal is enough
-    },
-    [remove]
   );
 
   // Close all terminals (ad-hoc + disable all projects)

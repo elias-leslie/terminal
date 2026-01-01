@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback } from "react";
-import { clsx } from "clsx";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { KeyboardKey } from "./KeyboardKey";
 import { KEY_SEQUENCES } from "./keyMappings";

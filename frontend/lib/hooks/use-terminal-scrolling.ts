@@ -170,8 +170,8 @@ export function useTerminalScrolling({
 
   // Cleanup on unmount
   useEffect(() => {
+    const state = copyModeStateRef.current;
     return () => {
-      const state = copyModeStateRef.current;
       if (state.timeout) {
         clearTimeout(state.timeout);
         state.timeout = null;

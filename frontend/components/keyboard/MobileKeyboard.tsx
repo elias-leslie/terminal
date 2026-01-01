@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { FullKeyboard } from "./FullKeyboard";
 import { ControlBar } from "./ControlBar";
 import { ModifierProvider } from "./ModifierContext";
@@ -22,15 +22,11 @@ export function MobileKeyboard({
   keyboardSize = "medium",
 }: MobileKeyboardProps) {
   const [ctrlActive, setCtrlActive] = useState(false);
-  const [minimized, setMinimized] = useState(false);
-
-  // Load minimized state from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem(MINIMIZED_STORAGE_KEY);
-    if (stored === "true") {
-      setMinimized(true);
-    }
-  }, []);
+  // Use lazy initialization to load from localStorage
+  const [minimized, setMinimized] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(MINIMIZED_STORAGE_KEY) === "true";
+  });
 
   // Save minimized state
   const handleToggleMinimize = useCallback(() => {

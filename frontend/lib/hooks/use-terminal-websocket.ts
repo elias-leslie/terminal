@@ -71,7 +71,7 @@ export function useTerminalWebSocket({
   const hasRetriedRef = useRef(false);
   const timeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
-  const connectRef = useRef<() => void>();
+  const connectRef = useRef<(() => void) | undefined>(undefined);
 
   // Store callbacks in refs to avoid re-render loops
   const onStatusChangeRef = useRef(onStatusChange);
@@ -133,7 +133,7 @@ export function useTerminalWebSocket({
           onTerminalMessageRef.current?.("\x1b[33mConnection timeout, retrying...\x1b[0m");
           setStatus("connecting");
           setTimeout(() => {
-            if (mountedRef.current) connect();
+            if (mountedRef.current) connectRef.current?.();
           }, RETRY_BACKOFF);
         } else {
           setStatus("timeout");
@@ -189,6 +189,11 @@ export function useTerminalWebSocket({
       onTerminalMessageRef.current?.("\r\n\x1b[31mConnection error\x1b[0m");
     };
   }, [sessionId, workingDir]);
+
+  // Keep ref in sync for recursive timeout calls
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
     if (timeoutIdRef.current) {
