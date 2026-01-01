@@ -5,11 +5,10 @@ import { clsx } from "clsx";
 import { Plus, Loader2, RefreshCw } from "lucide-react";
 import { ConnectionStatus } from "./Terminal";
 import { LayoutModeButtons, LayoutMode } from "./LayoutModeButton";
-import { ClaudeIndicator } from "./ClaudeIndicator";
-import { TabModeDropdown } from "./TabModeDropdown";
 import { TabActionMenu } from "./TabActionMenu";
 import { GlobalActionMenu } from "./GlobalActionMenu";
 import { SettingsDropdown, KeyboardSizePreset } from "./SettingsDropdown";
+import { ProjectTab } from "./ProjectTab";
 import { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 import { TerminalFontId, TerminalFontSize } from "@/lib/hooks/use-terminal-settings";
@@ -161,48 +160,23 @@ export function TabBar({
         const isActive = currentSessionId === activeSessionId;
 
         return (
-          <div
+          <ProjectTab
             key={pt.projectId}
-            ref={(el) => {
+            projectTerminal={pt}
+            isActive={isActive}
+            onClick={() => onProjectTabClick(pt)}
+            onModeChange={onProjectModeChange}
+            onReset={onResetProject}
+            onDisable={onDisableProject}
+            tabRef={(el) => {
               if (el) {
                 projectTabRefs.current?.set(pt.projectId, el);
               } else {
                 projectTabRefs.current?.delete(pt.projectId);
               }
             }}
-            onClick={() => onProjectTabClick(pt)}
-            className={getTabClassName(isActive, isMobile)}
-          >
-            {/* Claude indicator for project tabs */}
-            <ClaudeIndicator state={pt.activeMode === "claude" ? "idle" : "none"} />
-            {/* Project name */}
-            <span className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[100px]")}>
-              {pt.projectName}
-            </span>
-            {/* Mode dropdown - stop propagation to prevent tab click */}
-            <div onClick={(e) => e.stopPropagation()}>
-              <TabModeDropdown
-                value={pt.activeMode}
-                onChange={(mode) => onProjectModeChange(
-                  pt.projectId,
-                  mode,
-                  pt.shellSessionId,
-                  pt.claudeSessionId,
-                  pt.rootPath
-                )}
-                isMobile={isMobile}
-              />
-            </div>
-            {/* Action menu - stop propagation to prevent tab click */}
-            <div onClick={(e) => e.stopPropagation()}>
-              <TabActionMenu
-                tabType="project"
-                onReset={() => onResetProject(pt.projectId)}
-                onClose={() => onDisableProject(pt.projectId)}
-                isMobile={isMobile}
-              />
-            </div>
-          </div>
+            isMobile={isMobile}
+          />
         );
       })}
 
