@@ -5,30 +5,13 @@ import { clsx } from "clsx";
 import { Plus, Loader2, RefreshCw } from "lucide-react";
 import { ConnectionStatus } from "./Terminal";
 import { LayoutModeButtons, LayoutMode } from "./LayoutModeButton";
-import { TabActionMenu } from "./TabActionMenu";
 import { GlobalActionMenu } from "./GlobalActionMenu";
 import { SettingsDropdown, KeyboardSizePreset } from "./SettingsDropdown";
 import { ProjectTab } from "./ProjectTab";
+import { AdHocTab } from "./AdHocTab";
 import { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 import { TerminalFontId, TerminalFontSize } from "@/lib/hooks/use-terminal-settings";
-
-// ============================================================================
-// Utility Functions
-// ============================================================================
-
-function getTabClassName(isActive: boolean, isMobile: boolean): string {
-  return clsx(
-    "flex items-center rounded-md transition-all duration-200 cursor-pointer",
-    "group min-w-0 flex-shrink-0",
-    isMobile
-      ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
-      : "gap-1.5 px-2 py-1.5 text-sm",
-    isActive
-      ? "tab-active"
-      : "tab-inactive"
-  );
-}
 
 // ============================================================================
 // Types
@@ -194,68 +177,23 @@ export function TabBar({
         const isActive = session.id === activeSessionId;
 
         return (
-          <div
+          <AdHocTab
             key={session.id}
-            onClick={() => onAdHocTabClick(session.id)}
-            className={getTabClassName(isActive, isMobile)}
-          >
-            {/* Status dot for ad-hoc tabs */}
-            <span
-              className={clsx("w-2 h-2 rounded-full flex-shrink-0", {
-                "animate-pulse": sessionStatus === "connecting",
-              })}
-              style={{
-                backgroundColor:
-                  sessionStatus === "connected" ? "var(--term-accent)" :
-                  sessionStatus === "connecting" ? "var(--term-warning)" :
-                  sessionStatus === "error" || sessionStatus === "timeout" ? "var(--term-error)" :
-                  sessionStatus === "session_dead" ? "var(--term-warning)" :
-                  "var(--term-text-muted)",
-                boxShadow: sessionStatus === "connected" ? "0 0 6px var(--term-accent)" : "none",
-              }}
-              title={sessionStatus || "unknown"}
-            />
-            {/* Tab content */}
-            <div className="flex items-center">
-              {editingId === session.id ? (
-                <input
-                  ref={editInputRef}
-                  type="text"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={saveEdit}
-                  onKeyDown={handleEditKeyDown}
-                  className="rounded px-1 py-0 text-sm w-24 focus:outline-none focus:ring-1"
-                  style={{
-                    backgroundColor: "var(--term-bg-deep)",
-                    borderColor: "var(--term-accent)",
-                    color: "var(--term-text-primary)",
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <span
-                  className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[100px]")}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    startEdit(session.id, session.name);
-                  }}
-                >
-                  {session.name}
-                  {!session.is_alive && " (dead)"}
-                </span>
-              )}
-            </div>
-            {/* Action menu - stop propagation to prevent tab click */}
-            <div onClick={(e) => e.stopPropagation()}>
-              <TabActionMenu
-                tabType="adhoc"
-                onReset={() => onResetAdHoc(session.id)}
-                onClose={() => onRemoveAdHoc(session.id)}
-                isMobile={isMobile}
-              />
-            </div>
-          </div>
+            session={session}
+            sessionStatus={sessionStatus}
+            isActive={isActive}
+            onClick={onAdHocTabClick}
+            onReset={onResetAdHoc}
+            onRemove={onRemoveAdHoc}
+            isEditing={editingId === session.id}
+            editValue={editValue}
+            setEditValue={setEditValue}
+            editInputRef={editInputRef}
+            startEdit={startEdit}
+            saveEdit={saveEdit}
+            handleEditKeyDown={handleEditKeyDown}
+            isMobile={isMobile}
+          />
         );
       })}
 
