@@ -127,7 +127,7 @@
             "Restart backend service and verify health"
           ],
           "verification": "python -c \"from terminal.storage.terminal import list_sessions, mark_dead, get_project_sessions; print('OK')\" && curl -s http://localhost:8002/health | grep -q ok",
-          "passes": false
+          "passes": true
         }
       ]
     },
