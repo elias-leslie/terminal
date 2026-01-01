@@ -20,6 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useProjectSettings, ProjectSetting } from "@/lib/hooks/use-project-settings";
+import { useHoverStyle } from "@/lib/hooks/use-hover-style";
 
 interface TerminalManagerModalProps {
   isOpen: boolean;
@@ -42,6 +43,14 @@ export function TerminalManagerModal({
   const { projects, updateSettings, updateOrder, isUpdating } = useProjectSettings();
   const [localProjects, setLocalProjects] = useState<ProjectSetting[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Hover styles for close button
+  const closeButtonHover = useHoverStyle({
+    hoverBg: "var(--term-bg-surface)",
+    defaultBg: "transparent",
+    hoverColor: "var(--term-text-primary)",
+    defaultColor: "var(--term-text-muted)",
+  });
 
   // Sync local state with server state
   useEffect(() => {
@@ -146,15 +155,9 @@ export function TerminalManagerModal({
           <button
             onClick={onClose}
             className="flex items-center justify-center w-7 h-7 rounded transition-colors"
-            style={{ color: "var(--term-text-muted)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
-              e.currentTarget.style.color = "var(--term-text-primary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.color = "var(--term-text-muted)";
-            }}
+            onMouseEnter={closeButtonHover.onMouseEnter}
+            onMouseLeave={closeButtonHover.onMouseLeave}
+            style={closeButtonHover.style}
           >
             <X size={18} />
           </button>
