@@ -230,10 +230,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     await create(name, undefined, undefined, true);
   }, [sessions, create]);
 
-  // Get current session ID for a project based on activeMode
-  const getProjectSessionId = useCallback((pt: ProjectTerminal): string | null => {
-    return pt.activeMode === "claude" ? pt.claudeSessionId : pt.shellSessionId;
-  }, []);
 
   // Helper to update URL with session param
   const navigateToSession = useCallback((sessionId: string) => {
@@ -274,7 +270,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         // Error already logged by createProjectSession
       }
     }
-  }, [navigateToSession, getProjectSessionId, startClaudeInSession]);
+  }, [navigateToSession, startClaudeInSession]);
 
   // Handler for project mode changes - delegates to hook
   const handleProjectModeChange = useCallback(
