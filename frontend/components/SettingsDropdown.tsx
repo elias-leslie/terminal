@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useMemo } from "react";
+import { useCallback, useRef, useMemo, useState, useLayoutEffect } from "react";
 import { useClickOutside } from "@/lib/hooks/useClickOutside";
 import { Settings2 } from "lucide-react";
 import {
@@ -49,16 +49,18 @@ export function SettingsDropdown({
   useClickOutside(clickOutsideRefs, closeDropdown, showSettings);
 
   // Calculate dropdown position - opens downward from button
-  const getDropdownStyle = (): React.CSSProperties => {
-    if (!buttonRef.current) return {};
-    const rect = buttonRef.current.getBoundingClientRect();
-    return {
-      position: "fixed",
-      right: window.innerWidth - rect.right,
-      top: rect.bottom + 4,
-      zIndex: 9999,
-    };
-  };
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  useLayoutEffect(() => {
+    if (showSettings && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: "fixed",
+        right: window.innerWidth - rect.right,
+        top: rect.bottom + 4,
+        zIndex: 9999,
+      });
+    }
+  }, [showSettings]);
 
   return (
     <div className="relative ml-2">
@@ -93,7 +95,7 @@ export function SettingsDropdown({
         <div
           ref={dropdownRef}
           style={{
-            ...getDropdownStyle(),
+            ...dropdownStyle,
             backgroundColor: "rgba(21, 27, 35, 0.85)",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",

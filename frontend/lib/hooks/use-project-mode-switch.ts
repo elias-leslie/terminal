@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, MutableRefObject } from "react";
+import { useCallback, MutableRefObject } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useClaudePolling } from "./use-claude-polling";
 import { createProjectSession } from "@/lib/utils/session";

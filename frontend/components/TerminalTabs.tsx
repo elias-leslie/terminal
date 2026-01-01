@@ -23,11 +23,7 @@ import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { KeyboardSizePreset } from "./SettingsDropdown";
 import { TerminalManagerModal } from "./TerminalManagerModal";
 import { SplitPane } from "./SplitPane";
-import {
-  type TerminalSlot,
-  type ProjectSlot,
-  type AdHocSlot,
-} from "@/lib/utils/slot";
+import { type TerminalSlot } from "@/lib/utils/slot";
 
 // Maximum number of split panes
 const MAX_SPLIT_PANES = 4;
@@ -208,7 +204,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     editInputRef,
     startEdit,
     saveEdit,
-    cancelEdit,
     handleKeyDown: handleEditKeyDown,
   } = useTabEditing({
     onSave: async (sessionId: string, newName: string) => {
