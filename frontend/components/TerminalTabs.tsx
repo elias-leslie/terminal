@@ -15,6 +15,7 @@ import { useTerminalSettings } from "@/lib/hooks/use-terminal-settings";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { useProjectTerminals, ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import { useClaudePolling } from "@/lib/hooks/use-claude-polling";
+import { useTabEditing } from "@/lib/hooks/use-tab-editing";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { SettingsDropdown, KeyboardSizePreset } from "./SettingsDropdown";
 import { ClaudeIndicator } from "./ClaudeIndicator";
@@ -232,18 +233,21 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     setLayoutMode(mode);
   }, [sessions, create, projectPath, setLayoutMode]);
 
-  // Editing state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const editInputRef = useRef<HTMLInputElement>(null);
-
-  // Focus input when entering edit mode
-  useEffect(() => {
-    if (editingId && editInputRef.current) {
-      editInputRef.current.focus();
-      editInputRef.current.select();
-    }
-  }, [editingId]);
+  // Tab editing hook
+  const {
+    editingId,
+    editValue,
+    setEditValue,
+    editInputRef,
+    startEdit,
+    saveEdit,
+    cancelEdit,
+    handleKeyDown: handleEditKeyDown,
+  } = useTabEditing({
+    onSave: async (sessionId: string, newName: string) => {
+      await update(sessionId, { name: newName });
+    },
+  });
 
   // Create new terminal session (ad-hoc / generic)
   const handleAddTab = useCallback(async () => {
@@ -387,29 +391,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     [remove]
   );
 
-  // Start editing tab name
-  const handleStartEdit = useCallback((sessionId: string, currentName: string) => {
-    setEditingId(sessionId);
-    setEditValue(currentName);
-  }, []);
-
-  // Save edited name
-  const handleSaveEdit = useCallback(async () => {
-    if (!editingId || !editValue.trim()) {
-      setEditingId(null);
-      return;
-    }
-
-    await update(editingId, { name: editValue.trim() });
-    setEditingId(null);
-  }, [editingId, editValue, update]);
-
-  // Cancel editing
-  const handleCancelEdit = useCallback(() => {
-    setEditingId(null);
-    setEditValue("");
-  }, []);
-
   // Close all terminals (ad-hoc + disable all projects)
   const handleCloseAll = useCallback(async () => {
     // Remove all ad-hoc sessions
@@ -421,19 +402,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
       await disableProject(pt.projectId);
     }
   }, [adHocSessions, projectTerminals, remove, disableProject]);
-
-  // Handle keyboard events in edit mode
-  const handleEditKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleSaveEdit();
-      } else if (e.key === "Escape") {
-        handleCancelEdit();
-      }
-    },
-    [handleSaveEdit, handleCancelEdit]
-  );
 
   // Loading state
   if (isLoading) {
@@ -573,7 +541,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                     type="text"
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={handleSaveEdit}
+                    onBlur={saveEdit}
                     onKeyDown={handleEditKeyDown}
                     className="rounded px-1 py-0 text-sm w-24 focus:outline-none focus:ring-1"
                     style={{
@@ -588,7 +556,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                     className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[100px]")}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
-                      handleStartEdit(session.id, session.name);
+                      startEdit(session.id, session.name);
                     }}
                   >
                     {session.name}
