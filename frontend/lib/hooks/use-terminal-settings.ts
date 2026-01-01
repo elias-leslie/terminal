@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useLayoutEffect, useCallback } from "react";
 
 // Popular monospace fonts for terminals
 // Mix of Google Fonts (loaded) and system fonts (fallback)
@@ -62,7 +62,7 @@ export function useTerminalSettings() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load settings on mount
-  useEffect(() => {
+  useLayoutEffect(() => {
     setSettings(loadSettings());
     setIsLoaded(true);
   }, []);

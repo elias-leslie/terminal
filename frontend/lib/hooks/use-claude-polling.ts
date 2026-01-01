@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 /** Poll interval for Claude state check (500ms) */
@@ -42,7 +42,7 @@ interface UseClaudePollingReturn {
 export function useClaudePolling(): UseClaudePollingReturn {
   const queryClient = useQueryClient();
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isPollingRef = useRef(false);
+  const [isPolling, setIsPolling] = useState(false);
 
   // Stop any active polling
   const stopPolling = useCallback(() => {
@@ -50,7 +50,7 @@ export function useClaudePolling(): UseClaudePollingReturn {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
-    isPollingRef.current = false;
+    setIsPolling(false);
   }, []);
 
   // Cleanup on unmount
@@ -84,7 +84,7 @@ export function useClaudePolling(): UseClaudePollingReturn {
 
         // Poll until Claude is running (or timeout)
         const pollStart = Date.now();
-        isPollingRef.current = true;
+        setIsPolling(true);
 
         pollIntervalRef.current = setInterval(async () => {
           if (Date.now() - pollStart > CLAUDE_POLL_TIMEOUT_MS) {
@@ -119,7 +119,7 @@ export function useClaudePolling(): UseClaudePollingReturn {
 
   return {
     startClaude,
-    isPolling: isPollingRef.current,
+    isPolling,
     stopPolling,
   };
 }

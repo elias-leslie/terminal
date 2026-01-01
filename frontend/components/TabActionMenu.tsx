@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useState, useRef, useCallback, useMemo, useLayoutEffect } from "react";
 import { MoreVertical, RefreshCw, X } from "lucide-react";
 import { useClickOutside } from "@/lib/hooks/useClickOutside";
 
@@ -35,7 +35,7 @@ export function TabActionMenu({
   useClickOutside(clickOutsideRefs, closeMenu, isOpen);
 
   // Calculate menu position based on viewport - use fixed positioning
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen || !buttonRef.current) return;
 
     const rect = buttonRef.current.getBoundingClientRect();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useLayoutEffect } from "react";
 import { X, GripVertical, Plus, Terminal } from "lucide-react";
 import {
   DndContext,
@@ -69,7 +69,7 @@ export function TerminalManagerModal({
   });
 
   // Sync local state with server state
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen) {
       setLocalProjects([...projects]);
       setHasChanges(false);

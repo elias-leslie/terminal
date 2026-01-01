@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 /**
  * SSR-safe media query hook.
@@ -21,7 +21,7 @@ import { useEffect, useState } from "react";
 export function useMediaQuery(query: string, defaultValue = false): boolean {
   const [matches, setMatches] = useState(defaultValue);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // Only run on client
     if (typeof window === "undefined") return;
 

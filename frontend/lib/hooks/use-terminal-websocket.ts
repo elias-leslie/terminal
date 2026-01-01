@@ -71,6 +71,7 @@ export function useTerminalWebSocket({
   const hasRetriedRef = useRef(false);
   const timeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+  const connectRef = useRef<() => void>();
 
   // Store callbacks in refs to avoid re-render loops
   const onStatusChangeRef = useRef(onStatusChange);
