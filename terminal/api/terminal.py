@@ -180,6 +180,59 @@ def _resize_pty(master_fd: int, cols: int, rows: int) -> None:
     fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
 
 
+def _handle_websocket_message(
+    message: dict[str, Any],
+    master_fd: int,
+    session_id: str,
+) -> None:
+    """Handle a single WebSocket message.
+
+    Args:
+        message: WebSocket message dict
+        master_fd: Master file descriptor to write to
+        session_id: Terminal session ID (for logging)
+
+    Handles:
+    - Resize commands (JSON starting with {"resize":)
+    - Text input (forwarded to PTY)
+    - Binary input (forwarded to PTY)
+    """
+    # Handle text messages
+    if "text" in message:
+        text = message["text"]
+
+        # Check for resize command (JSON starting with {"resize":)
+        if text.startswith('{"resize":'):
+            try:
+                data = json.loads(text)
+                resize = data.get("resize", {})
+                cols = resize.get("cols", TMUX_DEFAULT_COLS)
+                rows = resize.get("rows", TMUX_DEFAULT_ROWS)
+                _resize_pty(master_fd, cols, rows)
+                logger.info(
+                    "terminal_resized",
+                    session_id=session_id,
+                    cols=cols,
+                    rows=rows,
+                )
+            except json.JSONDecodeError:
+                logger.warning(
+                    "malformed_resize_command",
+                    session_id=session_id,
+                    text=text[:100],
+                )
+            return
+
+        # Regular input - write to PTY
+        os.write(master_fd, text.encode("utf-8"))
+        return
+
+    # Handle binary messages
+    if "bytes" in message:
+        os.write(master_fd, message["bytes"])
+        return
+
+
 @router.websocket("/ws/terminal/{session_id}")
 async def terminal_websocket(
     websocket: WebSocket,
@@ -263,36 +316,7 @@ async def terminal_websocket(
                 if message["type"] == "websocket.disconnect":
                     break
 
-                if "text" in message:
-                    text = message["text"]
-
-                    # Check for resize command (JSON starting with {"resize":)
-                    if text.startswith('{"resize":'):
-                        try:
-                            data = json.loads(text)
-                            resize = data.get("resize", {})
-                            cols = resize.get("cols", TMUX_DEFAULT_COLS)
-                            rows = resize.get("rows", TMUX_DEFAULT_ROWS)
-                            _resize_pty(master_fd, cols, rows)
-                            logger.info(
-                                "terminal_resized",
-                                session_id=session_id,
-                                cols=cols,
-                                rows=rows,
-                            )
-                        except json.JSONDecodeError:
-                            logger.warning(
-                                "malformed_resize_command",
-                                session_id=session_id,
-                                text=text[:100],
-                            )
-                    else:
-                        # Regular input - write to PTY
-                        os.write(master_fd, text.encode("utf-8"))
-
-                elif "bytes" in message:
-                    # Binary data - write directly
-                    os.write(master_fd, message["bytes"])
+                _handle_websocket_message(message, master_fd, session_id)
 
         except WebSocketDisconnect:
             logger.info("terminal_disconnected", session_id=session_id)
