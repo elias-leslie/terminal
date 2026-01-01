@@ -180,6 +180,47 @@ def _resize_pty(master_fd: int, cols: int, rows: int) -> None:
     fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
 
 
+def _validate_and_prepare_session(session_id: str) -> tuple[dict[str, Any], str]:
+    """Validate session exists and prepare for WebSocket connection.
+
+    Args:
+        session_id: Terminal session identifier
+
+    Returns:
+        Tuple of (session_dict, tmux_session_name)
+
+    Raises:
+        ValueError: If session is invalid or cannot be restored
+    """
+    # Check if session exists in DB and ensure tmux is alive
+    # This will recreate tmux if the DB record exists but tmux died
+    try:
+        is_alive = lifecycle.ensure_session_alive(session_id)
+    except Exception as e:
+        # Handle invalid session IDs (e.g., non-UUID format)
+        logger.warning("terminal_session_invalid", session_id=session_id, error=str(e))
+        raise ValueError(f"Invalid session ID: {session_id}") from e
+
+    if not is_alive:
+        # Session doesn't exist in DB or couldn't be resurrected
+        logger.warning("terminal_session_dead", session_id=session_id)
+        raise ValueError(f"Session not found or could not be restored: {session_id}")
+
+    # Touch session to update last_accessed_at
+    terminal_store.touch_session(session_id)
+
+    # Get session info for working directory and stored target session
+    session = terminal_store.get_session(session_id)
+    if not session:
+        raise ValueError(f"Session not found after validation: {session_id}")
+
+    # Get tmux session name (should exist now due to ensure_session_alive)
+    session_working_dir = session.get("working_dir")
+    tmux_session_name = create_tmux_session(session_id, session_working_dir)
+
+    return session, tmux_session_name
+
+
 def _handle_websocket_message(
     message: dict[str, Any],
     master_fd: int,
@@ -258,34 +299,18 @@ async def terminal_websocket(
     pid: int | None = None
 
     try:
-        # Check if session exists in DB and ensure tmux is alive
-        # This will recreate tmux if the DB record exists but tmux died
+        # Validate session and prepare tmux
         try:
-            is_alive = lifecycle.ensure_session_alive(session_id)
-        except Exception as e:
-            # Handle invalid session IDs (e.g., non-UUID format)
-            logger.warning("terminal_session_invalid", session_id=session_id, error=str(e))
-            is_alive = False
-
-        if not is_alive:
-            # Session doesn't exist in DB or couldn't be resurrected
-            logger.warning("terminal_session_dead", session_id=session_id)
+            session, tmux_session_name = _validate_and_prepare_session(session_id)
+        except ValueError as e:
             await websocket.close(
                 code=4000,
-                reason='{"error": "session_dead", "message": "Session not found or could not be restored"}',
+                reason=f'{{"error": "session_dead", "message": "{str(e)}"}}',
             )
             return
 
-        # Touch session to update last_accessed_at
-        terminal_store.touch_session(session_id)
-
-        # Get session info for working directory and stored target session
-        session = terminal_store.get_session(session_id)
-        session_working_dir = session.get("working_dir") if session else working_dir
-        stored_target_session = session.get("last_claude_session") if session else None
-
-        # Create or attach to tmux session (should exist now due to ensure_session_alive)
-        tmux_session_name = create_tmux_session(session_id, session_working_dir)
+        # Extract session data for PTY spawn
+        stored_target_session = session.get("last_claude_session")
 
         # Spawn PTY for tmux (pass stored target session for auto-reconnect)
         master_fd, pid = _spawn_pty_for_tmux(tmux_session_name, stored_target_session)
