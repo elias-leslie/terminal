@@ -7,23 +7,14 @@ This module handles storage for Claude Code integration features:
 
 from __future__ import annotations
 
-from uuid import UUID
-
 from .connection import get_connection
-
-# Type alias for session ID (accepts both str and UUID)
-SessionId = str | UUID
+from .terminal_utils import SessionId, _to_str
 
 __all__ = [
     "update_claude_session",
     "update_claude_state",
     "get_claude_state",
 ]
-
-
-def _to_str(session_id: SessionId) -> str:
-    """Normalize session ID to string for SQL queries."""
-    return str(session_id)
 
 
 def update_claude_session(session_id: SessionId, claude_session: str | None) -> None:

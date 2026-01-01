@@ -33,7 +33,7 @@
             "Verify imports work: python -c \"from terminal.storage.terminal_utils import _to_str\""
           ],
           "verification": "python -c \"from terminal.storage.terminal_utils import _to_str; print('OK')\"",
-          "passes": false
+          "passes": true
         },
         {
           "id": "1.2",
@@ -74,7 +74,7 @@
             "Verify no TypeScript errors: npx tsc --noEmit"
           ],
           "verification": "cd frontend && npx tsc --noEmit",
-          "passes": false
+          "passes": true
         }
       ]
     },

@@ -7,12 +7,12 @@ Sessions represent persistent tmux terminals that survive browser close.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
-from uuid import UUID
+from typing import Any, Literal, overload
 
 import psycopg.sql
 
 from .connection import get_connection
+from .terminal_utils import SessionId, _to_str
 
 # Claude-related functions moved to terminal_claude.py
 # Re-export for backward compatibility
@@ -22,20 +22,49 @@ from .terminal_claude import (
     update_claude_state,
 )
 
-# Type alias for session ID (accepts both str and UUID)
-SessionId = str | UUID
-
-
-def _to_str(session_id: SessionId) -> str:
-    """Normalize session ID to string for SQL queries."""
-    return str(session_id)
-
 
 # Standard SELECT field list for terminal_sessions queries
 # Keep in sync with _row_to_dict() field order
 TERMINAL_SESSION_FIELDS = """id, name, user_id, project_id, working_dir, display_order,
                mode, is_alive, created_at, last_accessed_at, last_claude_session,
                claude_state"""
+
+
+@overload
+def _execute_session_query(
+    query: str, params: tuple, *, fetch_mode: Literal["one"] = "one"
+) -> dict[str, Any] | None: ...
+
+
+@overload
+def _execute_session_query(
+    query: str, params: tuple, *, fetch_mode: Literal["all"]
+) -> list[dict[str, Any]]: ...
+
+
+def _execute_session_query(
+    query: str, params: tuple, *, fetch_mode: Literal["one", "all"] = "one"
+) -> dict[str, Any] | list[dict[str, Any]] | None:
+    """Execute a session query and return converted result(s).
+
+    Centralizes the query -> fetch -> _row_to_dict pattern.
+
+    Args:
+        query: SQL query string (should SELECT TERMINAL_SESSION_FIELDS)
+        params: Query parameters
+        fetch_mode: 'one' returns single dict/None, 'all' returns list
+
+    Returns:
+        Single session dict, list of dicts, or None
+    """
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(query, params)
+        if fetch_mode == "one":
+            row = cur.fetchone()
+            return _row_to_dict(row) if row else None
+        else:
+            rows = cur.fetchall()
+            return [_row_to_dict(row) for row in rows]
 
 
 def list_sessions(include_dead: bool = False) -> list[dict[str, Any]]:
@@ -48,28 +77,20 @@ def list_sessions(include_dead: bool = False) -> list[dict[str, Any]]:
         List of session dicts ordered by display_order
     """
     if include_dead:
-        query = psycopg.sql.SQL(
-            f"""
+        query = f"""
             SELECT {TERMINAL_SESSION_FIELDS}
             FROM terminal_sessions
             ORDER BY display_order, created_at
-            """
-        )
+        """
     else:
-        query = psycopg.sql.SQL(
-            f"""
+        query = f"""
             SELECT {TERMINAL_SESSION_FIELDS}
             FROM terminal_sessions
             WHERE is_alive = true
             ORDER BY display_order, created_at
-            """
-        )
-
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(query)
-        rows = cur.fetchall()
-
-    return [_row_to_dict(row) for row in rows]
+        """
+    result = _execute_session_query(query, (), fetch_mode="all")
+    return result if result else []
 
 
 def get_session(session_id: SessionId) -> dict[str, Any] | None:
@@ -81,20 +102,12 @@ def get_session(session_id: SessionId) -> dict[str, Any] | None:
     Returns:
         Session dict or None if not found
     """
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            f"""
-            SELECT {TERMINAL_SESSION_FIELDS}
-            FROM terminal_sessions
-            WHERE id = %s
-            """,
-            (_to_str(session_id),),
-        )
-        row = cur.fetchone()
-
-    if not row:
-        return None
-    return _row_to_dict(row)
+    query = f"""
+        SELECT {TERMINAL_SESSION_FIELDS}
+        FROM terminal_sessions
+        WHERE id = %s
+    """
+    return _execute_session_query(query, (_to_str(session_id),))
 
 
 def create_session(
@@ -285,20 +298,14 @@ def list_orphaned(older_than_days: int = 30) -> list[dict[str, Any]]:
         List of orphaned session dicts
     """
     cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
-
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            f"""
-            SELECT {TERMINAL_SESSION_FIELDS}
-            FROM terminal_sessions
-            WHERE last_accessed_at < %s
-            ORDER BY last_accessed_at
-            """,
-            (cutoff,),
-        )
-        rows = cur.fetchall()
-
-    return [_row_to_dict(row) for row in rows]
+    query = f"""
+        SELECT {TERMINAL_SESSION_FIELDS}
+        FROM terminal_sessions
+        WHERE last_accessed_at < %s
+        ORDER BY last_accessed_at
+    """
+    result = _execute_session_query(query, (cutoff,), fetch_mode="all")
+    return result if result else []
 
 
 def _row_to_dict(row: tuple) -> dict[str, Any]:
@@ -333,22 +340,14 @@ def get_session_by_project(
     Returns:
         Session dict or None if not found
     """
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            f"""
-            SELECT {TERMINAL_SESSION_FIELDS}
-            FROM terminal_sessions
-            WHERE project_id = %s AND mode = %s AND is_alive = true
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            (project_id, mode),
-        )
-        row = cur.fetchone()
-
-    if not row:
-        return None
-    return _row_to_dict(row)
+    query = f"""
+        SELECT {TERMINAL_SESSION_FIELDS}
+        FROM terminal_sessions
+        WHERE project_id = %s AND mode = %s AND is_alive = true
+        ORDER BY created_at DESC
+        LIMIT 1
+    """
+    return _execute_session_query(query, (project_id, mode))
 
 
 def get_dead_session_by_project(
@@ -366,22 +365,14 @@ def get_dead_session_by_project(
     Returns:
         Dead session dict or None if not found
     """
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            f"""
-            SELECT {TERMINAL_SESSION_FIELDS}
-            FROM terminal_sessions
-            WHERE project_id = %s AND mode = %s AND is_alive = false
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            (project_id, mode),
-        )
-        row = cur.fetchone()
-
-    if not row:
-        return None
-    return _row_to_dict(row)
+    query = f"""
+        SELECT {TERMINAL_SESSION_FIELDS}
+        FROM terminal_sessions
+        WHERE project_id = %s AND mode = %s AND is_alive = false
+        ORDER BY created_at DESC
+        LIMIT 1
+    """
+    return _execute_session_query(query, (project_id, mode))
 
 
 def get_project_sessions(project_id: str) -> dict[str, dict[str, Any] | None]:
@@ -393,21 +384,15 @@ def get_project_sessions(project_id: str) -> dict[str, dict[str, Any] | None]:
     Returns:
         Dict with 'shell' and 'claude' keys, each containing session dict or None
     """
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            f"""
-            SELECT {TERMINAL_SESSION_FIELDS}
-            FROM terminal_sessions
-            WHERE project_id = %s AND is_alive = true
-            ORDER BY mode
-            """,
-            (project_id,),
-        )
-        rows = cur.fetchall()
-
+    query = f"""
+        SELECT {TERMINAL_SESSION_FIELDS}
+        FROM terminal_sessions
+        WHERE project_id = %s AND is_alive = true
+        ORDER BY mode
+    """
+    sessions = _execute_session_query(query, (project_id,), fetch_mode="all")
     result: dict[str, dict[str, Any] | None] = {"shell": None, "claude": None}
-    for row in rows:
-        session = _row_to_dict(row)
+    for session in sessions or []:
         if session["mode"] in result:
             result[session["mode"]] = session
     return result
