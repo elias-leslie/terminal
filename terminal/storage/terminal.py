@@ -39,14 +39,23 @@ def list_sessions(include_dead: bool = False) -> list[dict[str, Any]]:
     Returns:
         List of session dicts ordered by display_order
     """
-    base_query = f"""
-        SELECT {TERMINAL_SESSION_FIELDS}
-        FROM terminal_sessions
-    """
     if include_dead:
-        query = base_query + " ORDER BY display_order, created_at"
+        query = psycopg.sql.SQL(
+            f"""
+            SELECT {TERMINAL_SESSION_FIELDS}
+            FROM terminal_sessions
+            ORDER BY display_order, created_at
+            """
+        )
     else:
-        query = base_query + " WHERE is_alive = true ORDER BY display_order, created_at"
+        query = psycopg.sql.SQL(
+            f"""
+            SELECT {TERMINAL_SESSION_FIELDS}
+            FROM terminal_sessions
+            WHERE is_alive = true
+            ORDER BY display_order, created_at
+            """
+        )
 
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(query)

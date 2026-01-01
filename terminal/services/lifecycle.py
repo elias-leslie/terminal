@@ -26,6 +26,8 @@ from ..utils.tmux import (
 
 logger = get_logger(__name__)
 
+SESSION_MODES = ["shell", "claude"]
+
 
 def _kill_tmux_session(session_id: str, ignore_missing: bool = True) -> bool:
     """Kill a tmux session.
@@ -245,7 +247,7 @@ def reset_project_sessions(
 
     result: dict[str, str | None] = {"shell": None, "claude": None}
 
-    for mode in ["shell", "claude"]:
+    for mode in SESSION_MODES:
         session = sessions.get(mode)
         if session:
             # Delete old session
@@ -317,7 +319,7 @@ def disable_project_terminal(project_id: str) -> bool:
     # Delete all sessions for this project
     sessions = terminal_store.get_project_sessions(project_id)
 
-    for mode in ["shell", "claude"]:
+    for mode in SESSION_MODES:
         session = sessions.get(mode)
         if session:
             delete_session(session["id"])
