@@ -260,7 +260,7 @@
             "Verify sessions endpoint: curl -s http://localhost:8002/api/terminal/sessions"
           ],
           "verification": "curl -s http://localhost:8002/health | grep -q ok",
-          "passes": false
+          "passes": true
         },
         {
           "id": "5.2",
@@ -275,7 +275,7 @@
             "Run frontend build: cd frontend && npm run build"
           ],
           "verification": "cd frontend && npm run build",
-          "passes": false
+          "passes": true
         }
       ]
     }
