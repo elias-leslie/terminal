@@ -58,6 +58,63 @@ def _kill_tmux_session(session_id: str, ignore_missing: bool = True) -> bool:
     return True
 
 
+def _resurrect_dead_session(
+    dead_session: dict,
+    mode: str,
+    name: str,
+    working_dir: str | None,
+) -> str:
+    """Resurrect a dead session by updating DB and creating new tmux session.
+
+    Args:
+        dead_session: Dead session dict from storage
+        mode: Session mode ('shell' or 'claude')
+        name: New display name for resurrected session
+        working_dir: Optional working directory override
+
+    Returns:
+        Session ID of resurrected session
+
+    Raises:
+        TmuxError: If tmux creation fails (session marked dead again)
+    """
+    session_id = dead_session["id"]
+    project_id = dead_session.get("project_id")
+
+    logger.info(
+        "resurrecting_dead_session",
+        session_id=session_id,
+        project_id=project_id,
+        mode=mode,
+    )
+
+    # Update the session record
+    terminal_store.update_session(
+        session_id,
+        name=name,
+        working_dir=working_dir,
+        is_alive=True,
+    )
+
+    # Create new tmux session
+    try:
+        create_tmux_session(session_id, working_dir)
+    except TmuxError as e:
+        # Mark dead again on failure
+        terminal_store.mark_dead(session_id)
+        raise
+
+    logger.info(
+        "session_resurrected",
+        session_id=session_id,
+        name=name,
+        project_id=project_id,
+        mode=mode,
+    )
+
+    return session_id
+
+
 def create_session(
     name: str,
     project_id: str | None = None,
@@ -90,35 +147,7 @@ def create_session(
     if project_id:
         dead_session = terminal_store.get_dead_session_by_project(project_id, mode)
         if dead_session:
-            session_id = dead_session["id"]
-            logger.info(
-                "resurrecting_dead_session",
-                session_id=session_id,
-                project_id=project_id,
-                mode=mode,
-            )
-            # Update the session record
-            terminal_store.update_session(
-                session_id,
-                name=name,
-                working_dir=working_dir,
-                is_alive=True,
-            )
-            # Create new tmux session
-            try:
-                create_tmux_session(session_id, working_dir)
-            except TmuxError as e:
-                # Mark dead again on failure
-                terminal_store.mark_dead(session_id)
-                raise
-            logger.info(
-                "session_resurrected",
-                session_id=session_id,
-                name=name,
-                project_id=project_id,
-                mode=mode,
-            )
-            return session_id
+            return _resurrect_dead_session(dead_session, mode, name, working_dir)
 
     # Step 1: Create DB record
     session_id = terminal_store.create_session(
