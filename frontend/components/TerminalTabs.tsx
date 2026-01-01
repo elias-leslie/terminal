@@ -19,7 +19,7 @@ import { useClaudePolling } from "@/lib/hooks/use-claude-polling";
 import { useTabEditing } from "@/lib/hooks/use-tab-editing";
 import { useProjectModeSwitch } from "@/lib/hooks/use-project-mode-switch";
 import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
-import { createProjectSession } from "@/lib/utils/session";
+import { createProjectSession, getNextTerminalName } from "@/lib/utils/session";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { KeyboardSizePreset } from "./SettingsDropdown";
 import { ClaudeIndicator } from "./ClaudeIndicator";
@@ -31,19 +31,6 @@ const MAX_SPLIT_PANES = 4;
 
 // Init delay for tmux session
 const TMUX_INIT_DELAY_MS = 300;
-
-// Helper to get next terminal name (Terminal 1, Terminal 2, etc.)
-function getNextTerminalName(sessions: Array<{ name: string }>): string {
-  // Find the highest "Terminal N" number
-  let maxNum = 0;
-  for (const session of sessions) {
-    const match = session.name.match(/^Terminal\s+(\d+)$/i);
-    if (match) {
-      maxNum = Math.max(maxNum, parseInt(match[1], 10));
-    }
-  }
-  return `Terminal ${maxNum + 1}`;
-}
 
 // Slot types for split-pane terminals
 interface ProjectSlot {

@@ -21,6 +21,23 @@ interface TerminalSession {
 }
 
 /**
+ * Generate next sequential terminal name (Terminal 1, Terminal 2, etc.)
+ * @param sessions - Array of sessions with name property
+ * @returns Next available terminal name
+ */
+export function getNextTerminalName(sessions: Array<{ name: string }>): string {
+  // Find the highest "Terminal N" number
+  let maxNum = 0;
+  for (const session of sessions) {
+    const match = session.name.match(/^Terminal\s+(\d+)$/i);
+    if (match) {
+      maxNum = Math.max(maxNum, parseInt(match[1], 10));
+    }
+  }
+  return `Terminal ${maxNum + 1}`;
+}
+
+/**
  * Create a new project-associated terminal session
  * @param params - Session creation parameters
  * @returns Created session object
