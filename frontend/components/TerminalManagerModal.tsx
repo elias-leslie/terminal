@@ -105,24 +105,26 @@ export function TerminalManagerModal({
     setHasChanges(true);
   };
 
-  // Apply changes
+  // Apply changes - batch updates for parallel execution
   const handleApply = async () => {
-    // Update each changed project
-    for (const local of localProjects) {
-      const original = projects.find((p) => p.id === local.id);
-      if (!original) continue;
+    // Collect all settings updates into an array
+    const settingsUpdates = localProjects
+      .filter((local) => {
+        const original = projects.find((p) => p.id === local.id);
+        return original && local.terminal_enabled !== original.terminal_enabled;
+      })
+      .map((local) => updateSettings(local.id, { enabled: local.terminal_enabled }));
 
-      if (local.terminal_enabled !== original.terminal_enabled) {
-        await updateSettings(local.id, { enabled: local.terminal_enabled });
-      }
-    }
-
-    // Update order if it changed
+    // Check if order changed
     const originalOrder = projects.map((p) => p.id);
     const newOrder = localProjects.map((p) => p.id);
-    if (JSON.stringify(originalOrder) !== JSON.stringify(newOrder)) {
-      await updateOrder(newOrder);
-    }
+    const orderChanged = JSON.stringify(originalOrder) !== JSON.stringify(newOrder);
+
+    // Execute all updates in parallel
+    await Promise.all([
+      ...settingsUpdates,
+      ...(orderChanged ? [updateOrder(newOrder)] : []),
+    ]);
 
     setHasChanges(false);
     onClose();
