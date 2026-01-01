@@ -118,7 +118,8 @@ export function TerminalManagerModal({
     // Check if order changed
     const originalOrder = projects.map((p) => p.id);
     const newOrder = localProjects.map((p) => p.id);
-    const orderChanged = JSON.stringify(originalOrder) !== JSON.stringify(newOrder);
+    const orderChanged = originalOrder.length !== newOrder.length ||
+      originalOrder.some((id, idx) => id !== newOrder[idx]);
 
     // Execute all updates in parallel
     await Promise.all([
