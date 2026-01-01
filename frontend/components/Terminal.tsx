@@ -38,14 +38,6 @@ export interface TerminalHandle {
   status: ConnectionStatus;
 }
 
-// Check if we're on a mobile device (used for pull-to-refresh prevention)
-function isMobileDevice(): boolean {
-  if (typeof window === "undefined") return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
-  ) || window.innerWidth < MOBILE_WIDTH_THRESHOLD;
-}
-
 export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(function TerminalComponent({
   sessionId,
   workingDir,
