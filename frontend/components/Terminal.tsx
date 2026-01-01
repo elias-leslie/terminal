@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
+import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { clsx } from "clsx";
 import "@xterm/xterm/css/xterm.css";
 import {
-  CONNECTION_TIMEOUT,
-  RETRY_BACKOFF,
   SCROLL_THRESHOLD,
   SCROLLBACK,
   MOBILE_WIDTH_THRESHOLD,
   FIT_DELAY_MS,
-  WS_CLOSE_CODE_SESSION_DEAD,
   RESIZE_DEBOUNCE_MS,
   PHOSPHOR_THEME,
 } from "../lib/constants/terminal";
+import { useTerminalWebSocket } from "../lib/hooks/use-terminal-websocket";
 
 // Dynamic imports for xterm (client-side only)
 let Terminal: typeof import("@xterm/xterm").Terminal;
@@ -60,36 +58,40 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<InstanceType<typeof Terminal> | null>(null);
   const fitAddonRef = useRef<InstanceType<typeof FitAddon> | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
-  const connectWebSocketRef = useRef<(() => void) | null>(null);
   const onDataDisposableRef = useRef<{ dispose: () => void } | null>(null);
   const mouseCleanupRef = useRef<(() => void) | null>(null);
+  // Track copy-mode state for reset on input
+  const copyModeStateRef = useRef<{ inCopyMode: boolean; timeout: ReturnType<typeof setTimeout> | null }>({
+    inCopyMode: false,
+    timeout: null,
+  });
 
-  // Store callback in ref to avoid re-render loops
-  const onStatusChangeRef = useRef(onStatusChange);
-  useEffect(() => {
-    onStatusChangeRef.current = onStatusChange;
-  }, [onStatusChange]);
-
-  // Notify parent of status changes (uses ref to avoid dependency on callback)
-  useEffect(() => {
-    onStatusChangeRef.current?.(status);
-  }, [status]);
+  // WebSocket connection management via hook
+  const { status, wsRef, reconnect, sendInput, connect } = useTerminalWebSocket({
+    sessionId,
+    workingDir,
+    onStatusChange,
+    onDisconnect,
+    onMessage: (data) => {
+      if (!terminalRef.current) return;
+      // Preserve scroll position if user is viewing history
+      const buffer = terminalRef.current.buffer.active;
+      const distanceFromBottom = buffer.baseY - buffer.viewportY;
+      terminalRef.current.write(data);
+      // Restore scroll position if user wasn't at bottom
+      if (distanceFromBottom > 0) {
+        terminalRef.current.scrollLines(-distanceFromBottom);
+      }
+    },
+    onTerminalMessage: (message) => {
+      terminalRef.current?.writeln(message);
+    },
+    getDimensions: () => fitAddonRef.current?.proposeDimensions() ?? null,
+  });
 
   // Expose functions to parent
   useImperativeHandle(ref, () => ({
-    reconnect: () => {
-      if (connectWebSocketRef.current) {
-        // Close existing connection if any
-        if (wsRef.current) {
-          wsRef.current.close();
-        }
-        terminalRef.current?.writeln("\x1b[33mReconnecting...\x1b[0m");
-        setStatus("connecting");
-        connectWebSocketRef.current();
-      }
-    },
+    reconnect,
     getContent: () => {
       if (!terminalRef.current) return "";
       // Select all text and get the selection
@@ -98,13 +100,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       terminalRef.current.clearSelection();
       return content;
     },
-    sendInput: (data: string) => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(data);
-      }
-    },
+    sendInput,
     status,
-  }), [status]);
+  }), [status, reconnect, sendInput]);
 
   // Handle resize - always fit the terminal, send dims only if WS connected
   const handleResize = useCallback(() => {
@@ -239,26 +237,25 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       //
       // Copy-mode tracking: We can't detect when user exits via 'q', so we use a timeout.
       // After 10 seconds of no scroll activity, assume user has exited copy-mode.
-      let inCopyMode = false;
-      let copyModeTimeout: ReturnType<typeof setTimeout> | null = null;
       const COPY_MODE_TIMEOUT_MS = 10000; // 10 seconds
+      const copyModeState = copyModeStateRef.current;
 
       const enterCopyMode = () => {
         if (wsRef.current?.readyState !== WebSocket.OPEN) return;
 
         // Clear existing timeout
-        if (copyModeTimeout) clearTimeout(copyModeTimeout);
+        if (copyModeState.timeout) clearTimeout(copyModeState.timeout);
 
         // Enter copy-mode if not already in it
-        if (!inCopyMode) {
+        if (!copyModeState.inCopyMode) {
           wsRef.current.send('\x02['); // Ctrl+B [
-          inCopyMode = true;
+          copyModeState.inCopyMode = true;
         }
 
         // Reset timeout - assume exit after inactivity
-        copyModeTimeout = setTimeout(() => {
-          inCopyMode = false;
-          copyModeTimeout = null;
+        copyModeState.timeout = setTimeout(() => {
+          copyModeState.inCopyMode = false;
+          copyModeState.timeout = null;
         }, COPY_MODE_TIMEOUT_MS);
       };
 
@@ -283,9 +280,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Store wheel cleanup (includes copy-mode timeout cleanup)
       (term as unknown as { _wheelCleanup?: () => void })._wheelCleanup = () => {
         wheelContainer.removeEventListener('wheel', handleWheel, { capture: true });
-        if (copyModeTimeout) {
-          clearTimeout(copyModeTimeout);
-          copyModeTimeout = null;
+        if (copyModeState.timeout) {
+          clearTimeout(copyModeState.timeout);
+          copyModeState.timeout = null;
         }
       };
 

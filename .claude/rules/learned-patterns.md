@@ -95,3 +95,11 @@ Use the `isGeneric` parameter in the `use-terminal-sessions` hook to create term
 *Rationale: Refactored the hook to support ad-hoc terminal sessions across the frontend.*
 
 <!-- Pattern ID: 744c11d1-d538-4625-b030-431eec5dc5c4 | Applied: 2025-12-30T18:06:26.789936 -->
+
+## Strict Git Discipline Blocking Thresholds
+
+Modify the PreToolUse hook to block tool execution if there are more than 10 uncommitted files or if more than 30 minutes have passed since the last commit. Transition from system warnings to hard blocks to ensure frequent, atomic commits during development.
+
+*Rationale: Observed a transition from warnings to hard blocks to maintain development hygiene and prevent large, uncommitted diffs.*
+
+<!-- Pattern ID: e14fc161-59e8-4a92-8cfc-c70d9aadde3c | Applied: 2026-01-01T07:47:05.598129 -->
