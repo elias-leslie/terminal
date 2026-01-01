@@ -5,13 +5,13 @@ import { clsx } from "clsx";
 import "@xterm/xterm/css/xterm.css";
 import {
   SCROLLBACK,
-  MOBILE_WIDTH_THRESHOLD,
   FIT_DELAY_MS,
   RESIZE_DEBOUNCE_MS,
   PHOSPHOR_THEME,
 } from "../lib/constants/terminal";
 import { useTerminalWebSocket } from "../lib/hooks/use-terminal-websocket";
 import { useTerminalScrolling } from "../lib/hooks/use-terminal-scrolling";
+import { isMobileDevice } from "../lib/utils/device";
 
 // Dynamic imports for xterm (client-side only)
 let Terminal: typeof import("@xterm/xterm").Terminal;
