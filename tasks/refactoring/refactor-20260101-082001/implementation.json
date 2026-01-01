@@ -26,7 +26,7 @@
           "description": "Extract SESSION_MODES constant in lifecycle.py",
           "category": "magic_values",
           "severity": "low",
-          "passes": false,
+          "passes": true,
           "files_affected": ["terminal/services/lifecycle.py"],
           "steps": [
             "Read terminal/services/lifecycle.py lines 248 and 320",
@@ -45,7 +45,7 @@
           "description": "Standardize SQL construction in storage/terminal.py",
           "category": "sql_consistency",
           "severity": "medium",
-          "passes": false,
+          "passes": true,
           "files_affected": ["terminal/storage/terminal.py"],
           "steps": [
             "Read terminal/storage/terminal.py lines 42-49 (list_sessions ORDER BY)",
@@ -64,7 +64,7 @@
           "description": "Add logging for silent OSError in _read_output",
           "category": "error_handling",
           "severity": "medium",
-          "passes": false,
+          "passes": true,
           "files_affected": ["terminal/api/terminal.py"],
           "steps": [
             "Read terminal/api/terminal.py lines 380-390 (_read_output OSError handling)",
