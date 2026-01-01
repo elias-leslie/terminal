@@ -11,6 +11,7 @@ import {
 } from "../lib/constants/terminal";
 import { useTerminalWebSocket } from "../lib/hooks/use-terminal-websocket";
 import { useTerminalScrolling } from "../lib/hooks/use-terminal-scrolling";
+import { setupTerminalMouseHandling } from "../lib/hooks/use-terminal-mouse-handling";
 import { isMobileDevice } from "../lib/utils/device";
 
 // Dynamic imports for xterm (client-side only)
@@ -162,60 +163,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Open terminal in container
       term.open(containerRef.current);
 
-      // Force local mouse handling only when mouse reporting is enabled.
-      // Check xterm's internal coreMouseService.areMouseEventsActive property.
-      // When mouse reporting is OFF (regular bash), we let events pass through.
-      const forceLocalMouseHandling = (e: MouseEvent) => {
-        if (e.shiftKey) return; // Already has shift (including our synthetic events), let it through
-        if (!e.isTrusted) return; // Skip synthetic events to prevent loops
-
-        // Check if mouse reporting is enabled via xterm internal API
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const core = (term as any)._core;
-        const mouseService = core?.coreMouseService;
-        const mouseActive = mouseService?.areMouseEventsActive;
-
-        if (!mouseActive) {
-          // Mouse reporting not enabled, let event pass through normally
-          return;
-        }
-
-        // Mouse reporting is enabled - intercept and force local handling
-        e.stopPropagation();
-        e.preventDefault();
-
-        // Create new event with shiftKey=true
-        const newEvent = new MouseEvent(e.type, {
-          bubbles: e.bubbles,
-          cancelable: e.cancelable,
-          view: e.view,
-          detail: e.detail,
-          screenX: e.screenX,
-          screenY: e.screenY,
-          clientX: e.clientX,
-          clientY: e.clientY,
-          ctrlKey: e.ctrlKey,
-          altKey: e.altKey,
-          shiftKey: true, // Force shiftKey for local selection
-          metaKey: e.metaKey,
-          button: e.button,
-          buttons: e.buttons,
-          relatedTarget: e.relatedTarget,
-        });
-
-        e.target?.dispatchEvent(newEvent);
-      };
-      const mouseContainer = containerRef.current;
-      mouseContainer.addEventListener('mousedown', forceLocalMouseHandling, { capture: true });
-      mouseContainer.addEventListener('mouseup', forceLocalMouseHandling, { capture: true });
-      mouseContainer.addEventListener('mousemove', forceLocalMouseHandling, { capture: true });
-
-      // Store cleanup function for mouse listeners
-      mouseCleanupRef.current = () => {
-        mouseContainer.removeEventListener('mousedown', forceLocalMouseHandling, { capture: true });
-        mouseContainer.removeEventListener('mouseup', forceLocalMouseHandling, { capture: true });
-        mouseContainer.removeEventListener('mousemove', forceLocalMouseHandling, { capture: true });
-      };
+      // Set up mouse handling to enable local selection when mouse reporting is active
+      mouseCleanupRef.current = setupTerminalMouseHandling(term, containerRef.current);
 
       // Set up scrolling via hook (handles wheel and touch events for tmux copy-mode)
       scrollCleanupRef.current = setupScrolling(containerRef.current);

@@ -18,6 +18,7 @@ import { useProjectTerminals, ProjectTerminal } from "@/lib/hooks/use-project-te
 import { useClaudePolling } from "@/lib/hooks/use-claude-polling";
 import { useTabEditing } from "@/lib/hooks/use-tab-editing";
 import { useProjectModeSwitch } from "@/lib/hooks/use-project-mode-switch";
+import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
 import { createProjectSession } from "@/lib/utils/session";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { KeyboardSizePreset } from "./SettingsDropdown";
@@ -114,7 +115,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   const { fontId, fontSize, fontFamily, setFontId, setFontSize } = useTerminalSettings();
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [showSettings, setShowSettings] = useState(false);
-  const [keyboardSize, setKeyboardSize] = useState<KeyboardSizePreset>("medium");
+  const [keyboardSize, setKeyboardSize] = useLocalStorageState<KeyboardSizePreset>("terminal-keyboard-size", "medium");
   const [showTerminalManager, setShowTerminalManager] = useState(false);
 
   // Unified slots array for split-pane terminals
@@ -150,14 +151,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     return slots;
   }, [projectTerminals, adHocSessions]);
 
-  // Load keyboard size from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem("terminal-keyboard-size");
-    if (stored === "small" || stored === "medium" || stored === "large") {
-      setKeyboardSize(stored);
-    }
-  }, []);
-
   // Auto-create terminal ONLY on initial page load when no sessions exist
   // Uses sessionStorage to prevent re-creating after user closes all terminals
   const hasAutoCreated = useRef(false);
@@ -176,11 +169,10 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, [isLoading, sessions.length, isCreating, create, projectPath, projectId]);
 
-  // Save keyboard size to localStorage
+  // Handle keyboard size change (localStorage persistence handled by hook)
   const handleKeyboardSizeChange = useCallback((size: KeyboardSizePreset) => {
     setKeyboardSize(size);
-    localStorage.setItem("terminal-keyboard-size", size);
-  }, []);
+  }, [setKeyboardSize]);
 
   // Terminal refs and connection status tracking
   const terminalRefs = useRef<Map<string, TerminalHandle>>(new Map());
