@@ -1,17 +1,11 @@
 "use client";
 
 import { useRef, useCallback, useEffect } from "react";
-import {
-  SCROLL_THRESHOLD,
-  COPY_MODE_TIMEOUT_MS,
-  COPY_MODE_EXIT_SCROLL_THRESHOLD,
-} from "../constants/terminal";
+import { SCROLL_THRESHOLD, COPY_MODE_TIMEOUT_MS } from "../constants/terminal";
 
 interface CopyModeState {
   inCopyMode: boolean;
   timeout: ReturnType<typeof setTimeout> | null;
-  /** Track consecutive down-scrolls to auto-exit when reaching bottom */
-  consecutiveDownScrolls: number;
 }
 
 interface UseTerminalScrollingOptions {
@@ -66,7 +60,6 @@ export function useTerminalScrolling({
   const copyModeStateRef = useRef<CopyModeState>({
     inCopyMode: false,
     timeout: null,
-    consecutiveDownScrolls: 0,
   });
 
   // Enter copy-mode if not already in it
@@ -91,52 +84,15 @@ export function useTerminalScrolling({
     }, COPY_MODE_TIMEOUT_MS);
   }, [wsRef]);
 
-  // Exit copy-mode by sending 'q' and resetting state
-  const exitCopyMode = useCallback(() => {
-    const state = copyModeStateRef.current;
-    if (!state.inCopyMode) return;
-    if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-
-    // Send 'q' to exit tmux copy-mode
-    wsRef.current.send('q');
-
-    // Reset all state
-    state.inCopyMode = false;
-    state.consecutiveDownScrolls = 0;
-    if (state.timeout) {
-      clearTimeout(state.timeout);
-      state.timeout = null;
-    }
-  }, [wsRef]);
-
   // Send scroll command in copy-mode (Ctrl+U up, Ctrl+D down)
-  // Tracks consecutive down-scrolls to auto-exit when user scrolls to bottom
   const sendScrollCommand = useCallback((direction: 'up' | 'down') => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-
-    const state = copyModeStateRef.current;
-
-    if (direction === 'up') {
-      // Scrolling up = reading history, reset down counter
-      state.consecutiveDownScrolls = 0;
-    } else {
-      // Scrolling down = heading back toward bottom
-      state.consecutiveDownScrolls++;
-
-      // Auto-exit after threshold consecutive down-scrolls
-      if (state.consecutiveDownScrolls >= COPY_MODE_EXIT_SCROLL_THRESHOLD) {
-        exitCopyMode();
-        return; // Don't send scroll command, we're exiting
-      }
-    }
-
     wsRef.current.send(direction === 'up' ? '\x15' : '\x04');
-  }, [wsRef, exitCopyMode]);
+  }, [wsRef]);
 
   // Reset copy-mode state (on user input)
   const resetCopyMode = useCallback(() => {
     const state = copyModeStateRef.current;
-    state.consecutiveDownScrolls = 0;
     if (state.inCopyMode) {
       state.inCopyMode = false;
       if (state.timeout) {

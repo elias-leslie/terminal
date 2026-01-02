@@ -25,9 +25,6 @@ export const RESIZE_DEBOUNCE_MS = 150;
 /** Copy-mode timeout in milliseconds (auto-exit after inactivity) */
 export const COPY_MODE_TIMEOUT_MS = 10000;
 
-/** Consecutive down-scrolls before auto-exiting copy-mode (scroll to bottom) */
-export const COPY_MODE_EXIT_SCROLL_THRESHOLD = 5;
-
 /** Phosphor terminal theme colors */
 export const PHOSPHOR_THEME = {
   background: "#0a0e14",
