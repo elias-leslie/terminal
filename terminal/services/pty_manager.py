@@ -130,10 +130,10 @@ async def read_pty_output(websocket: WebSocket, master_fd: int) -> None:
 
     try:
         while True:
-            # Use select to wait for data with timeout
+            # Use select to wait for data with timeout (10ms for responsive typing)
             ready, _, _ = await loop.run_in_executor(
                 None,
-                lambda: select.select([master_fd], [], [], 0.1),
+                lambda: select.select([master_fd], [], [], 0.01),
             )
 
             if ready:

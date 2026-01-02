@@ -1,6 +1,6 @@
 "use client";
 
-import { RefObject } from "react";
+import { RefObject, memo } from "react";
 import { clsx } from "clsx";
 import { Plus, Loader2, RefreshCw } from "lucide-react";
 import { ConnectionStatus } from "./Terminal";
@@ -87,7 +87,7 @@ export interface TabBarProps {
 // Component
 // ============================================================================
 
-export function TabBar({
+export const TabBar = memo(function TabBar({
   projectTerminals,
   projectTabRefs,
   adHocSessions,
@@ -297,4 +297,4 @@ export function TabBar({
       </div>
     </div>
   );
-}
+});
