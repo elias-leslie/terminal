@@ -5,7 +5,6 @@ import { clsx } from "clsx";
 import "@xterm/xterm/css/xterm.css";
 import {
   SCROLLBACK,
-  FIT_DELAY_MS,
   RESIZE_DEBOUNCE_MS,
   PHOSPHOR_THEME,
 } from "../lib/constants/terminal";
@@ -54,6 +53,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   const onDataDisposableRef = useRef<{ dispose: () => void } | null>(null);
   const mouseCleanupRef = useRef<(() => void) | null>(null);
   const scrollCleanupRef = useRef<{ wheelCleanup: () => void; touchCleanup: () => void } | null>(null);
+  const isFocusedRef = useRef(false);
+  const focusCleanupRef = useRef<(() => void) | null>(null);
 
   // WebSocket connection management via hook
   const { status, wsRef, reconnect, sendInput, connect } = useTerminalWebSocket({
@@ -185,16 +186,26 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         containerRef.current.style.touchAction = 'none';
       }
 
-      // Fit immediately and again after a short delay to ensure proper sizing
+      // Initial fit (ResizeObserver handles subsequent resizes)
       fitAddon.fit();
-      setTimeout(() => {
-        if (mounted && fitAddonRef.current) {
-          fitAddonRef.current.fit();
-        }
-      }, FIT_DELAY_MS);
+
+      // Track focus state to prevent input duplication across multiple terminals
+      const textarea = term.textarea;
+      if (textarea) {
+        const handleFocus = () => { isFocusedRef.current = true; };
+        const handleBlur = () => { isFocusedRef.current = false; };
+        textarea.addEventListener("focus", handleFocus);
+        textarea.addEventListener("blur", handleBlur);
+        focusCleanupRef.current = () => {
+          textarea.removeEventListener("focus", handleFocus);
+          textarea.removeEventListener("blur", handleBlur);
+        };
+      }
 
       // Set up terminal input handler - forward to WebSocket and reset copy-mode on typing
       onDataDisposableRef.current = term.onData((data) => {
+        // Only send input if this terminal has focus (prevents grid duplication)
+        if (!isFocusedRef.current) return;
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(data);
           // Typing exits tmux copy-mode, reset our tracking
@@ -204,18 +215,21 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
 
       // Connect to WebSocket via hook
       connect();
-      window.addEventListener("resize", handleResize);
     }
 
     initTerminal();
 
     return () => {
       mounted = false;
-      window.removeEventListener("resize", handleResize);
       // Dispose onData listener before terminal
       if (onDataDisposableRef.current) {
         onDataDisposableRef.current.dispose();
         onDataDisposableRef.current = null;
+      }
+      // Clean up focus listeners
+      if (focusCleanupRef.current) {
+        focusCleanupRef.current();
+        focusCleanupRef.current = null;
       }
       // Clean up mouse listeners
       if (mouseCleanupRef.current) {

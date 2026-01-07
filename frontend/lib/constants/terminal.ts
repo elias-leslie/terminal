@@ -47,7 +47,7 @@ export const PHOSPHOR_THEME = {
   background: "#0a0e14",
   foreground: "#e6edf3",
   cursor: "#00ff9f",
-  cursorAccent: "#0a0e14",
+  cursorAccent: "#ffffff",
   selectionBackground: "rgba(0, 255, 159, 0.3)",
   selectionForeground: "#e6edf3",
   black: "#0f1419",
