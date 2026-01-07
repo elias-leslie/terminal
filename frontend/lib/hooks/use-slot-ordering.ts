@@ -35,7 +35,17 @@ export function useSlotOrdering(slots: TerminalSlot[]): UseSlotOrderingResult {
       const newSlots = currentSlotIds.filter((id) => !prevOrder.includes(id));
 
       // Combine: existing order + new slots at the end
-      return [...existingInOrder, ...newSlots];
+      const newOrder = [...existingInOrder, ...newSlots];
+
+      // CRITICAL: Return same reference if contents unchanged to prevent infinite re-renders
+      if (
+        newOrder.length === prevOrder.length &&
+        newOrder.every((id, i) => prevOrder[i] === id)
+      ) {
+        return prevOrder;
+      }
+
+      return newOrder;
     });
   }, [slots]);
 
