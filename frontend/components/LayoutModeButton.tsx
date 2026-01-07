@@ -1,24 +1,36 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { Square, Rows2, Columns2, ChevronDown, LucideIcon } from "lucide-react";
+import { Square, Rows2, Columns2, ChevronDown, LucideIcon, Grid2x2, Grid3x3, LayoutGrid } from "lucide-react";
+import { GridLayoutMode, GRID_MIN_WIDTHS } from "@/lib/constants/terminal";
 import { useClickOutside } from "@/lib/hooks/useClickOutside";
 
 // Define LayoutMode locally for standalone terminal app
-export type LayoutMode = "single" | "horizontal" | "vertical";
+export type LayoutMode = "single" | "horizontal" | "vertical" | GridLayoutMode;
 
-const LAYOUT_OPTIONS: { mode: LayoutMode; icon: LucideIcon; title: string }[] = [
+interface LayoutOption {
+  mode: LayoutMode;
+  icon: LucideIcon;
+  title: string;
+  minWidth?: number;
+}
+
+const LAYOUT_OPTIONS: LayoutOption[] = [
   { mode: "single", icon: Square, title: "Single pane" },
   { mode: "horizontal", icon: Rows2, title: "Horizontal split" },
   { mode: "vertical", icon: Columns2, title: "Vertical split" },
+  { mode: "grid-2x2", icon: Grid2x2, title: "2×2 Grid", minWidth: GRID_MIN_WIDTHS["grid-2x2"] },
+  { mode: "grid-3x3", icon: Grid3x3, title: "3×3 Grid", minWidth: GRID_MIN_WIDTHS["grid-3x3"] },
+  { mode: "grid-4x4", icon: LayoutGrid, title: "4×4 Grid", minWidth: GRID_MIN_WIDTHS["grid-4x4"] },
 ];
 
 interface LayoutModeButtonsProps {
   layoutMode: LayoutMode;
   onLayoutChange: (mode: LayoutMode) => void;
+  availableLayouts?: LayoutMode[];
 }
 
-export function LayoutModeButtons({ layoutMode, onLayoutChange }: LayoutModeButtonsProps) {
+export function LayoutModeButtons({ layoutMode, onLayoutChange, availableLayouts }: LayoutModeButtonsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -27,6 +39,12 @@ export function LayoutModeButtons({ layoutMode, onLayoutChange }: LayoutModeButt
   const closeDropdown = useCallback(() => setIsOpen(false), []);
   const clickOutsideRefs = useMemo(() => [buttonRef, dropdownRef], []);
   useClickOutside(clickOutsideRefs, closeDropdown, isOpen);
+
+  // Filter options by availableLayouts if provided
+  const filteredOptions = useMemo(() => {
+    if (!availableLayouts) return LAYOUT_OPTIONS;
+    return LAYOUT_OPTIONS.filter((opt) => availableLayouts.includes(opt.mode));
+  }, [availableLayouts]);
 
   // Calculate dropdown position
   useEffect(() => {
@@ -110,7 +128,7 @@ export function LayoutModeButtons({ layoutMode, onLayoutChange }: LayoutModeButt
               boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
             }}
           >
-            {LAYOUT_OPTIONS.map(({ mode, icon: Icon, title }) => {
+            {filteredOptions.map(({ mode, icon: Icon, title }) => {
               const isSelected = mode === layoutMode;
               return (
                 <button

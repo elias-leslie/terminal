@@ -25,6 +25,23 @@ export const RESIZE_DEBOUNCE_MS = 150;
 /** Copy-mode timeout in milliseconds (auto-exit after inactivity) */
 export const COPY_MODE_TIMEOUT_MS = 10000;
 
+/** Grid layout types */
+export type GridLayoutMode = "grid-2x2" | "grid-3x3" | "grid-4x4";
+
+/** Minimum viewport widths required for each grid layout mode (in pixels) */
+export const GRID_MIN_WIDTHS: Record<GridLayoutMode, number> = {
+  "grid-2x2": 1280,
+  "grid-3x3": 1920,
+  "grid-4x4": 2560,
+} as const;
+
+/** Number of cells for each grid layout mode */
+export const GRID_CELL_COUNTS: Record<GridLayoutMode, number> = {
+  "grid-2x2": 4,
+  "grid-3x3": 9,
+  "grid-4x4": 16,
+} as const;
+
 /** Phosphor terminal theme colors */
 export const PHOSPHOR_THEME = {
   background: "#0a0e14",
