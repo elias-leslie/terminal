@@ -1,0 +1,252 @@
+{
+  "project": "terminal-grid-layout",
+  "version": "1.0.0",
+  "status": "complete",
+  "last_updated": "2026-01-06T20:45:00Z",
+  "objective": "Developer can implement grid layout without further clarification",
+  "overview": {
+    "summary": "Add grid layout modes (2x2, 3x3, 4x4) to the terminal app, allowing multiple terminal sessions to be displayed in a square grid arrangement with drag-and-drop reordering.",
+    "current_state": "Terminal supports single pane, horizontal split, and vertical split layouts using react-resizable-panels. Maximum 4 panes in split mode. Mobile (< 768px) is restricted to single pane.",
+    "desired_state": "Terminal supports additional grid layouts (2x2, 3x3, 4x4) with fixed equal-size cells, drag-and-drop session reordering, and viewport-aware availability (grids hidden when viewport too small)."
+  },
+  "gaps": [
+    {
+      "id": "gap-1",
+      "description": "No grid layout modes exist",
+      "current": "LayoutMode = 'single' | 'horizontal' | 'vertical'",
+      "needed": "LayoutMode extended with 'grid-2x2' | 'grid-3x3' | 'grid-4x4'"
+    },
+    {
+      "id": "gap-2",
+      "description": "No CSS Grid rendering for terminals",
+      "current": "Split layouts use react-resizable-panels (1D orientation)",
+      "needed": "GridLayout component using CSS Grid (2D) for grid modes"
+    },
+    {
+      "id": "gap-3",
+      "description": "No drag-and-drop reordering for terminal slots",
+      "current": "Slots auto-filled in fixed order (projectTerminals + adHocSessions)",
+      "needed": "Orderable slots with @dnd-kit integration"
+    },
+    {
+      "id": "gap-4",
+      "description": "No viewport-aware layout filtering",
+      "current": "All layout options shown regardless of screen size",
+      "needed": "Grid options hidden when viewport below minimum width"
+    }
+  ],
+  "requirements": {
+    "goals": [
+      {
+        "goal": "Support 2x2, 3x3, and 4x4 grid layouts",
+        "criteria": [
+          "User can select grid layout from dropdown",
+          "Grid renders with equal-size cells",
+          "Each cell contains a terminal session"
+        ],
+        "priority": "must"
+      },
+      {
+        "goal": "Enable drag-and-drop reordering within grid",
+        "criteria": [
+          "User can drag sessions between grid cells",
+          "Order persists within session (not localStorage)",
+          "Drag indicator shows during drag"
+        ],
+        "priority": "must"
+      },
+      {
+        "goal": "Viewport-aware grid availability",
+        "criteria": [
+          "2x2 grid hidden below 1280px",
+          "3x3 grid hidden below 1920px",
+          "4x4 grid hidden below 2560px",
+          "Auto-downgrade to available layout when viewport shrinks"
+        ],
+        "priority": "must"
+      },
+      {
+        "goal": "Mobile exclusion",
+        "criteria": [
+          "Grid options never shown on mobile (< 768px)",
+          "Existing mobile behavior unchanged"
+        ],
+        "priority": "must"
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "id": "dec-1",
+      "decision": "Square grids only (not rectangular)",
+      "rationale": "Simpler UI, predictable layouts. User selected this option.",
+      "alternatives_considered": ["All rectangles (2x3, 3x2, etc.)"]
+    },
+    {
+      "id": "dec-2",
+      "decision": "Auto-fill with drag reordering",
+      "rationale": "Balance between simplicity (auto-fill) and control (drag to reorder). User selected this hybrid approach.",
+      "alternatives_considered": ["Pure auto-fill (no control)", "Manual assignment only"]
+    },
+    {
+      "id": "dec-3",
+      "decision": "Fixed equal-size cells",
+      "rationale": "Simpler implementation, predictable layout. User selected this option.",
+      "alternatives_considered": ["Resizable cells with drag borders"]
+    },
+    {
+      "id": "dec-4",
+      "decision": "Breakpoints: 1280px (2x2), 1920px (3x3), 2560px (4x4)",
+      "rationale": "Based on 80-column minimum per terminal cell. At ~8px per character, 80 cols = 640px. For 2x2: 640*2 = 1280px minimum.",
+      "alternatives_considered": ["Fixed 1024px for all", "Scale by grid size (selected)"]
+    },
+    {
+      "id": "dec-5",
+      "decision": "Use CSS Grid instead of nested react-resizable-panels",
+      "rationale": "react-resizable-panels is 1D (horizontal or vertical). CSS Grid is 2D and simpler for equal-size grids without resizing.",
+      "alternatives_considered": ["Nested Group components"]
+    },
+    {
+      "id": "dec-6",
+      "decision": "Use @dnd-kit with rectSortingStrategy",
+      "rationale": "@dnd-kit already in dependencies. rectSortingStrategy designed for grid layouts.",
+      "alternatives_considered": ["react-beautiful-dnd", "Custom implementation"]
+    }
+  ],
+  "implementation": {
+    "phases": [
+      {
+        "phase": 1,
+        "name": "Constants and Types",
+        "files": [
+          "frontend/lib/constants/terminal.ts",
+          "frontend/components/LayoutModeButton.tsx"
+        ],
+        "tasks": [
+          "Add GRID_MIN_WIDTHS and GRID_CELL_COUNTS constants",
+          "Extend LayoutMode type with grid modes",
+          "Add grid icons (Grid2x2, Grid3x3, LayoutGrid) to options"
+        ]
+      },
+      {
+        "phase": 2,
+        "name": "Responsive Hooks",
+        "files": [
+          "frontend/lib/hooks/use-available-layouts.ts (new)",
+          "frontend/lib/hooks/use-slot-ordering.ts (new)"
+        ],
+        "tasks": [
+          "Create useAvailableLayouts hook (returns LayoutMode[] based on viewport)",
+          "Create useSlotOrdering hook (manages drag-and-drop order state)"
+        ]
+      },
+      {
+        "phase": 3,
+        "name": "Grid Components",
+        "files": [
+          "frontend/components/GridCell.tsx (new)",
+          "frontend/components/GridLayout.tsx (new)"
+        ],
+        "tasks": [
+          "Create GridCell component (similar to SplitPane without resizing)",
+          "Add drag handle with @dnd-kit/sortable",
+          "Create GridLayout container with CSS Grid and DnD context"
+        ]
+      },
+      {
+        "phase": 4,
+        "name": "Integration",
+        "files": [
+          "frontend/components/TerminalTabs.tsx",
+          "frontend/components/LayoutModeButton.tsx",
+          "frontend/components/TabBar.tsx"
+        ],
+        "tasks": [
+          "Add grid layout render branch in TerminalTabs",
+          "Add slot ordering state and auto-downgrade logic",
+          "Filter layout options by availableLayouts in dropdown",
+          "Pass availableLayouts prop through TabBar"
+        ]
+      },
+      {
+        "phase": 5,
+        "name": "UI Polish",
+        "files": [
+          "frontend/components/GridCell.tsx",
+          "frontend/components/GridLayout.tsx"
+        ],
+        "tasks": [
+          "Style grid cells and hover states",
+          "Add drag indicator animations",
+          "Style empty cell placeholders",
+          "Use frontend-design plugin for final polish"
+        ]
+      }
+    ]
+  },
+  "files_to_modify": [
+    {
+      "path": "frontend/lib/constants/terminal.ts",
+      "action": "edit",
+      "description": "Add GRID_MIN_WIDTHS and GRID_CELL_COUNTS constants"
+    },
+    {
+      "path": "frontend/components/LayoutModeButton.tsx",
+      "action": "edit",
+      "description": "Extend LayoutMode type, add grid icons, filter by availableLayouts"
+    },
+    {
+      "path": "frontend/components/TerminalTabs.tsx",
+      "action": "edit",
+      "description": "Add grid layout rendering, slot ordering, auto-downgrade"
+    },
+    {
+      "path": "frontend/components/TabBar.tsx",
+      "action": "edit",
+      "description": "Pass availableLayouts prop to LayoutModeButtons"
+    }
+  ],
+  "files_to_create": [
+    {
+      "path": "frontend/lib/hooks/use-available-layouts.ts",
+      "description": "Hook returning available LayoutMode[] based on viewport width"
+    },
+    {
+      "path": "frontend/lib/hooks/use-slot-ordering.ts",
+      "description": "Hook managing ordered slot IDs for drag-and-drop"
+    },
+    {
+      "path": "frontend/components/GridCell.tsx",
+      "description": "Individual grid cell with terminal and drag handle"
+    },
+    {
+      "path": "frontend/components/GridLayout.tsx",
+      "description": "CSS Grid container with DnD context"
+    }
+  ],
+  "dependencies": {
+    "existing": [
+      "@dnd-kit/core",
+      "@dnd-kit/sortable",
+      "lucide-react",
+      "react-resizable-panels"
+    ],
+    "new": []
+  },
+  "recommended_next_steps": [
+    "Run /task_it terminal-grid-layout to generate SummitFlow task with subtasks",
+    "Execute implementation with /do_it",
+    "Use /frontend-design for Phase 5 UI polish"
+  ],
+  "discovery_meta": {
+    "phases_completed": ["detection", "discovery", "interview", "specification", "verification"],
+    "questions_asked": 4,
+    "explore_agents_used": 2,
+    "files_read": [
+      "frontend/components/TerminalTabs.tsx",
+      "frontend/components/SplitPane.tsx",
+      "frontend/components/LayoutModeButton.tsx",
+      "frontend/lib/hooks/use-media-query.ts"
+    ]
+  }
+}
