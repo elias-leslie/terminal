@@ -1,75 +1,107 @@
 {
-  "project": "terminal-grid-layout",
+  "project": "terminal-uiux-fixes",
   "version": "1.0.0",
   "status": "complete",
-  "last_updated": "2026-01-06T20:45:00Z",
-  "objective": "Developer can implement grid layout without further clarification",
+  "last_updated": "2026-01-07T16:00:00Z",
+  "objective": "All 6 terminal rendering/input issues are root-caused with clear, implementable fixes that don't introduce regressions",
   "overview": {
-    "summary": "Add grid layout modes (2x2, 3x3, 4x4) to the terminal app, allowing multiple terminal sessions to be displayed in a square grid arrangement with drag-and-drop reordering.",
-    "current_state": "Terminal supports single pane, horizontal split, and vertical split layouts using react-resizable-panels. Maximum 4 panes in split mode. Mobile (< 768px) is restricted to single pane.",
-    "desired_state": "Terminal supports additional grid layouts (2x2, 3x3, 4x4) with fixed equal-size cells, drag-and-drop session reordering, and viewport-aware availability (grids hidden when viewport too small)."
+    "summary": "Comprehensive investigation and fix specification for terminal UI/UX bugs including cursor visibility, multi-pane corruption, rendering stacking, status bar flickering, input duplication, and status bar consolidation.",
+    "current_state": "Terminal exhibits multiple rendering and input handling bugs: invisible cursor, cross-pane corruption when switching focus, tmux status bar stacking 3-4x, spontaneous status bar flickering, 3x input duplication in grid view, and redundant bottom status bar.",
+    "desired_state": "Terminal with high-contrast visible cursor, isolated pane rendering, clean single-render status bars, event-driven updates (no flicker), single-destination input routing, and minimal top-bar-only UI with hover-accessible session info."
   },
   "gaps": [
     {
       "id": "gap-1",
-      "description": "No grid layout modes exist",
-      "current": "LayoutMode = 'single' | 'horizontal' | 'vertical'",
-      "needed": "LayoutMode extended with 'grid-2x2' | 'grid-3x3' | 'grid-4x4'"
+      "description": "Cursor accent color matches background",
+      "current": "cursorAccent: '#0a0e14' (same as background)",
+      "needed": "cursorAccent: '#ffffff' (white for visibility)"
     },
     {
       "id": "gap-2",
-      "description": "No CSS Grid rendering for terminals",
-      "current": "Split layouts use react-resizable-panels (1D orientation)",
-      "needed": "GridLayout component using CSS Grid (2D) for grid modes"
+      "description": "Invisible terminals still process WebSocket messages",
+      "current": "All Terminal components mount and receive WS messages regardless of visibility",
+      "needed": "Pause WS message processing when terminal is invisible (keep connection)"
     },
     {
       "id": "gap-3",
-      "description": "No drag-and-drop reordering for terminal slots",
-      "current": "Slots auto-filled in fixed order (projectTerminals + adHocSessions)",
-      "needed": "Orderable slots with @dnd-kit integration"
+      "description": "Multiple overlapping resize handlers cause race conditions",
+      "current": "window.resize (immediate) + ResizeObserver (150ms debounce) + double fit() on init",
+      "needed": "Single ResizeObserver handler, single fit() call, proper debouncing"
     },
     {
       "id": "gap-4",
-      "description": "No viewport-aware layout filtering",
-      "current": "All layout options shown regardless of screen size",
-      "needed": "Grid options hidden when viewport below minimum width"
+      "description": "Polling causes cascading cache invalidations",
+      "current": "30s refetchInterval on sessions + 500ms Claude polling invalidates ALL sessions",
+      "needed": "Event-driven refetch only (on user actions), no polling intervals"
+    },
+    {
+      "id": "gap-5",
+      "description": "XTerm onData fires for all visible terminals",
+      "current": "No focus check - all mounted terminals send input to their WebSocket",
+      "needed": "Focus guard in onData handler - only send if terminal is focused"
+    },
+    {
+      "id": "gap-6",
+      "description": "Tmux status bar renders and stacks",
+      "current": "Tmux status bar enabled, renders at bottom, stacks during resize races",
+      "needed": "Disable tmux status bar entirely via config, add top-bar icon with hover tooltip"
     }
   ],
   "requirements": {
     "goals": [
       {
-        "goal": "Support 2x2, 3x3, and 4x4 grid layouts",
+        "goal": "Cursor clearly visible in all contexts",
         "criteria": [
-          "User can select grid layout from dropdown",
-          "Grid renders with equal-size cells",
-          "Each cell contains a terminal session"
+          "Cursor accent is white (#ffffff)",
+          "Block cursor has visible text inside",
+          "Works with phosphor green theme"
         ],
         "priority": "must"
       },
       {
-        "goal": "Enable drag-and-drop reordering within grid",
+        "goal": "Grid view switching causes zero corruption",
         "criteria": [
-          "User can drag sessions between grid cells",
-          "Order persists within session (not localStorage)",
-          "Drag indicator shows during drag"
+          "Invisible terminals pause WS message processing",
+          "Terminal content preserved when switching focus",
+          "No content bleeding between panes"
         ],
         "priority": "must"
       },
       {
-        "goal": "Viewport-aware grid availability",
+        "goal": "No duplicate/stacked rendering artifacts",
         "criteria": [
-          "2x2 grid hidden below 1280px",
-          "3x3 grid hidden below 1920px",
-          "4x4 grid hidden below 2560px",
-          "Auto-downgrade to available layout when viewport shrinks"
+          "Single fit() call per resize event",
+          "ResizeObserver is sole resize trigger",
+          "Remove duplicate 100ms delayed fit()",
+          "Remove window.resize listener"
         ],
         "priority": "must"
       },
       {
-        "goal": "Mobile exclusion",
+        "goal": "Status bar remains stable - no flickering",
         "criteria": [
-          "Grid options never shown on mobile (< 768px)",
-          "Existing mobile behavior unchanged"
+          "Remove 30s refetchInterval from sessions query",
+          "Remove 500ms Claude polling (make startup await-based)",
+          "Only refetch on explicit user actions"
+        ],
+        "priority": "must"
+      },
+      {
+        "goal": "Input goes only to focused terminal",
+        "criteria": [
+          "Add focus tracking to Terminal component",
+          "Guard onData handler with focus check",
+          "Single keystroke = single send to one terminal"
+        ],
+        "priority": "must"
+      },
+      {
+        "goal": "Minimal top bar with accessible session info",
+        "criteria": [
+          "Disable tmux status bar (set -g status off)",
+          "Add info icon to top bar",
+          "Icon hover shows session ID + timestamp tooltip",
+          "Click copies session info to clipboard"
         ],
         "priority": "must"
       }
@@ -78,108 +110,127 @@
   "decisions": [
     {
       "id": "dec-1",
-      "decision": "Square grids only (not rectangular)",
-      "rationale": "Simpler UI, predictable layouts. User selected this option.",
-      "alternatives_considered": ["All rectangles (2x3, 3x2, etc.)"]
+      "decision": "Pause WS processing for invisible terminals (not disconnect)",
+      "rationale": "Keeps connection alive for fast switching (~0ms) vs reconnect latency (~100-300ms). Buffer accumulates but is discarded or processed on visibility change.",
+      "alternatives_considered": ["Full disconnect", "Lazy mount"]
     },
     {
       "id": "dec-2",
-      "decision": "Auto-fill with drag reordering",
-      "rationale": "Balance between simplicity (auto-fill) and control (drag to reorder). User selected this hybrid approach.",
-      "alternatives_considered": ["Pure auto-fill (no control)", "Manual assignment only"]
+      "decision": "Use ResizeObserver only, remove window.resize",
+      "rationale": "ResizeObserver already catches all container changes. Window.resize is redundant and causes race conditions with debounced ResizeObserver.",
+      "alternatives_considered": ["Keep both + batch", "Keep current"]
     },
     {
       "id": "dec-3",
-      "decision": "Fixed equal-size cells",
-      "rationale": "Simpler implementation, predictable layout. User selected this option.",
-      "alternatives_considered": ["Resizable cells with drag borders"]
+      "decision": "Event-driven refetch, no polling intervals",
+      "rationale": "30s polling causes flickering even when idle. React Query already refetches on window focus. User actions (create, delete, mode switch) trigger explicit invalidations.",
+      "alternatives_considered": ["Increase interval to 2-5min", "Scoped invalidation"]
     },
     {
       "id": "dec-4",
-      "decision": "Breakpoints: 1280px (2x2), 1920px (3x3), 2560px (4x4)",
-      "rationale": "Based on 80-column minimum per terminal cell. At ~8px per character, 80 cols = 640px. For 2x2: 640*2 = 1280px minimum.",
-      "alternatives_considered": ["Fixed 1024px for all", "Scale by grid size (selected)"]
+      "decision": "Focus guard in onData handler",
+      "rationale": "Single-point fix in Terminal.tsx:197. Check if terminal is focused before sending to WebSocket. Simpler than architectural slot deduplication.",
+      "alternatives_considered": ["Prevent duplicate slots in GridLayout", "Both guards"]
     },
     {
       "id": "dec-5",
-      "decision": "Use CSS Grid instead of nested react-resizable-panels",
-      "rationale": "react-resizable-panels is 1D (horizontal or vertical). CSS Grid is 2D and simpler for equal-size grids without resizing.",
-      "alternatives_considered": ["Nested Group components"]
+      "decision": "Disable tmux status bar via config",
+      "rationale": "set -g status off removes all status bar rendering. Cleaner than viewport hacks. No stacking possible if bar doesn't exist.",
+      "alternatives_considered": ["Hide via row calculation"]
     },
     {
       "id": "dec-6",
-      "decision": "Use @dnd-kit with rectSortingStrategy",
-      "rationale": "@dnd-kit already in dependencies. rectSortingStrategy designed for grid layouts.",
-      "alternatives_considered": ["react-beautiful-dnd", "Custom implementation"]
+      "decision": "Top bar info icon with hover tooltip + click-to-copy",
+      "rationale": "Keeps top bar minimal while preserving session context access. Useful for debugging/testing. Timestamp included for session age visibility.",
+      "alternatives_considered": ["No identifier", "Always-visible session ID"]
     }
   ],
   "implementation": {
     "phases": [
       {
         "phase": 1,
-        "name": "Constants and Types",
+        "name": "Cursor Fix",
         "files": [
-          "frontend/lib/constants/terminal.ts",
-          "frontend/components/LayoutModeButton.tsx"
+          "frontend/lib/constants/terminal.ts"
         ],
         "tasks": [
-          "Add GRID_MIN_WIDTHS and GRID_CELL_COUNTS constants",
-          "Extend LayoutMode type with grid modes",
-          "Add grid icons (Grid2x2, Grid3x3, LayoutGrid) to options"
+          "Change cursorAccent from '#0a0e14' to '#ffffff' (line 50)"
         ]
       },
       {
         "phase": 2,
-        "name": "Responsive Hooks",
+        "name": "Resize Consolidation",
         "files": [
-          "frontend/lib/hooks/use-available-layouts.ts (new)",
-          "frontend/lib/hooks/use-slot-ordering.ts (new)"
+          "frontend/components/Terminal.tsx"
         ],
         "tasks": [
-          "Create useAvailableLayouts hook (returns LayoutMode[] based on viewport)",
-          "Create useSlotOrdering hook (manages drag-and-drop order state)"
+          "Remove window.resize event listener (line 207)",
+          "Remove 100ms delayed fit() call (lines 190-194)",
+          "Keep single ResizeObserver with proper debounce"
         ]
       },
       {
         "phase": 3,
-        "name": "Grid Components",
+        "name": "Focus-Based Input Guard",
         "files": [
-          "frontend/components/GridCell.tsx (new)",
-          "frontend/components/GridLayout.tsx (new)"
+          "frontend/components/Terminal.tsx"
         ],
         "tasks": [
-          "Create GridCell component (similar to SplitPane without resizing)",
-          "Add drag handle with @dnd-kit/sortable",
-          "Create GridLayout container with CSS Grid and DnD context"
+          "Add isFocused state/ref to Terminal component",
+          "Track focus via xterm.js textarea focus events",
+          "Guard onData handler: only send if isFocused"
         ]
       },
       {
         "phase": 4,
-        "name": "Integration",
+        "name": "Invisible Terminal Pause",
         "files": [
-          "frontend/components/TerminalTabs.tsx",
-          "frontend/components/LayoutModeButton.tsx",
-          "frontend/components/TabBar.tsx"
+          "frontend/components/Terminal.tsx",
+          "frontend/lib/hooks/use-terminal-websocket.ts"
         ],
         "tasks": [
-          "Add grid layout render branch in TerminalTabs",
-          "Add slot ordering state and auto-downgrade logic",
-          "Filter layout options by availableLayouts in dropdown",
-          "Pass availableLayouts prop through TabBar"
+          "Add isVisible prop to Terminal component",
+          "Pass visibility state from TerminalTabs (based on activeSessionId)",
+          "In onMessage callback, skip write() if not visible",
+          "Optionally: flush accumulated buffer on visibility change"
         ]
       },
       {
         "phase": 5,
-        "name": "UI Polish",
+        "name": "Event-Driven Refetch",
         "files": [
-          "frontend/components/GridCell.tsx",
-          "frontend/components/GridLayout.tsx"
+          "frontend/lib/hooks/use-terminal-sessions.ts",
+          "frontend/lib/hooks/use-claude-polling.ts"
         ],
         "tasks": [
-          "Style grid cells and hover states",
-          "Add drag indicator animations",
-          "Style empty cell placeholders",
-          "Use frontend-design plugin for final polish"
+          "Remove refetchInterval: 30000 from sessions query (line 158)",
+          "Convert Claude polling to promise-based await (startClaudeAndWait)",
+          "Keep explicit invalidations on user actions (create, delete, mode switch)"
+        ]
+      },
+      {
+        "phase": 6,
+        "name": "Tmux Status Bar Removal",
+        "files": [
+          "terminal/utils/tmux.py"
+        ],
+        "tasks": [
+          "Add 'set -g status off' to tmux session creation",
+          "Verify existing sessions can be updated or need recreation"
+        ]
+      },
+      {
+        "phase": 7,
+        "name": "Top Bar Session Info Icon",
+        "files": [
+          "frontend/components/TabBar.tsx",
+          "frontend/components/SessionInfoIcon.tsx (new)"
+        ],
+        "tasks": [
+          "Create SessionInfoIcon component with tooltip",
+          "Tooltip shows: session ID, mode (shell/claude), timestamp",
+          "Click handler copies info to clipboard",
+          "Add icon to TabBar right side"
         ]
       }
     ]
@@ -188,65 +239,81 @@
     {
       "path": "frontend/lib/constants/terminal.ts",
       "action": "edit",
-      "description": "Add GRID_MIN_WIDTHS and GRID_CELL_COUNTS constants"
+      "description": "Change cursorAccent to #ffffff"
     },
     {
-      "path": "frontend/components/LayoutModeButton.tsx",
+      "path": "frontend/components/Terminal.tsx",
       "action": "edit",
-      "description": "Extend LayoutMode type, add grid icons, filter by availableLayouts"
+      "description": "Remove window.resize listener, remove delayed fit(), add focus tracking, add visibility-based message handling"
     },
     {
-      "path": "frontend/components/TerminalTabs.tsx",
+      "path": "frontend/lib/hooks/use-terminal-websocket.ts",
       "action": "edit",
-      "description": "Add grid layout rendering, slot ordering, auto-downgrade"
+      "description": "Add visibility check to onMessage callback"
+    },
+    {
+      "path": "frontend/lib/hooks/use-terminal-sessions.ts",
+      "action": "edit",
+      "description": "Remove refetchInterval: 30000"
+    },
+    {
+      "path": "frontend/lib/hooks/use-claude-polling.ts",
+      "action": "edit",
+      "description": "Convert interval polling to promise-based await"
+    },
+    {
+      "path": "terminal/utils/tmux.py",
+      "action": "edit",
+      "description": "Add set -g status off to session creation"
     },
     {
       "path": "frontend/components/TabBar.tsx",
       "action": "edit",
-      "description": "Pass availableLayouts prop to LayoutModeButtons"
+      "description": "Add SessionInfoIcon to right side"
     }
   ],
   "files_to_create": [
     {
-      "path": "frontend/lib/hooks/use-available-layouts.ts",
-      "description": "Hook returning available LayoutMode[] based on viewport width"
-    },
-    {
-      "path": "frontend/lib/hooks/use-slot-ordering.ts",
-      "description": "Hook managing ordered slot IDs for drag-and-drop"
-    },
-    {
-      "path": "frontend/components/GridCell.tsx",
-      "description": "Individual grid cell with terminal and drag handle"
-    },
-    {
-      "path": "frontend/components/GridLayout.tsx",
-      "description": "CSS Grid container with DnD context"
+      "path": "frontend/components/SessionInfoIcon.tsx",
+      "description": "Info icon with hover tooltip (session + timestamp) and click-to-copy"
     }
   ],
   "dependencies": {
     "existing": [
-      "@dnd-kit/core",
-      "@dnd-kit/sortable",
-      "lucide-react",
-      "react-resizable-panels"
+      "@xterm/xterm",
+      "@xterm/addon-fit",
+      "react-query"
     ],
     "new": []
   },
   "recommended_next_steps": [
-    "Run /task_it terminal-grid-layout to generate SummitFlow task with subtasks",
-    "Execute implementation with /do_it",
-    "Use /frontend-design for Phase 5 UI polish"
+    "Run /task_it terminal-uiux-fixes to generate SummitFlow task with subtasks",
+    "Test cursor visibility after Phase 1",
+    "Test input duplication in 2x2 grid after Phase 3",
+    "Verify no flickering after Phase 5 with 60+ second idle observation"
   ],
   "discovery_meta": {
-    "phases_completed": ["detection", "discovery", "interview", "specification", "verification"],
-    "questions_asked": 4,
-    "explore_agents_used": 2,
-    "files_read": [
+    "phases_completed": ["detection", "discovery", "interview", "specification"],
+    "questions_asked": 6,
+    "explore_agents_used": 5,
+    "files_analyzed": [
+      "frontend/components/Terminal.tsx",
       "frontend/components/TerminalTabs.tsx",
-      "frontend/components/SplitPane.tsx",
-      "frontend/components/LayoutModeButton.tsx",
-      "frontend/lib/hooks/use-media-query.ts"
-    ]
+      "frontend/components/GridLayout.tsx",
+      "frontend/lib/constants/terminal.ts",
+      "frontend/lib/hooks/use-terminal-websocket.ts",
+      "frontend/lib/hooks/use-terminal-sessions.ts",
+      "frontend/lib/hooks/use-claude-polling.ts",
+      "frontend/lib/hooks/use-terminal-tabs-state.ts",
+      "terminal/utils/tmux.py",
+      "terminal/api/terminal.py"
+    ],
+    "root_causes_identified": {
+      "cursor": "cursorAccent #0a0e14 matches background",
+      "corruption": "Invisible terminals still process WS messages",
+      "stacking": "Multiple fit() calls + racing resize handlers",
+      "flickering": "30s refetch + 500ms Claude polling",
+      "input_dup": "No focus guard on onData, all instances send"
+    }
   }
 }
