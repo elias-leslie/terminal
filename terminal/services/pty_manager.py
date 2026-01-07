@@ -14,7 +14,6 @@ import errno
 import fcntl
 import os
 import pty
-import select
 import shlex
 import struct
 import termios
@@ -116,6 +115,9 @@ def resize_pty(master_fd: int, cols: int, rows: int) -> None:
 async def read_pty_output(websocket: WebSocket, master_fd: int) -> None:
     """Read output from PTY and send to WebSocket.
 
+    Uses asyncio native FD watching with loop.add_reader() for true zero CPU
+    when idle, instead of polling with select().
+
     Handles UTF-8 decoding with buffering for incomplete multi-byte sequences.
 
     Args:
@@ -123,70 +125,79 @@ async def read_pty_output(websocket: WebSocket, master_fd: int) -> None:
         master_fd: Master file descriptor to read from
     """
     loop = asyncio.get_event_loop()
+    # Queue to bridge sync callback to async context
+    queue: asyncio.Queue[bytes | None] = asyncio.Queue()
     # Buffer for incomplete UTF-8 sequences at end of reads
     utf8_buffer = b""
     # Max buffer size - UTF-8 chars are max 4 bytes
     MAX_UTF8_BUFFER = 4
 
+    def on_readable() -> None:
+        """Callback when FD has data available - runs in event loop thread."""
+        try:
+            data = os.read(master_fd, 8192)
+            if data:
+                queue.put_nowait(data)
+            else:
+                queue.put_nowait(None)  # EOF
+        except OSError as e:
+            # EIO is expected when terminal closes
+            if e.errno != errno.EIO:
+                logger.warning(
+                    "pty_read_error",
+                    error=str(e),
+                    errno=e.errno,
+                )
+            queue.put_nowait(None)
+
+    # Register FD for read events - true event-driven, zero CPU when idle
+    loop.add_reader(master_fd, on_readable)
+
     try:
         while True:
-            # Use select to wait for data with timeout (50ms balances responsiveness vs CPU)
-            # 10ms was too aggressive (100 polls/sec/terminal = 400/sec for 4 terminals)
-            ready, _, _ = await loop.run_in_executor(
-                None,
-                lambda: select.select([master_fd], [], [], 0.05),
-            )
+            # Blocks until data available - zero CPU while waiting
+            output = await queue.get()
 
-            if ready:
-                try:
-                    output = os.read(master_fd, 8192)
-                    if output:
-                        # Prepend any buffered incomplete sequence
-                        output = utf8_buffer + output
-                        utf8_buffer = b""
+            if output is None:
+                # EOF or error
+                break
 
-                        # Try to decode, handling incomplete sequences at the end
-                        try:
-                            decoded = output.decode("utf-8")
-                        except UnicodeDecodeError as e:
-                            # Check if error is at the end (incomplete sequence)
-                            if e.start >= len(output) - 3:
-                                # Buffer the incomplete bytes for next read
-                                utf8_buffer = output[e.start :]
-                                # Safety: clear buffer if it grows too large
-                                if len(utf8_buffer) > MAX_UTF8_BUFFER:
-                                    logger.debug(
-                                        "utf8_buffer_overflow",
-                                        buffer_size=len(utf8_buffer),
-                                    )
-                                    utf8_buffer = b""
-                                decoded = output[: e.start].decode(
-                                    "utf-8", errors="replace"
-                                )
-                            else:
-                                # Error in middle, replace and continue
-                                decoded = output.decode("utf-8", errors="replace")
+            # Prepend any buffered incomplete sequence
+            output = utf8_buffer + output
+            utf8_buffer = b""
 
-                        if decoded:
-                            await websocket.send_text(decoded)
-
-                            # Detect tmux session exit - triggers disconnect for reconnect
-                            if "[exited]" in decoded:
-                                logger.info("tmux_session_exited_detected")
-                                break
-                except OSError as e:
-                    # EIO is expected when terminal closes
-                    if e.errno != errno.EIO:
-                        logger.warning(
-                            "pty_read_error",
-                            error=str(e),
-                            errno=e.errno,
+            # Try to decode, handling incomplete sequences at the end
+            try:
+                decoded = output.decode("utf-8")
+            except UnicodeDecodeError as e:
+                # Check if error is at the end (incomplete sequence)
+                if e.start >= len(output) - 3:
+                    # Buffer the incomplete bytes for next read
+                    utf8_buffer = output[e.start :]
+                    # Safety: clear buffer if it grows too large
+                    if len(utf8_buffer) > MAX_UTF8_BUFFER:
+                        logger.debug(
+                            "utf8_buffer_overflow",
+                            buffer_size=len(utf8_buffer),
                         )
+                        utf8_buffer = b""
+                    decoded = output[: e.start].decode("utf-8", errors="replace")
+                else:
+                    # Error in middle, replace and continue
+                    decoded = output.decode("utf-8", errors="replace")
+
+            if decoded:
+                await websocket.send_text(decoded)
+
+                # Detect tmux session exit - triggers disconnect for reconnect
+                if "[exited]" in decoded:
+                    logger.info("tmux_session_exited_detected")
                     break
-            else:
-                await asyncio.sleep(0.05)
 
     except asyncio.CancelledError:
         pass
     except Exception as e:
         logger.error("terminal_output_error", error=str(e))
+    finally:
+        # Always clean up the FD reader
+        loop.remove_reader(master_fd)
