@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { clsx } from "clsx";
 import { Group } from "react-resizable-panels";
 import { TerminalComponent } from "./Terminal";
@@ -94,6 +95,17 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     remove,
   } = useTerminalTabsState({ projectId, projectPath });
 
+  // Compute active session info for SessionInfoIcon
+  const activeSessionInfo = useMemo(() => {
+    if (!activeSessionId || !sessions.length) return null;
+    const session = sessions.find((s) => s.id === activeSessionId);
+    if (!session) return null;
+    return {
+      mode: session.mode,
+      timestamp: session.created_at || undefined,
+    };
+  }, [activeSessionId, sessions]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -150,6 +162,8 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         showReconnect={!!showReconnect}
         activeStatus={activeStatus}
         getProjectSessionId={getProjectSessionId}
+        activeSessionMode={activeSessionInfo?.mode}
+        activeSessionTimestamp={activeSessionInfo?.timestamp}
       />
 
       {/* Terminal panels */}

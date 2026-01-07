@@ -9,6 +9,7 @@ import { GlobalActionMenu } from "./GlobalActionMenu";
 import { SettingsDropdown, KeyboardSizePreset } from "./SettingsDropdown";
 import { ProjectTab } from "./ProjectTab";
 import { AdHocTab } from "./AdHocTab";
+import { SessionInfoIcon } from "./SessionInfoIcon";
 import { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 import { TerminalFontId, TerminalFontSize } from "@/lib/hooks/use-terminal-settings";
@@ -82,6 +83,10 @@ export interface TabBarProps {
 
   // Helper to get session ID for a project
   getProjectSessionId: (pt: ProjectTerminal) => string | null;
+
+  // Active session info (for SessionInfoIcon)
+  activeSessionMode?: "shell" | "claude";
+  activeSessionTimestamp?: string;
 }
 
 // ============================================================================
@@ -128,6 +133,8 @@ export const TabBar = memo(function TabBar({
   showReconnect,
   activeStatus,
   getProjectSessionId,
+  activeSessionMode,
+  activeSessionTimestamp,
 }: TabBarProps) {
   return (
     <div
@@ -276,6 +283,14 @@ export const TabBar = memo(function TabBar({
           >
             <RefreshCw className="w-4 h-4" />
           </button>
+        )}
+        {/* Session info icon */}
+        {activeSessionId && activeSessionMode && (
+          <SessionInfoIcon
+            sessionId={activeSessionId}
+            mode={activeSessionMode}
+            timestamp={activeSessionTimestamp}
+          />
         )}
         {/* Global action menu */}
         <GlobalActionMenu

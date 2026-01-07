@@ -142,6 +142,8 @@ def create_tmux_session(
         # Ensure mouse is disabled for existing sessions
         if disable_mouse:
             run_tmux_command(["set-option", "-t", session_name, "mouse", "off"])
+        # Ensure status bar is disabled for existing sessions
+        run_tmux_command(["set-option", "-t", session_name, "status", "off"])
         return session_name
 
     # Create new session
@@ -171,6 +173,9 @@ def create_tmux_session(
     # Disable mouse mode so xterm.js handles selection natively
     if disable_mouse:
         run_tmux_command(["set-option", "-t", session_name, "mouse", "off"])
+
+    # Disable tmux status bar - web UI handles session info display
+    run_tmux_command(["set-option", "-t", session_name, "status", "off"])
 
     logger.info("tmux_session_created", session=session_name, working_dir=working_dir)
     return session_name
