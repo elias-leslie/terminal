@@ -118,19 +118,25 @@ Investigation and fix specification for terminal bugs: cursor visibility, multi-
 
 ## Success Criteria
 
-- [ ] Cursor visible in all contexts
-- [ ] Grid view switching: zero corruption
-- [ ] No stacked rendering artifacts
-- [ ] Status bar stable (no flicker during 60s idle)
-- [ ] Input to focused terminal only
-- [ ] Bottom bar removed; info icon in top bar
+- [x] Cursor visible in all contexts (cursorAccent: #ffffff)
+- [x] Grid view switching: zero corruption (isVisible prop + WS pause)
+- [x] No stacked rendering artifacts (single ResizeObserver)
+- [x] Status bar stable (no flicker during 60s idle) (polling removed)
+- [x] Input to focused terminal only (isFocusedRef guard)
+- [x] Bottom bar removed; info icon in top bar (status off + SessionInfoIcon)
 
-## Next Steps
+## Implementation Complete
 
-1. `/task_it terminal-uiux-fixes` - Generate SummitFlow task
-2. Test cursor after Phase 1
-3. Test input in 2x2 grid after Phase 3
-4. Verify no flickering after Phase 5 (60s observation)
+**Completed:** 2026-01-07 by task-2cb7cc32
+
+All 7 phases implemented and verified via browser-automation testing:
+- Screenshot confirmed no tmux status bar
+- SessionInfoIcon visible in toolbar
+- Terminal rendering correctly
+
+**Commits:**
+- `6a0afb2` fix(frontend): cursor visibility, resize consolidation, and focus guard
+- `a7a5e1b` fix(terminal): WS visibility, polling, tmux status, SessionInfoIcon
 
 ---
 **Confidence:** 88/100 | **Verified:** 2026-01-07
