@@ -23,7 +23,11 @@ import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { KeyboardSizePreset } from "./SettingsDropdown";
 import { TerminalManagerModal } from "./TerminalManagerModal";
 import { SplitPane } from "./SplitPane";
+import { GridLayout } from "./GridLayout";
 import { type TerminalSlot } from "@/lib/utils/slot";
+import { useAvailableLayouts } from "@/lib/hooks/use-available-layouts";
+import { useSlotOrdering } from "@/lib/hooks/use-slot-ordering";
+import { type GridLayoutMode } from "@/lib/constants/terminal";
 
 // Maximum number of split panes
 const MAX_SPLIT_PANES = 4;
@@ -113,6 +117,25 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
     return slots;
   }, [projectTerminals, adHocSessions]);
+
+  // Available layouts based on viewport width
+  const availableLayouts = useAvailableLayouts();
+
+  // Slot ordering for grid layout drag-and-drop
+  const { orderedIds, reorder } = useSlotOrdering(terminalSlots);
+
+  // Helper to check if current layout is a grid mode
+  const isGridMode = layoutMode.startsWith("grid-");
+
+  // Auto-downgrade layout if current mode is no longer available
+  useEffect(() => {
+    if (!availableLayouts.includes(layoutMode)) {
+      // Find highest available layout (last in array)
+      const highest = availableLayouts[availableLayouts.length - 1] || "single";
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: sync layout to viewport constraints
+      setLayoutMode(highest);
+    }
+  }, [availableLayouts, layoutMode, setLayoutMode]);
 
   // Auto-create terminal ONLY on initial page load when no sessions exist
   // Uses sessionStorage to prevent re-creating after user closes all terminals
@@ -329,6 +352,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         handleEditKeyDown={handleEditKeyDown}
         layoutMode={layoutMode}
         onLayoutModeChange={handleLayoutModeChange}
+        availableLayouts={availableLayouts}
         fontId={fontId}
         fontSize={fontSize}
         setFontId={setFontId}
@@ -395,6 +419,27 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               </div>
             );
           })
+        ) : isGridMode ? (
+          // Grid layout - NxN grid with drag-and-drop
+          <GridLayout
+            layoutMode={layoutMode as GridLayoutMode}
+            slots={terminalSlots}
+            orderedSlotIds={orderedIds}
+            onReorder={reorder}
+            fontFamily={fontFamily}
+            fontSize={fontSize}
+            onTerminalRef={(sessionId, handle) => {
+              if (handle) {
+                terminalRefs.current.set(sessionId, handle);
+              } else {
+                terminalRefs.current.delete(sessionId);
+              }
+            }}
+            onStatusChange={(sessionId, status) => handleStatusChange(sessionId, status)}
+            onModeChange={(projectId, mode, shellId, claudeId, rootPath) =>
+              handleProjectModeChange(projectId, mode, shellId, claudeId, rootPath)
+            }
+          />
         ) : (
           // Split pane layout - 1:1 mapping with terminal slots
           <Group

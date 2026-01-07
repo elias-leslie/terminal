@@ -62,6 +62,7 @@ export interface TabBarProps {
   // Layout
   layoutMode: LayoutMode;
   onLayoutModeChange: (mode: LayoutMode) => void;
+  availableLayouts?: LayoutMode[];
 
   // Settings
   fontId: TerminalFontId;
@@ -113,6 +114,7 @@ export const TabBar = memo(function TabBar({
   handleEditKeyDown,
   layoutMode,
   onLayoutModeChange,
+  availableLayouts,
   fontId,
   fontSize,
   setFontId,
@@ -246,7 +248,7 @@ export const TabBar = memo(function TabBar({
           className="ml-auto flex items-center gap-0.5 pl-2"
           style={{ borderLeft: "1px solid var(--term-border)" }}
         >
-          <LayoutModeButtons layoutMode={layoutMode} onLayoutChange={onLayoutModeChange} />
+          <LayoutModeButtons layoutMode={layoutMode} onLayoutChange={onLayoutModeChange} availableLayouts={availableLayouts} />
         </div>
       )}
 
