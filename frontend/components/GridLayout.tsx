@@ -139,12 +139,12 @@ export function GridLayout({
     >
       <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
         <div
-          className="w-full h-full p-1"
+          className="w-full h-full p-1 transition-all duration-200"
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
             gridTemplateRows: `repeat(${gridSize}, 1fr)`,
-            gap: "4px",
+            gap: "6px",
             backgroundColor: "var(--term-bg-deep)",
           }}
         >
@@ -167,14 +167,14 @@ export function GridLayout({
           {Array.from({ length: emptyCount }).map((_, index) => (
             <div
               key={`empty-${index}`}
-              className="flex items-center justify-center rounded-md"
+              className="flex flex-col items-center justify-center rounded-md opacity-40 transition-opacity duration-150 hover:opacity-60"
               style={{
                 backgroundColor: "var(--term-bg-surface)",
                 border: "1px dashed var(--term-border)",
                 color: "var(--term-text-muted)",
               }}
             >
-              <span className="text-xs">Empty</span>
+              <span className="text-xs font-mono">+</span>
             </div>
           ))}
         </div>

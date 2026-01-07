@@ -63,17 +63,21 @@ export function GridCell({
     disabled: !isDraggable,
   });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: transition || "transform 150ms ease, opacity 150ms ease, box-shadow 150ms ease",
+    opacity: isDragging ? 0.6 : 1,
+    boxShadow: isDragging
+      ? "0 0 0 2px var(--term-accent), 0 8px 24px rgba(0, 0, 0, 0.4)"
+      : "none",
+    border: "1px solid var(--term-border)",
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex flex-col h-full min-h-0 overflow-hidden rounded-md"
+      className="flex flex-col h-full min-h-0 overflow-hidden rounded-md hover:border-[var(--term-border-active)] transition-colors"
       data-cell-index={cellIndex}
     >
       {/* Cell header with drag handle */}
@@ -87,12 +91,12 @@ export function GridCell({
         {/* Drag handle */}
         {isDraggable && (
           <button
-            className="p-0.5 cursor-grab active:cursor-grabbing rounded hover:bg-[var(--term-bg-elevated)] transition-colors"
+            className="p-0.5 cursor-grab active:cursor-grabbing rounded opacity-50 hover:opacity-100 hover:bg-[var(--term-bg-elevated)] transition-all duration-150"
             {...attributes}
             {...listeners}
             aria-label="Drag to reorder"
           >
-            <GripVertical className="w-3 h-3" style={{ color: "var(--term-text-muted)" }} />
+            <GripVertical className="w-3.5 h-3.5" style={{ color: "var(--term-text-muted)" }} />
           </button>
         )}
 
