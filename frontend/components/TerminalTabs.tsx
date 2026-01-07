@@ -186,6 +186,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                   className="h-full"
                   fontFamily={fontFamily}
                   fontSize={fontSize}
+                  isVisible={session.id === activeSessionId}
                   onStatusChange={(status) => handleStatusChange(session.id, status)}
                 />
                 {showClaudeOverlay && <ClaudeLoadingOverlay variant="normal" />}

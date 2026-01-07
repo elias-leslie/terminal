@@ -27,6 +27,7 @@ interface TerminalProps {
   onStatusChange?: (status: ConnectionStatus) => void;
   fontFamily?: string;
   fontSize?: number;
+  isVisible?: boolean;
 }
 
 export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "error" | "session_dead" | "timeout";
@@ -46,6 +47,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   onStatusChange,
   fontFamily = "'JetBrains Mono', monospace",
   fontSize = 14,
+  isVisible = true,
 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<InstanceType<typeof Terminal> | null>(null);
@@ -55,6 +57,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   const scrollCleanupRef = useRef<{ wheelCleanup: () => void; touchCleanup: () => void } | null>(null);
   const isFocusedRef = useRef(false);
   const focusCleanupRef = useRef<(() => void) | null>(null);
+  const isVisibleRef = useRef(isVisible);
+
+  // Keep isVisibleRef in sync with prop
+  useEffect(() => {
+    isVisibleRef.current = isVisible;
+  }, [isVisible]);
 
   // WebSocket connection management via hook
   const { status, wsRef, reconnect, sendInput, connect } = useTerminalWebSocket({
@@ -64,6 +72,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
     onDisconnect,
     onMessage: (data) => {
       if (!terminalRef.current) return;
+      // Skip write if terminal is not visible (prevents corruption in multi-pane)
+      if (!isVisibleRef.current) return;
       // Preserve scroll position if user is viewing history
       const buffer = terminalRef.current.buffer.active;
       const distanceFromBottom = buffer.baseY - buffer.viewportY;

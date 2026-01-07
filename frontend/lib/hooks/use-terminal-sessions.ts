@@ -155,7 +155,7 @@ export function useTerminalSessions(projectId?: string) {
   } = useQuery({
     queryKey: ["terminal-sessions"],
     queryFn: fetchSessions,
-    refetchInterval: 30000, // Refresh every 30s to catch dead sessions
+    // No polling - use explicit invalidation via queryClient.invalidateQueries
   });
 
   // Set initial active session when sessions load
