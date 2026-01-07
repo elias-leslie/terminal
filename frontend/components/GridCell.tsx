@@ -7,6 +7,7 @@ import { TerminalComponent, TerminalHandle, ConnectionStatus } from "./Terminal"
 import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
 import { ClaudeIndicator } from "./ClaudeIndicator";
 import { TabModeDropdown } from "./TabModeDropdown";
+import { SessionInfoIcon } from "./SessionInfoIcon";
 import {
   type TerminalSlot,
   getSlotSessionId,
@@ -124,6 +125,14 @@ export function GridCell({
               slot.claudeSessionId,
               slot.rootPath
             )}
+          />
+        )}
+
+        {/* Session info icon per-cell */}
+        {sessionId && (
+          <SessionInfoIcon
+            sessionId={sessionId}
+            mode={slot.type === "project" ? slot.activeMode : "shell"}
           />
         )}
 

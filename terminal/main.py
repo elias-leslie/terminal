@@ -24,21 +24,17 @@ def _setup_tmux_options() -> None:
     """Set up tmux options and hooks for terminal service.
 
     Configures:
-    - detach-on-destroy off: When a session ends, switch to another instead of showing [exited]
     - client-session-changed hook: Notify backend when sessions switch
-    """
-    # When a session is destroyed, switch to another session instead of detaching
-    # This makes /exit in Claude Code seamlessly return to the base terminal
-    subprocess.run(
-        ["tmux", "set-option", "-g", "detach-on-destroy", "off"],
-        capture_output=True,
-    )
 
+    NOTE: We intentionally do NOT set global tmux options like detach-on-destroy
+    to avoid affecting non-web-terminal sessions (e.g., MobaXterm, other clients).
+    Each summitflow-* session manages its own options in create_tmux_session().
+    """
     # The hook calls our internal endpoint with from/to session info
     # We run curl in background (&) to not block tmux
     hook_cmd = (
-        f'run-shell "curl -s \'http://localhost:{TERMINAL_PORT}/api/internal/session-switch'
-        '?from=#{client_last_session}&to=#{client_session}\' >/dev/null 2>&1 &"'
+        f"run-shell \"curl -s 'http://localhost:{TERMINAL_PORT}/api/internal/session-switch"
+        "?from=#{client_last_session}&to=#{client_session}' >/dev/null 2>&1 &\""
     )
 
     # Set global hook (applies to all sessions)

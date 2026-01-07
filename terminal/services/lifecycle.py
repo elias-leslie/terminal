@@ -18,6 +18,9 @@ from .lifecycle_core import (
     ensure_session_alive,
 )
 
+# Re-export TmuxError for convenience
+from ..utils.tmux import TmuxError  # noqa: F401
+
 # Batch multi-session operations
 from .lifecycle_batch import (
     disable_project_terminal,

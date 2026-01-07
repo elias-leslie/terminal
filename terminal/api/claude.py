@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
-from typing import Literal
+from typing import Literal, cast
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
@@ -226,12 +226,15 @@ async def start_claude(
         )
         if not updated:
             # State changed between check and update - another request won the race
-            new_state = terminal_store.get_claude_state(session_id)
+            new_state = cast(
+                ClaudeState,
+                terminal_store.get_claude_state(session_id) or "not_started",
+            )
             return StartClaudeResponse(
                 session_id=session_id,
                 started=False,
                 message=f"Claude state changed to {new_state}",
-                claude_state=new_state or "not_started",
+                claude_state=new_state,
             )
 
     # Send the claude command via send-keys

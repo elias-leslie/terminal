@@ -130,10 +130,11 @@ async def read_pty_output(websocket: WebSocket, master_fd: int) -> None:
 
     try:
         while True:
-            # Use select to wait for data with timeout (10ms for responsive typing)
+            # Use select to wait for data with timeout (50ms balances responsiveness vs CPU)
+            # 10ms was too aggressive (100 polls/sec/terminal = 400/sec for 4 terminals)
             ready, _, _ = await loop.run_in_executor(
                 None,
-                lambda: select.select([master_fd], [], [], 0.01),
+                lambda: select.select([master_fd], [], [], 0.05),
             )
 
             if ready:
@@ -183,7 +184,7 @@ async def read_pty_output(websocket: WebSocket, master_fd: int) -> None:
                         )
                     break
             else:
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0.05)
 
     except asyncio.CancelledError:
         pass
