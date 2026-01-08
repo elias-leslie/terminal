@@ -7,22 +7,25 @@ import { SettingsDropdown } from "./SettingsDropdown";
 import { GlobalActionMenu } from "./GlobalActionMenu";
 import { LayoutModeButtons } from "./LayoutModeButton";
 import { type TerminalSlot } from "@/lib/utils/slot";
-import { type LayoutMode } from "@/lib/constants/terminal";
-import { type ProjectTerminal, type AdHocSession } from "@/lib/hooks/use-terminal-tabs-state";
+import { type LayoutMode } from "./LayoutModeButton";
+import { type ProjectTerminal } from "@/lib/hooks/use-project-terminals";
+import { type TerminalSession } from "@/lib/hooks/use-terminal-sessions";
+import { type TerminalFontId, type TerminalFontSize } from "@/lib/hooks/use-terminal-settings";
+import { type KeyboardSizePreset } from "./keyboard/types";
 
 interface TerminalHeaderProps {
   activeSlot: TerminalSlot | null;
   projectTerminals: ProjectTerminal[];
-  adHocSessions: AdHocSession[];
+  adHocSessions: TerminalSession[];
   layoutMode: LayoutMode;
   availableLayouts: LayoutMode[];
   isMobile: boolean;
   isCleanerLoading: boolean;
   isUploading: boolean;
-  fontId: string;
-  fontSize: number;
+  fontId: TerminalFontId;
+  fontSize: TerminalFontSize;
   showSettings: boolean;
-  keyboardSize: string;
+  keyboardSize: KeyboardSizePreset;
   onSelectProject: (projectId: string) => void;
   onSelectAdHoc: (sessionId: string) => void;
   onNewTerminal: () => void;
@@ -30,12 +33,12 @@ interface TerminalHeaderProps {
   onLayoutChange: (mode: LayoutMode) => void;
   onCleanClick: () => void;
   onUploadClick: () => void;
-  onResetAll: () => Promise<void>;
+  onResetAll: () => Promise<unknown>;
   onCloseAll: () => void;
-  setFontId: (id: string) => void;
-  setFontSize: (size: number) => void;
+  setFontId: (id: TerminalFontId) => void;
+  setFontSize: (size: TerminalFontSize) => void;
   setShowSettings: (show: boolean) => void;
-  setKeyboardSize: (size: string) => void;
+  setKeyboardSize: (size: KeyboardSizePreset) => void;
 }
 
 export function TerminalHeader({

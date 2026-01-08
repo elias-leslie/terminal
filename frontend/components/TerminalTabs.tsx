@@ -3,15 +3,11 @@
 import { useState, useCallback } from "react";
 import { clsx } from "clsx";
 import { Group } from "react-resizable-panels";
-import { TerminalComponent } from "./Terminal";
-import { Plus, Loader2, Paperclip, Sparkles } from "lucide-react";
-import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
+import { Plus, Loader2 } from "lucide-react";
+import { SingleModeTerminals } from "./SingleModeTerminals";
 import { FileUploadDropzone } from "./FileUploadDropzone";
 import { PromptCleaner } from "./PromptCleaner";
-import { TerminalSwitcher } from "./TerminalSwitcher";
-import { SettingsDropdown } from "./SettingsDropdown";
-import { GlobalActionMenu } from "./GlobalActionMenu";
-import { LayoutModeButtons } from "./LayoutModeButton";
+import { TerminalHeader } from "./TerminalHeader";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { TerminalManagerModal } from "./TerminalManagerModal";
 import { SplitPane } from "./SplitPane";
@@ -21,7 +17,7 @@ import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
 import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
 import { useTerminalSlotHandlers } from "@/lib/hooks/use-terminal-slot-handlers";
 import { useTerminalActionHandlers } from "@/lib/hooks/use-terminal-action-handlers";
-import { type TerminalSlot, getSlotSessionId } from "@/lib/utils/slot";
+import { type TerminalSlot } from "@/lib/utils/slot";
 
 interface TerminalTabsProps {
   projectId?: string;
@@ -199,89 +195,33 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     <div className={clsx("flex flex-col h-full min-h-0 overflow-visible", className)}>
       {/* Single mode: Unified header with switcher, layout, and actions */}
       {layoutMode === "single" && (
-        <div
-          className={clsx(
-            "flex-shrink-0 flex items-center gap-1",
-            isMobile ? "h-9 px-1.5 order-2" : "h-8 px-2 order-1"
-          )}
-          style={{
-            backgroundColor: "var(--term-bg-surface)",
-            borderBottom: "1px solid var(--term-border)",
-          }}
-        >
-          {/* Terminal switcher dropdown */}
-          <TerminalSwitcher
-            currentName={activeSlot ? (activeSlot.type === "project" ? activeSlot.projectName : activeSlot.name) : "Terminal"}
-            currentMode={activeSlot?.type === "project" ? activeSlot.activeMode : undefined}
-            currentProjectId={activeSlot?.type === "project" ? activeSlot.projectId : null}
-            projectTerminals={projectTerminals}
-            adHocSessions={adHocSessions}
-            onSelectProject={handleSelectProject}
-            onSelectAdHoc={switchToSession}
-            onNewTerminal={() => setShowTerminalManager(true)}
-            onNewTerminalForProject={handleNewTerminalForProject}
-            isMobile={isMobile}
-          />
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Layout mode buttons - desktop only */}
-          {!isMobile && (
-            <div className="flex items-center gap-0.5 mr-1">
-              <LayoutModeButtons
-                layoutMode={layoutMode}
-                onLayoutChange={handleLayoutModeChange}
-                availableLayouts={availableLayouts}
-              />
-            </div>
-          )}
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-0.5">
-            {/* Prompt cleaner button (Claude mode only) */}
-            {activeSlot?.type === "project" && activeSlot.activeMode === "claude" && (
-              <button
-                onClick={handleCleanClick}
-                disabled={isCleanerLoading}
-                className="p-1.5 rounded transition-colors hover:bg-[var(--term-bg-elevated)] disabled:opacity-50"
-                title="Clean and format prompt"
-              >
-                <Sparkles className="w-4 h-4" style={{ color: "var(--term-accent)" }} />
-              </button>
-            )}
-
-            {/* Upload button */}
-            <button
-              onClick={handleUploadClick}
-              disabled={isUploading}
-              className="p-1.5 rounded transition-colors hover:bg-[var(--term-bg-elevated)] disabled:opacity-50"
-              title="Upload file"
-            >
-              <Paperclip className="w-4 h-4" style={{ color: "var(--term-text-muted)" }} />
-            </button>
-
-            {/* Global actions menu */}
-            <GlobalActionMenu
-              onResetAll={resetAll}
-              onCloseAll={handleCloseAll}
-              isMobile={isMobile}
-            />
-
-            {/* Settings dropdown */}
-            <SettingsDropdown
-              fontId={fontId}
-              fontSize={fontSize}
-              setFontId={setFontId}
-              setFontSize={setFontSize}
-              showSettings={showSettings}
-              setShowSettings={setShowSettings}
-              keyboardSize={keyboardSize}
-              setKeyboardSize={handleKeyboardSizeChange}
-              isMobile={isMobile}
-            />
-          </div>
-        </div>
+        <TerminalHeader
+          activeSlot={activeSlot}
+          projectTerminals={projectTerminals}
+          adHocSessions={adHocSessions}
+          layoutMode={layoutMode}
+          availableLayouts={availableLayouts}
+          isMobile={isMobile}
+          isCleanerLoading={isCleanerLoading}
+          isUploading={isUploading}
+          fontId={fontId}
+          fontSize={fontSize}
+          showSettings={showSettings}
+          keyboardSize={keyboardSize}
+          onSelectProject={handleSelectProject}
+          onSelectAdHoc={switchToSession}
+          onNewTerminal={() => setShowTerminalManager(true)}
+          onNewTerminalForProject={handleNewTerminalForProject}
+          onLayoutChange={handleLayoutModeChange}
+          onCleanClick={handleCleanClick}
+          onUploadClick={handleUploadClick}
+          onResetAll={resetAll}
+          onCloseAll={handleCloseAll}
+          setFontId={setFontId}
+          setFontSize={setFontSize}
+          setShowSettings={setShowSettings}
+          setKeyboardSize={handleKeyboardSizeChange}
+        />
       )}
 
       {/* Hidden file input for upload button */}
@@ -343,34 +283,15 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
             Click <Plus className="w-4 h-4 mx-1 inline" /> to start a terminal
           </div>
         ) : layoutMode === "single" ? (
-          sessions.map((session) => {
-            const showClaudeOverlay = session.mode === "claude" &&
-              session.claude_state !== "running" &&
-              session.claude_state !== "stopped" &&
-              session.claude_state !== "error";
-
-            return (
-              <div
-                key={session.id}
-                className={clsx(
-                  "absolute inset-0 overflow-hidden flex flex-col",
-                  session.id === activeSessionId ? "z-10 visible" : "z-0 invisible"
-                )}
-              >
-                <TerminalComponent
-                  ref={(handle) => setTerminalRef(session.id, handle)}
-                  sessionId={session.id}
-                  workingDir={session.working_dir || projectPath}
-                  className="flex-1"
-                  fontFamily={fontFamily}
-                  fontSize={fontSize}
-                  isVisible={session.id === activeSessionId}
-                  onStatusChange={(status) => handleStatusChange(session.id, status)}
-                />
-                {showClaudeOverlay && <ClaudeLoadingOverlay variant="normal" />}
-              </div>
-            );
-          })
+          <SingleModeTerminals
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            projectPath={projectPath}
+            fontFamily={fontFamily}
+            fontSize={fontSize}
+            onTerminalRef={setTerminalRef}
+            onStatusChange={handleStatusChange}
+          />
         ) : isGridMode ? (
           <GridLayout
             layoutMode={layoutMode as GridLayoutMode}
