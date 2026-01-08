@@ -139,4 +139,17 @@ Table: `terminal_sessions`
 
 ---
 
-**Version**: 1.0.0 | **Updated**: 2025-12-29
+## Anti-Patterns
+
+| Don't | Why | Do Instead |
+|-------|-----|------------|
+| Hardcode session UUIDs in tests | Tests become brittle, fail on different environments | Use fixtures or generate IDs dynamically |
+| Use setTimeout for WebSocket timing | Race conditions, flaky tests | Use event listeners with timeout fallbacks |
+| Direct PTY reads during tmux operations | tmux buffers interfere with reads | Use `tmux capture-pane -p` for reliable output |
+| Mix tmux and direct terminal I/O | Conflicting buffer states cause corruption | Pick one approach per test/feature |
+| Skip wheelCleanup/touchCleanup | Event listeners leak, memory grows | Always call before dispose() |
+| Assume session is alive after create | Session may fail to start | Poll status or use health check endpoint |
+
+---
+
+**Version**: 1.0.0 | **Updated**: 2026-01-08
