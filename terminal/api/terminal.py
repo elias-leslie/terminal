@@ -281,7 +281,21 @@ async def terminal_websocket(
         if pid is not None:
             with contextlib.suppress(OSError):
                 os.kill(pid, 9)  # SIGKILL the tmux attach process
-                os.waitpid(pid, os.WNOHANG)  # Reap zombie
+            # Wait for child to exit (with retries to prevent zombie)
+            for _ in range(20):
+                try:
+                    wpid, _ = os.waitpid(pid, os.WNOHANG)
+                    if wpid != 0:
+                        break  # Child reaped
+                except ChildProcessError:
+                    break  # Already reaped by someone else
+                except OSError:
+                    break  # Process doesn't exist
+                await asyncio.sleep(0.01)  # 10ms delay between retries
+            else:
+                # Final blocking wait if still not reaped
+                with contextlib.suppress(OSError, ChildProcessError):
+                    os.waitpid(pid, 0)
 
         if master_fd is not None:
             with contextlib.suppress(OSError):

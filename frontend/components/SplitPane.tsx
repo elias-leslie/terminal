@@ -7,7 +7,6 @@ import {
   TerminalHandle,
   ConnectionStatus,
 } from "./Terminal";
-import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
 import { UnifiedTerminalHeader } from "./UnifiedTerminalHeader";
 import { LayoutMode } from "./LayoutModeButton";
 import {
@@ -111,29 +110,19 @@ export function SplitPane({
         />
         <div className="flex-1 min-h-0 overflow-hidden relative">
           {sessionId ? (
-            <>
-              <TerminalComponent
-                ref={(handle) => onTerminalRef?.(sessionId, handle)}
-                sessionId={sessionId}
-                workingDir={workingDir || undefined}
-                className="h-full"
-                fontFamily={fontFamily}
-                fontSize={fontSize}
-                scrollback={scrollback}
-                cursorStyle={cursorStyle}
-                cursorBlink={cursorBlink}
-                theme={theme}
-                onStatusChange={(status) => onStatusChange?.(sessionId, status)}
-              />
-              {/* Claude loading overlay for split panes */}
-              {slot.type === "project" &&
-                slot.activeMode === "claude" &&
-                slot.claudeState !== "running" &&
-                slot.claudeState !== "stopped" &&
-                slot.claudeState !== "error" && (
-                  <ClaudeLoadingOverlay variant="compact" />
-                )}
-            </>
+            <TerminalComponent
+              ref={(handle) => onTerminalRef?.(sessionId, handle)}
+              sessionId={sessionId}
+              workingDir={workingDir || undefined}
+              className="h-full"
+              fontFamily={fontFamily}
+              fontSize={fontSize}
+              scrollback={scrollback}
+              cursorStyle={cursorStyle}
+              cursorBlink={cursorBlink}
+              theme={theme}
+              onStatusChange={(status) => onStatusChange?.(sessionId, status)}
+            />
           ) : (
             <div
               className="flex items-center justify-center h-full text-xs"

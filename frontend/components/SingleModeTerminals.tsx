@@ -2,7 +2,6 @@
 
 import { clsx } from "clsx";
 import { TerminalComponent, type TerminalHandle } from "./Terminal";
-import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
 import { type TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 import { type ConnectionStatus } from "./terminal.types";
 import { useLazyMount } from "@/lib/hooks/use-lazy-mount";
@@ -54,12 +53,6 @@ export function SingleModeTerminals({
           return null;
         }
 
-        const showClaudeOverlay =
-          session.mode === "claude" &&
-          session.claude_state !== "running" &&
-          session.claude_state !== "stopped" &&
-          session.claude_state !== "error";
-
         return (
           <div
             key={session.id}
@@ -82,7 +75,6 @@ export function SingleModeTerminals({
               isVisible={isActive}
               onStatusChange={(status) => onStatusChange(session.id, status)}
             />
-            {showClaudeOverlay && <ClaudeLoadingOverlay variant="normal" />}
           </div>
         );
       })}

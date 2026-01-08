@@ -149,6 +149,8 @@ Table: `terminal_sessions`
 | Mix tmux and direct terminal I/O | Conflicting buffer states cause corruption | Pick one approach per test/feature |
 | Skip wheelCleanup/touchCleanup | Event listeners leak, memory grows | Always call before dispose() |
 | Assume session is alive after create | Session may fail to start | Poll status or use health check endpoint |
+| Non-blocking waitpid after SIGKILL | Creates zombie processes | Use retry loop with asyncio.sleep() |
+| Query one session per mode for cleanup | Leaves orphaned duplicate sessions | Use get_all_project_sessions() |
 
 ---
 
