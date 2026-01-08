@@ -156,6 +156,14 @@ export function useTerminalWebSocket({
       if (dims) {
         ws.send(JSON.stringify({ resize: { cols: dims.cols, rows: dims.rows } }));
       }
+
+      // Trigger terminal redraw after resize settles
+      // This ensures the shell prompt is displayed even for reconnections
+      setTimeout(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ refresh: true }));
+        }
+      }, 100);
     };
 
     ws.onmessage = (event) => {

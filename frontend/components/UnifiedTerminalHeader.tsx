@@ -10,6 +10,8 @@ import {
   Sparkles,
   GripVertical,
   ChevronDown,
+  Plus,
+  Terminal as TerminalIcon,
 } from "lucide-react";
 import { LayoutMode, LayoutModeButtons } from "./LayoutModeButton";
 import { ClaudeIndicator } from "./ClaudeIndicator";
@@ -34,6 +36,8 @@ export interface UnifiedTerminalHeaderProps {
   onClose?: () => void;
   onUpload?: () => void;
   onClean?: () => void;
+  onNewShell?: () => void;
+  onNewClaude?: () => void;
   isMobile?: boolean;
 }
 
@@ -54,6 +58,8 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
   onClose,
   onUpload,
   onClean,
+  onNewShell,
+  onNewClaude,
   isMobile = false,
 }: UnifiedTerminalHeaderProps) {
   const name = getSlotName(slot);
@@ -116,6 +122,71 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
         >
           {name}
         </span>
+      )}
+
+      {/* Quick Spawn Buttons - for project terminals */}
+      {slot.type === "project" && (onNewShell || onNewClaude) && (
+        <div
+          className="flex items-center rounded overflow-hidden ml-1"
+          style={{
+            border: "1px solid var(--term-border)",
+            backgroundColor: "var(--term-bg-surface)",
+          }}
+        >
+          {/* New Shell button */}
+          {onNewShell && (
+            <button
+              onClick={onNewShell}
+              className={clsx(
+                "flex items-center gap-0.5 px-1 py-0.5 text-[10px] transition-all duration-150",
+                "hover:bg-[var(--term-bg-elevated)]"
+              )}
+              style={{ color: "var(--term-text-muted)" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--term-accent)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--term-text-muted)";
+              }}
+              title="New Shell"
+            >
+              <Plus className="w-2.5 h-2.5" />
+              <TerminalIcon className="w-3 h-3" />
+            </button>
+          )}
+
+          {/* Divider */}
+          {onNewShell && onNewClaude && (
+            <div
+              className="w-px h-3.5"
+              style={{ backgroundColor: "var(--term-border)" }}
+            />
+          )}
+
+          {/* New Claude button */}
+          {onNewClaude && (
+            <button
+              onClick={onNewClaude}
+              className={clsx(
+                "flex items-center gap-0.5 px-1 py-0.5 text-[10px] transition-all duration-150",
+                "hover:bg-[var(--term-bg-elevated)]"
+              )}
+              style={{ color: "var(--term-text-muted)" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--term-accent)";
+                e.currentTarget.style.textShadow = "0 0 8px var(--term-accent-glow)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--term-text-muted)";
+                e.currentTarget.style.textShadow = "none";
+              }}
+              title="New Claude"
+            >
+              <Plus className="w-2.5 h-2.5" />
+              <Sparkles className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       )}
 
       {/* Spacer */}

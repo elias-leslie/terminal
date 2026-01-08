@@ -154,27 +154,35 @@ def _handle_websocket_message(
     if "text" in message:
         text = message["text"]
 
-        # Check for resize command (JSON starting with {"resize":)
-        if text.startswith('{"resize":'):
+        # Check for JSON control commands
+        if text.startswith("{"):
             try:
                 data = json.loads(text)
-                resize = data.get("resize", {})
-                cols = resize.get("cols", TMUX_DEFAULT_COLS)
-                rows = resize.get("rows", TMUX_DEFAULT_ROWS)
-                resize_pty(master_fd, cols, rows)
-                logger.info(
-                    "terminal_resized",
-                    session_id=session_id,
-                    cols=cols,
-                    rows=rows,
-                )
+
+                # Handle resize command
+                if "resize" in data:
+                    resize = data.get("resize", {})
+                    cols = resize.get("cols", TMUX_DEFAULT_COLS)
+                    rows = resize.get("rows", TMUX_DEFAULT_ROWS)
+                    resize_pty(master_fd, cols, rows)
+                    logger.info(
+                        "terminal_resized",
+                        session_id=session_id,
+                        cols=cols,
+                        rows=rows,
+                    )
+                    return
+
+                # Handle refresh command (redraw terminal after connect)
+                if data.get("refresh"):
+                    # Send Ctrl+L to trigger terminal redraw
+                    os.write(master_fd, b"\x0c")
+                    logger.debug("terminal_refreshed", session_id=session_id)
+                    return
+
             except json.JSONDecodeError:
-                logger.warning(
-                    "malformed_resize_command",
-                    session_id=session_id,
-                    text=text[:100],
-                )
-            return
+                # Not valid JSON, treat as input
+                pass
 
         # Regular input - write to PTY
         os.write(master_fd, text.encode("utf-8"))

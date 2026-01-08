@@ -29,6 +29,8 @@ export interface SplitPaneProps {
   onClose?: (slot: TerminalSlot) => void;
   onUpload?: () => void;
   onClean?: (slot: TerminalSlot) => void;
+  onNewShell?: (slot: TerminalSlot) => void;
+  onNewClaude?: (slot: TerminalSlot) => void;
   isMobile?: boolean;
 }
 

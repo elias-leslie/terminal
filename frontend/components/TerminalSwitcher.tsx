@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { clsx } from "clsx";
-import { ChevronDown, Plus, Terminal as TerminalIcon } from "lucide-react";
+import { ChevronDown, Plus, Terminal as TerminalIcon, Sparkles } from "lucide-react";
 import { ClaudeIndicator } from "./ClaudeIndicator";
 import type { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import type { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
@@ -52,8 +52,23 @@ export function TerminalSwitcher({
   // projectTerminals is already filtered to enabled projects
   const enabledProjects = projectTerminals;
 
+  // Quick spawn handlers
+  const handleQuickSpawnShell = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentProjectId && onNewTerminalForProject) {
+      onNewTerminalForProject(currentProjectId, "shell");
+    }
+  };
+
+  const handleQuickSpawnClaude = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentProjectId && onNewTerminalForProject) {
+      onNewTerminalForProject(currentProjectId, "claude");
+    }
+  };
+
   return (
-    <div ref={dropdownRef} className="relative">
+    <div ref={dropdownRef} className="relative flex items-center gap-1">
       {/* Trigger button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -74,6 +89,65 @@ export function TerminalSwitcher({
         <span className="truncate">{currentName}</span>
         <ChevronDown className={clsx("w-3 h-3 flex-shrink-0 transition-transform", isOpen && "rotate-180")} />
       </button>
+
+      {/* Quick Spawn Buttons - visible when viewing a project */}
+      {currentProjectId && onNewTerminalForProject && (
+        <div
+          className="flex items-center rounded overflow-hidden"
+          style={{
+            border: "1px solid var(--term-border)",
+            backgroundColor: "var(--term-bg-surface)",
+          }}
+        >
+          {/* New Shell button */}
+          <button
+            onClick={handleQuickSpawnShell}
+            className={clsx(
+              "flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] transition-all duration-150",
+              "hover:bg-[var(--term-bg-elevated)]"
+            )}
+            style={{ color: "var(--term-text-muted)" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--term-accent)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--term-text-muted)";
+            }}
+            title="New Shell for this project"
+          >
+            <Plus className="w-2.5 h-2.5" />
+            <TerminalIcon className="w-3 h-3" />
+          </button>
+
+          {/* Divider */}
+          <div
+            className="w-px h-4"
+            style={{ backgroundColor: "var(--term-border)" }}
+          />
+
+          {/* New Claude button */}
+          <button
+            onClick={handleQuickSpawnClaude}
+            className={clsx(
+              "flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] transition-all duration-150",
+              "hover:bg-[var(--term-bg-elevated)]"
+            )}
+            style={{ color: "var(--term-text-muted)" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--term-accent)";
+              e.currentTarget.style.textShadow = "0 0 8px var(--term-accent-glow)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--term-text-muted)";
+              e.currentTarget.style.textShadow = "none";
+            }}
+            title="New Claude for this project"
+          >
+            <Plus className="w-2.5 h-2.5" />
+            <Sparkles className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* Dropdown */}
       {isOpen && (

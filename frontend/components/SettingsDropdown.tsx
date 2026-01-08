@@ -49,16 +49,29 @@ export function SettingsDropdown({
   useClickOutside(clickOutsideRefs, closeDropdown, showSettings);
 
   // Calculate dropdown position - opens downward from button
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  // Uses safe-area-inset for PWA/Chrome app title bars
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties | null>(null);
   useLayoutEffect(() => {
     if (showSettings && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      // Get safe area inset (for PWA apps with title bars)
+      const safeAreaTop = parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0',
+        10
+      );
+      // Add extra buffer for PWA title bars (~32px typical)
+      const minTop = Math.max(safeAreaTop, 8);
+      const calculatedTop = rect.bottom + 4;
+      const top = Math.max(minTop, calculatedTop);
+
       setDropdownStyle({
         position: "fixed",
         right: window.innerWidth - rect.right,
-        top: rect.bottom + 4,
+        top,
         zIndex: 9999,
       });
+    } else {
+      setDropdownStyle(null);
     }
   }, [showSettings]);
 
@@ -91,7 +104,8 @@ export function SettingsDropdown({
       </button>
 
       {/* Settings dropdown - glass-morphism style */}
-      {showSettings && (
+      {/* Only render when position is calculated to avoid flash at wrong position */}
+      {showSettings && dropdownStyle && (
         <div
           ref={dropdownRef}
           style={{
