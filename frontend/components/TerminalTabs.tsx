@@ -328,6 +328,8 @@ export function TerminalTabs({
         ) : isGridMode ? (
           <GridLayout
             layoutMode={layoutMode as GridLayoutMode}
+            availableLayouts={availableLayouts}
+            onLayout={handleLayoutModeChange}
             slots={terminalSlots}
             orderedSlotIds={orderedIds}
             onReorder={reorder}
@@ -362,6 +364,8 @@ export function TerminalTabs({
                   key={key}
                   slot={slot}
                   layoutMode={layoutMode}
+                  availableLayouts={availableLayouts}
+                  onLayout={handleLayoutModeChange}
                   isLast={index === splitPaneCount - 1}
                   paneCount={splitPaneCount}
                   fontFamily={fontFamily}
