@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useMemo, useLayoutEffect } from "react";
 import { MoreVertical, RefreshCw, XCircle } from "lucide-react";
 import { useClickOutside } from "@/lib/hooks/useClickOutside";
+import { ConfirmationDialog } from "./ConfirmationDialog";
 
 interface GlobalActionMenuProps {
   onResetAll: () => void;
@@ -24,6 +25,10 @@ export function GlobalActionMenu({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "reset" | "close";
+    onConfirm: () => void;
+  } | null>(null);
 
   const closeMenu = useCallback(() => setIsOpen(false), []);
   const clickOutsideRefs = useMemo(() => [buttonRef, menuRef], []);
@@ -53,12 +58,24 @@ export function GlobalActionMenu({
   }, [isOpen]);
 
   const handleResetAll = () => {
-    onResetAll();
+    setConfirmAction({
+      type: "reset",
+      onConfirm: () => {
+        onResetAll();
+        setConfirmAction(null);
+      },
+    });
     setIsOpen(false);
   };
 
   const handleCloseAll = () => {
-    onCloseAll();
+    setConfirmAction({
+      type: "close",
+      onConfirm: () => {
+        onCloseAll();
+        setConfirmAction(null);
+      },
+    });
     setIsOpen(false);
   };
 
@@ -151,6 +168,28 @@ export function GlobalActionMenu({
           </div>
         </>
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={confirmAction !== null}
+        title={
+          confirmAction?.type === "reset"
+            ? "Reset All Terminals?"
+            : "Close All Terminals?"
+        }
+        message={
+          confirmAction?.type === "reset"
+            ? "This will clear all terminal history. Your sessions will remain active but output will be lost."
+            : "This will terminate all active terminal sessions. Any running processes will be stopped."
+        }
+        confirmText={
+          confirmAction?.type === "reset" ? "Reset All" : "Close All"
+        }
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => confirmAction?.onConfirm()}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }
@@ -168,8 +207,10 @@ function GlobalMenuItem({
   isMobile: boolean;
   variant?: "default" | "danger";
 }) {
-  const colorVar = variant === "danger" ? "var(--term-error)" : "var(--term-text-primary)";
-  const hoverColorVar = variant === "danger" ? "var(--term-error)" : "var(--term-accent)";
+  const colorVar =
+    variant === "danger" ? "var(--term-error)" : "var(--term-text-primary)";
+  const hoverColorVar =
+    variant === "danger" ? "var(--term-error)" : "var(--term-accent)";
 
   return (
     <button
