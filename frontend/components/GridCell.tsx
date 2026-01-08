@@ -25,6 +25,10 @@ export interface GridCellProps {
   onLayout?: (mode: LayoutMode) => void;
   fontFamily: string;
   fontSize: number;
+  scrollback?: number;
+  cursorStyle?: "block" | "underline" | "bar";
+  cursorBlink?: boolean;
+  theme?: Parameters<typeof TerminalComponent>[0]["theme"];
   isDraggable?: boolean;
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
@@ -52,6 +56,10 @@ export function GridCell({
   onLayout,
   fontFamily,
   fontSize,
+  scrollback,
+  cursorStyle,
+  cursorBlink,
+  theme,
   isDraggable = true,
   onTerminalRef,
   onStatusChange,
@@ -138,6 +146,10 @@ export function GridCell({
               className="h-full"
               fontFamily={fontFamily}
               fontSize={fontSize}
+              scrollback={scrollback}
+              cursorStyle={cursorStyle}
+              cursorBlink={cursorBlink}
+              theme={theme}
               onStatusChange={(status) => onStatusChange?.(sessionId, status)}
             />
             {/* Claude loading overlay */}

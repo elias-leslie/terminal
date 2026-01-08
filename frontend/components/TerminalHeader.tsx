@@ -10,7 +10,13 @@ import { type TerminalSlot } from "@/lib/utils/slot";
 import { type LayoutMode } from "./LayoutModeButton";
 import { type ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import { type TerminalSession } from "@/lib/hooks/use-terminal-sessions";
-import { type TerminalFontId, type TerminalFontSize } from "@/lib/hooks/use-terminal-settings";
+import {
+  type TerminalFontId,
+  type TerminalFontSize,
+  type TerminalScrollback,
+  type TerminalCursorStyle,
+  type TerminalThemeId,
+} from "@/lib/hooks/use-terminal-settings";
 import { type KeyboardSizePreset } from "./keyboard/types";
 
 interface TerminalHeaderProps {
@@ -24,12 +30,19 @@ interface TerminalHeaderProps {
   isUploading: boolean;
   fontId: TerminalFontId;
   fontSize: TerminalFontSize;
+  scrollback: TerminalScrollback;
+  cursorStyle: TerminalCursorStyle;
+  cursorBlink: boolean;
+  themeId: TerminalThemeId;
   showSettings: boolean;
   keyboardSize: KeyboardSizePreset;
   onSelectProject: (projectId: string) => void;
   onSelectAdHoc: (sessionId: string) => void;
   onNewTerminal: () => void;
-  onNewTerminalForProject: (projectId: string, mode: "shell" | "claude") => void;
+  onNewTerminalForProject: (
+    projectId: string,
+    mode: "shell" | "claude",
+  ) => void;
   onLayoutChange: (mode: LayoutMode) => void;
   onCleanClick: () => void;
   onUploadClick: () => void;
@@ -37,6 +50,10 @@ interface TerminalHeaderProps {
   onCloseAll: () => void;
   setFontId: (id: TerminalFontId) => void;
   setFontSize: (size: TerminalFontSize) => void;
+  setScrollback: (scrollback: TerminalScrollback) => void;
+  setCursorStyle: (style: TerminalCursorStyle) => void;
+  setCursorBlink: (blink: boolean) => void;
+  setThemeId: (id: TerminalThemeId) => void;
   setShowSettings: (show: boolean) => void;
   setKeyboardSize: (size: KeyboardSizePreset) => void;
 }
@@ -52,6 +69,10 @@ export function TerminalHeader({
   isUploading,
   fontId,
   fontSize,
+  scrollback,
+  cursorStyle,
+  cursorBlink,
+  themeId,
   showSettings,
   keyboardSize,
   onSelectProject,
@@ -65,6 +86,10 @@ export function TerminalHeader({
   onCloseAll,
   setFontId,
   setFontSize,
+  setScrollback,
+  setCursorStyle,
+  setCursorBlink,
+  setThemeId,
   setShowSettings,
   setKeyboardSize,
 }: TerminalHeaderProps) {
@@ -72,7 +97,7 @@ export function TerminalHeader({
     <div
       className={clsx(
         "flex-shrink-0 flex items-center gap-1",
-        isMobile ? "h-9 px-1.5 order-2" : "h-8 px-2 order-1"
+        isMobile ? "h-9 px-1.5 order-2" : "h-8 px-2 order-1",
       )}
       style={{
         backgroundColor: "var(--term-bg-surface)",
@@ -81,9 +106,19 @@ export function TerminalHeader({
     >
       {/* Terminal switcher dropdown */}
       <TerminalSwitcher
-        currentName={activeSlot ? (activeSlot.type === "project" ? activeSlot.projectName : activeSlot.name) : "Terminal"}
-        currentMode={activeSlot?.type === "project" ? activeSlot.activeMode : undefined}
-        currentProjectId={activeSlot?.type === "project" ? activeSlot.projectId : null}
+        currentName={
+          activeSlot
+            ? activeSlot.type === "project"
+              ? activeSlot.projectName
+              : activeSlot.name
+            : "Terminal"
+        }
+        currentMode={
+          activeSlot?.type === "project" ? activeSlot.activeMode : undefined
+        }
+        currentProjectId={
+          activeSlot?.type === "project" ? activeSlot.projectId : null
+        }
         projectTerminals={projectTerminals}
         adHocSessions={adHocSessions}
         onSelectProject={onSelectProject}
@@ -110,16 +145,20 @@ export function TerminalHeader({
       {/* Action buttons */}
       <div className="flex items-center gap-0.5">
         {/* Prompt cleaner button (Claude mode only) */}
-        {activeSlot?.type === "project" && activeSlot.activeMode === "claude" && (
-          <button
-            onClick={onCleanClick}
-            disabled={isCleanerLoading}
-            className="p-1.5 rounded transition-colors hover:bg-[var(--term-bg-elevated)] disabled:opacity-50"
-            title="Clean and format prompt"
-          >
-            <Sparkles className="w-4 h-4" style={{ color: "var(--term-accent)" }} />
-          </button>
-        )}
+        {activeSlot?.type === "project" &&
+          activeSlot.activeMode === "claude" && (
+            <button
+              onClick={onCleanClick}
+              disabled={isCleanerLoading}
+              className="p-1.5 rounded transition-colors hover:bg-[var(--term-bg-elevated)] disabled:opacity-50"
+              title="Clean and format prompt"
+            >
+              <Sparkles
+                className="w-4 h-4"
+                style={{ color: "var(--term-accent)" }}
+              />
+            </button>
+          )}
 
         {/* Upload button */}
         <button
@@ -128,7 +167,10 @@ export function TerminalHeader({
           className="p-1.5 rounded transition-colors hover:bg-[var(--term-bg-elevated)] disabled:opacity-50"
           title="Upload file"
         >
-          <Paperclip className="w-4 h-4" style={{ color: "var(--term-text-muted)" }} />
+          <Paperclip
+            className="w-4 h-4"
+            style={{ color: "var(--term-text-muted)" }}
+          />
         </button>
 
         {/* Global actions menu */}
@@ -142,8 +184,16 @@ export function TerminalHeader({
         <SettingsDropdown
           fontId={fontId}
           fontSize={fontSize}
+          scrollback={scrollback}
+          cursorStyle={cursorStyle}
+          cursorBlink={cursorBlink}
+          themeId={themeId}
           setFontId={setFontId}
           setFontSize={setFontSize}
+          setScrollback={setScrollback}
+          setCursorStyle={setCursorStyle}
+          setCursorBlink={setCursorBlink}
+          setThemeId={setThemeId}
           showSettings={showSettings}
           setShowSettings={setShowSettings}
           keyboardSize={keyboardSize}

@@ -26,6 +26,10 @@ export interface SplitPaneProps {
   paneCount: number;
   fontFamily: string;
   fontSize: number;
+  scrollback?: number;
+  cursorStyle?: "block" | "underline" | "bar";
+  cursorBlink?: boolean;
+  theme?: Parameters<typeof TerminalComponent>[0]["theme"];
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
   // Action handlers for per-pane header buttons
@@ -53,6 +57,10 @@ export function SplitPane({
   paneCount,
   fontFamily,
   fontSize,
+  scrollback,
+  cursorStyle,
+  cursorBlink,
+  theme,
   onTerminalRef,
   onStatusChange,
   onSwitch,
@@ -111,6 +119,10 @@ export function SplitPane({
                 className="h-full"
                 fontFamily={fontFamily}
                 fontSize={fontSize}
+                scrollback={scrollback}
+                cursorStyle={cursorStyle}
+                cursorBlink={cursorBlink}
+                theme={theme}
                 onStatusChange={(status) => onStatusChange?.(sessionId, status)}
               />
               {/* Claude loading overlay for split panes */}

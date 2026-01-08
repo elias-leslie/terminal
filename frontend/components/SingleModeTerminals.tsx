@@ -17,6 +17,9 @@ interface SingleModeTerminalsProps {
   fontFamily: string;
   fontSize: number;
   scrollback?: number;
+  cursorStyle?: "block" | "underline" | "bar";
+  cursorBlink?: boolean;
+  theme?: Parameters<typeof TerminalComponent>[0]["theme"];
   onTerminalRef: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange: (sessionId: string, status: ConnectionStatus) => void;
 }
@@ -28,6 +31,9 @@ export function SingleModeTerminals({
   fontFamily,
   fontSize,
   scrollback,
+  cursorStyle,
+  cursorBlink,
+  theme,
   onTerminalRef,
   onStatusChange,
 }: SingleModeTerminalsProps) {
@@ -70,6 +76,9 @@ export function SingleModeTerminals({
               fontFamily={fontFamily}
               fontSize={fontSize}
               scrollback={scrollback}
+              cursorStyle={cursorStyle}
+              cursorBlink={cursorBlink}
+              theme={theme}
               isVisible={isActive}
               onStatusChange={(status) => onStatusChange(session.id, status)}
             />

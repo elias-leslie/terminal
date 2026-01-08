@@ -17,7 +17,11 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { GridCell } from "./GridCell";
-import { TerminalHandle, ConnectionStatus } from "./Terminal";
+import {
+  TerminalComponent,
+  TerminalHandle,
+  ConnectionStatus,
+} from "./Terminal";
 import { GridLayoutMode, GRID_CELL_COUNTS } from "@/lib/constants/terminal";
 import { LayoutMode } from "./LayoutModeButton";
 import { type TerminalSlot, getSlotPanelId } from "@/lib/utils/slot";
@@ -31,6 +35,10 @@ export interface GridLayoutProps {
   onReorder: (newOrder: string[]) => void;
   fontFamily: string;
   fontSize: number;
+  scrollback?: number;
+  cursorStyle?: "block" | "underline" | "bar";
+  cursorBlink?: boolean;
+  theme?: Parameters<typeof TerminalComponent>[0]["theme"];
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
   // Action handlers for per-cell header buttons
@@ -70,6 +78,10 @@ export function GridLayout({
   onReorder,
   fontFamily,
   fontSize,
+  scrollback,
+  cursorStyle,
+  cursorBlink,
+  theme,
   onTerminalRef,
   onStatusChange,
   onSwitch,
@@ -175,6 +187,10 @@ export function GridLayout({
               onLayout={onLayout}
               fontFamily={fontFamily}
               fontSize={fontSize}
+              scrollback={scrollback}
+              cursorStyle={cursorStyle}
+              cursorBlink={cursorBlink}
+              theme={theme}
               isDraggable={displaySlots.length > 1}
               onTerminalRef={onTerminalRef}
               onStatusChange={onStatusChange}

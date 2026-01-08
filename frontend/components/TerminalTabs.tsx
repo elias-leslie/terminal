@@ -59,8 +59,16 @@ export function TerminalTabs({
     fontSize,
     fontFamily,
     scrollback,
+    cursorStyle,
+    cursorBlink,
+    themeId,
+    theme,
     setFontId,
     setFontSize,
+    setScrollback,
+    setCursorStyle,
+    setCursorBlink,
+    setThemeId,
     showSettings,
     setShowSettings,
     keyboardSize,
@@ -232,6 +240,10 @@ export function TerminalTabs({
           isUploading={isUploading}
           fontId={fontId}
           fontSize={fontSize}
+          scrollback={scrollback}
+          cursorStyle={cursorStyle}
+          cursorBlink={cursorBlink}
+          themeId={themeId}
           showSettings={showSettings}
           keyboardSize={keyboardSize}
           onSelectProject={handleSelectProject}
@@ -245,6 +257,10 @@ export function TerminalTabs({
           onCloseAll={handleCloseAll}
           setFontId={setFontId}
           setFontSize={setFontSize}
+          setScrollback={setScrollback}
+          setCursorStyle={setCursorStyle}
+          setCursorBlink={setCursorBlink}
+          setThemeId={setThemeId}
           setShowSettings={setShowSettings}
           setKeyboardSize={handleKeyboardSizeChange}
         />
@@ -322,6 +338,9 @@ export function TerminalTabs({
             fontFamily={fontFamily}
             fontSize={fontSize}
             scrollback={scrollback}
+            cursorStyle={cursorStyle}
+            cursorBlink={cursorBlink}
+            theme={theme}
             onTerminalRef={setTerminalRef}
             onStatusChange={handleStatusChange}
           />
@@ -335,6 +354,10 @@ export function TerminalTabs({
             onReorder={reorder}
             fontFamily={fontFamily}
             fontSize={fontSize}
+            scrollback={scrollback}
+            cursorStyle={cursorStyle}
+            cursorBlink={cursorBlink}
+            theme={theme}
             onTerminalRef={setTerminalRef}
             onStatusChange={handleStatusChange}
             onSwitch={handleSlotSwitch}
@@ -370,6 +393,10 @@ export function TerminalTabs({
                   paneCount={splitPaneCount}
                   fontFamily={fontFamily}
                   fontSize={fontSize}
+                  scrollback={scrollback}
+                  cursorStyle={cursorStyle}
+                  cursorBlink={cursorBlink}
+                  theme={theme}
                   onTerminalRef={setTerminalRef}
                   onStatusChange={handleStatusChange}
                   onSwitch={handleSlotSwitch}
