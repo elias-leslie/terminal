@@ -29,6 +29,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   onStatusChange,
   fontFamily = "'JetBrains Mono', monospace",
   fontSize = 14,
+  scrollback = SCROLLBACK,
   isVisible = true,
 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -129,7 +130,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         cursorBlink: true,
         fontSize: fontSize,
         fontFamily: fontFamily,
-        scrollback: SCROLLBACK,
+        scrollback: scrollback,
         allowProposedApi: true,
         rightClickSelectsWord: true,
         macOptionClickForcesSelection: true,
@@ -249,16 +250,17 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
     };
   }, [handleResize]);
 
-  // Update font settings when they change
+  // Update terminal settings when they change
   useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.options.fontFamily = fontFamily;
       terminalRef.current.options.fontSize = fontSize;
+      terminalRef.current.options.scrollback = scrollback;
       if (fitAddonRef.current) {
         fitAddonRef.current.fit();
       }
     }
-  }, [fontFamily, fontSize]);
+  }, [fontFamily, fontSize, scrollback]);
 
   return (
     <div className={clsx("relative overflow-hidden", className)}>

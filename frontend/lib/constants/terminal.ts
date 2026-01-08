@@ -4,9 +4,6 @@ export const CONNECTION_TIMEOUT = 10000;
 /** Retry backoff delay in milliseconds */
 export const RETRY_BACKOFF = 2000;
 
-/** Scroll threshold for scroll handling */
-export const SCROLL_THRESHOLD = 50;
-
 /** Terminal scrollback buffer size (default: 10000 lines) */
 export const SCROLLBACK = 10000;
 
@@ -21,9 +18,6 @@ export const WS_CLOSE_CODE_SESSION_DEAD = 4000;
 
 /** ResizeObserver debounce delay in milliseconds */
 export const RESIZE_DEBOUNCE_MS = 150;
-
-/** Copy-mode timeout in milliseconds (auto-exit after inactivity) */
-export const COPY_MODE_TIMEOUT_MS = 10000;
 
 /** Grid layout types */
 export type GridLayoutMode = "grid-2x2" | "grid-3x3" | "grid-4x4";

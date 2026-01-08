@@ -6,6 +6,7 @@ export interface TerminalProps {
   onStatusChange?: (status: ConnectionStatus) => void;
   fontFamily?: string;
   fontSize?: number;
+  scrollback?: number;
   isVisible?: boolean;
 }
 
