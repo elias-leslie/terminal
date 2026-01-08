@@ -4,7 +4,7 @@ import { useCallback, useRef } from "react";
 import { clsx } from "clsx";
 import { Group } from "react-resizable-panels";
 import { TerminalComponent } from "./Terminal";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Paperclip } from "lucide-react";
 import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
 import { FileUploadDropzone } from "./FileUploadDropzone";
 import { TerminalSwitcher } from "./TerminalSwitcher";
@@ -48,6 +48,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     reorder,
 
     // Terminal refs and statuses
+    terminalRefs,
     setTerminalRef,
 
     // Settings
@@ -215,6 +216,16 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
           {/* Action buttons */}
           <div className="flex items-center gap-0.5">
+            {/* Upload button */}
+            <button
+              onClick={handleUploadClick}
+              disabled={isUploading}
+              className="p-1.5 rounded transition-colors hover:bg-[var(--term-bg-elevated)] disabled:opacity-50"
+              title="Upload file"
+            >
+              <Paperclip className="w-4 h-4" style={{ color: "var(--term-text-muted)" }} />
+            </button>
+
             {/* Global actions menu */}
             <GlobalActionMenu
               onResetAll={resetAll}
