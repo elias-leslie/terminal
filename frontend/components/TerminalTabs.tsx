@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { clsx } from "clsx";
 import { Group } from "react-resizable-panels";
 import { TerminalComponent } from "./Terminal";
 import { Plus, Loader2 } from "lucide-react";
 import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
+import { FileUploadDropzone } from "./FileUploadDropzone";
 import { TerminalSwitcher } from "./TerminalSwitcher";
 import { SettingsDropdown } from "./SettingsDropdown";
 import { GlobalActionMenu } from "./GlobalActionMenu";
@@ -16,6 +17,7 @@ import { SplitPane } from "./SplitPane";
 import { GridLayout } from "./GridLayout";
 import { type GridLayoutMode } from "@/lib/constants/terminal";
 import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
+import { useFileUpload } from "@/lib/hooks/use-file-upload";
 import { type TerminalSlot } from "@/lib/utils/slot";
 
 interface TerminalTabsProps {
@@ -128,6 +130,34 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, [projectTerminals, handleProjectTabClick]);
 
+  // File upload functionality
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadFile, progress, isUploading, error: uploadError } = useFileUpload();
+
+  const handleUploadClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileSelect = useCallback(async (file: File) => {
+    const result = await uploadFile(file);
+    if (result && activeSessionId) {
+      // Insert path at cursor in the active terminal
+      const terminalRef = terminalRefs.current.get(activeSessionId);
+      if (terminalRef) {
+        terminalRef.sendInput(result.path);
+      }
+    }
+  }, [uploadFile, activeSessionId, terminalRefs]);
+
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+    // Reset input so the same file can be selected again
+    e.target.value = "";
+  }, [handleFileSelect]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -208,11 +238,57 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         </div>
       )}
 
-      {/* Terminal panels */}
-      <div className={clsx(
-        "flex-1 min-h-0 relative overflow-hidden",
-        isMobile ? "order-1" : "order-2"
-      )}>
+      {/* Hidden file input for upload button */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileInputChange}
+        accept="image/*,.md,.txt,.json,.pdf"
+      />
+
+      {/* Upload progress indicator */}
+      {isUploading && (
+        <div
+          className="absolute top-10 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-lg"
+          style={{
+            backgroundColor: "var(--term-bg-elevated)",
+            border: "1px solid var(--term-border)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--term-accent)" }} />
+            <span className="text-sm" style={{ color: "var(--term-text-primary)" }}>
+              Uploading... {progress}%
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Upload error indicator */}
+      {uploadError && (
+        <div
+          className="absolute top-10 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-lg"
+          style={{
+            backgroundColor: "var(--term-bg-elevated)",
+            border: "1px solid var(--term-error)",
+          }}
+        >
+          <span className="text-sm" style={{ color: "var(--term-error)" }}>
+            {uploadError.message}
+          </span>
+        </div>
+      )}
+
+      {/* Terminal panels with drag-drop upload */}
+      <FileUploadDropzone
+        onFileSelect={handleFileSelect}
+        disabled={isUploading}
+        className={clsx(
+          "flex-1 min-h-0 relative overflow-hidden",
+          isMobile ? "order-1" : "order-2"
+        )}
+      >
         {sessions.length === 0 ? (
           <div
             className="flex items-center justify-center h-full text-sm"
@@ -283,7 +359,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
             })}
           </Group>
         )}
-      </div>
+      </FileUploadDropzone>
 
       {/* Mobile keyboard */}
       {isMobile && sessions.length > 0 && (
