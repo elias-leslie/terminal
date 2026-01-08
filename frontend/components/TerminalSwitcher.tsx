@@ -1,0 +1,165 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import { clsx } from "clsx";
+import { ChevronDown, Plus, Terminal as TerminalIcon } from "lucide-react";
+import { ClaudeIndicator } from "./ClaudeIndicator";
+import type { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
+import type { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
+
+export interface TerminalSwitcherProps {
+  currentName: string;
+  currentMode?: "shell" | "claude";
+  projectTerminals: ProjectTerminal[];
+  adHocSessions: TerminalSession[];
+  onSelectProject: (projectId: string) => void;
+  onSelectAdHoc: (sessionId: string) => void;
+  onNewTerminal: () => void;
+  isMobile?: boolean;
+}
+
+export function TerminalSwitcher({
+  currentName,
+  currentMode,
+  projectTerminals,
+  adHocSessions,
+  onSelectProject,
+  onSelectAdHoc,
+  onNewTerminal,
+  isMobile = false,
+}: TerminalSwitcherProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  // projectTerminals is already filtered to enabled projects
+  const enabledProjects = projectTerminals;
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      {/* Trigger button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={clsx(
+          "flex items-center gap-1 px-1.5 py-0.5 rounded text-xs truncate max-w-[140px] transition-all duration-150",
+          "hover:bg-[var(--term-bg-elevated)]"
+        )}
+        style={{
+          color: "var(--term-text-primary)",
+        }}
+        title={currentName}
+      >
+        {currentMode === "claude" ? (
+          <ClaudeIndicator state="idle" />
+        ) : (
+          <TerminalIcon className="w-3 h-3 flex-shrink-0" style={{ color: "var(--term-text-muted)" }} />
+        )}
+        <span className="truncate">{currentName}</span>
+        <ChevronDown className={clsx("w-3 h-3 flex-shrink-0 transition-transform", isOpen && "rotate-180")} />
+      </button>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <div
+          className={clsx(
+            "absolute left-0 mt-1 z-50 rounded-md shadow-lg overflow-hidden",
+            isMobile ? "min-w-[200px]" : "min-w-[180px]"
+          )}
+          style={{
+            backgroundColor: "var(--term-bg-elevated)",
+            border: "1px solid var(--term-border)",
+          }}
+        >
+          {/* Projects section */}
+          {enabledProjects.length > 0 && (
+            <>
+              <div
+                className="px-2 py-1 text-[10px] uppercase tracking-wide"
+                style={{ color: "var(--term-text-muted)", backgroundColor: "var(--term-bg-surface)" }}
+              >
+                Projects
+              </div>
+              {enabledProjects.map((pt) => (
+                <button
+                  key={pt.projectId}
+                  onClick={() => {
+                    onSelectProject(pt.projectId);
+                    setIsOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left transition-colors hover:bg-[var(--term-bg-surface)]"
+                  style={{ color: "var(--term-text-primary)" }}
+                >
+                  <ClaudeIndicator state={pt.activeMode === "claude" ? "idle" : "none"} />
+                  <span className="truncate flex-1">{pt.projectName}</span>
+                  <span
+                    className="text-[10px] px-1 rounded"
+                    style={{
+                      backgroundColor: "var(--term-bg-surface)",
+                      color: "var(--term-text-muted)",
+                    }}
+                  >
+                    {pt.activeMode}
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* Ad-hoc section */}
+          {adHocSessions.length > 0 && (
+            <>
+              <div
+                className="px-2 py-1 text-[10px] uppercase tracking-wide"
+                style={{ color: "var(--term-text-muted)", backgroundColor: "var(--term-bg-surface)" }}
+              >
+                Terminals
+              </div>
+              {adHocSessions.map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => {
+                    onSelectAdHoc(session.id);
+                    setIsOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left transition-colors hover:bg-[var(--term-bg-surface)]"
+                  style={{ color: "var(--term-text-primary)" }}
+                >
+                  <TerminalIcon className="w-3 h-3" style={{ color: "var(--term-text-muted)" }} />
+                  <span className="truncate flex-1">{session.name}</span>
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* New terminal */}
+          <div style={{ borderTop: "1px solid var(--term-border)" }}>
+            <button
+              onClick={() => {
+                onNewTerminal();
+                setIsOpen(false);
+              }}
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left transition-colors hover:bg-[var(--term-bg-surface)]"
+              style={{ color: "var(--term-accent)" }}
+            >
+              <Plus className="w-3 h-3" />
+              <span>New Terminal</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
