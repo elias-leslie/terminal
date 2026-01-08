@@ -16,5 +16,6 @@ export interface TerminalHandle {
   reconnect: () => void;
   getContent: () => string;
   sendInput: (data: string) => void;
+  getLastLine: () => string;
   status: ConnectionStatus;
 }

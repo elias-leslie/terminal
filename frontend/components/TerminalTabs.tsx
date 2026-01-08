@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { clsx } from "clsx";
 import { Group } from "react-resizable-panels";
 import { TerminalComponent } from "./Terminal";
-import { Plus, Loader2, Paperclip } from "lucide-react";
+import { Plus, Loader2, Paperclip, Sparkles } from "lucide-react";
 import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
 import { FileUploadDropzone } from "./FileUploadDropzone";
+import { PromptCleaner } from "./PromptCleaner";
 import { TerminalSwitcher } from "./TerminalSwitcher";
 import { SettingsDropdown } from "./SettingsDropdown";
 import { GlobalActionMenu } from "./GlobalActionMenu";
@@ -18,6 +19,7 @@ import { GridLayout } from "./GridLayout";
 import { type GridLayoutMode } from "@/lib/constants/terminal";
 import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
 import { useFileUpload } from "@/lib/hooks/use-file-upload";
+import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
 import { type TerminalSlot } from "@/lib/utils/slot";
 
 interface TerminalTabsProps {
@@ -159,6 +161,38 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     e.target.value = "";
   }, [handleFileSelect]);
 
+  // Prompt cleaner functionality
+  const { cleanPrompt, isLoading: isCleanerLoading } = usePromptCleaner();
+  const [showCleaner, setShowCleaner] = useState(false);
+  const [cleanerRawPrompt, setCleanerRawPrompt] = useState("");
+
+  const handleCleanClick = useCallback(() => {
+    if (!activeSessionId) return;
+    const terminalRef = terminalRefs.current.get(activeSessionId);
+    if (!terminalRef) return;
+    const input = terminalRef.getLastLine();
+    if (!input.trim()) return;
+    setCleanerRawPrompt(input);
+    setShowCleaner(true);
+  }, [activeSessionId, terminalRefs]);
+
+  const handleCleanerSend = useCallback((cleanedPrompt: string) => {
+    if (!activeSessionId) return;
+    const terminalRef = terminalRefs.current.get(activeSessionId);
+    if (terminalRef) {
+      // Clear current line (send Ctrl+U) then send cleaned prompt
+      terminalRef.sendInput("\x15"); // Ctrl+U
+      terminalRef.sendInput(cleanedPrompt);
+    }
+    setShowCleaner(false);
+    setCleanerRawPrompt("");
+  }, [activeSessionId, terminalRefs]);
+
+  const handleCleanerCancel = useCallback(() => {
+    setShowCleaner(false);
+    setCleanerRawPrompt("");
+  }, []);
+
   // Loading state
   if (isLoading) {
     return (
@@ -216,6 +250,18 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
           {/* Action buttons */}
           <div className="flex items-center gap-0.5">
+            {/* Prompt cleaner button (Claude mode only) */}
+            {activeSlot?.type === "project" && activeSlot.activeMode === "claude" && (
+              <button
+                onClick={handleCleanClick}
+                disabled={isCleanerLoading}
+                className="p-1.5 rounded transition-colors hover:bg-[var(--term-bg-elevated)] disabled:opacity-50"
+                title="Clean and format prompt"
+              >
+                <Sparkles className="w-4 h-4" style={{ color: "var(--term-accent)" }} />
+              </button>
+            )}
+
             {/* Upload button */}
             <button
               onClick={handleUploadClick}
@@ -390,6 +436,17 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         onClose={() => setShowTerminalManager(false)}
         onCreateGenericTerminal={handleAddTab}
       />
+
+      {/* Prompt Cleaner Panel */}
+      {showCleaner && (
+        <PromptCleaner
+          rawPrompt={cleanerRawPrompt}
+          onSend={handleCleanerSend}
+          onCancel={handleCleanerCancel}
+          cleanPrompt={cleanPrompt}
+          showDiffToggle={true}
+        />
+      )}
     </div>
   );
 }

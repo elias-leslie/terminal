@@ -82,6 +82,20 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       terminalRef.current.clearSelection();
       return content;
     },
+    getLastLine: () => {
+      if (!terminalRef.current) return "";
+      const term = terminalRef.current;
+      const buffer = term.buffer.active;
+      // Get the line at the cursor position
+      const cursorY = buffer.cursorY + buffer.viewportY;
+      const line = buffer.getLine(cursorY);
+      if (!line) return "";
+      // Get text from the line, trimmed
+      let text = line.translateToString(true);
+      // Remove common prompt patterns (e.g., "user@host:~$ ")
+      text = text.replace(/^.*?[#$%>]\s*/, "");
+      return text.trim();
+    },
     sendInput,
     status,
   }), [status, reconnect, sendInput]);
