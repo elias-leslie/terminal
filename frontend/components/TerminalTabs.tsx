@@ -25,7 +25,11 @@ interface TerminalTabsProps {
   className?: string;
 }
 
-export function TerminalTabs({ projectId, projectPath, className }: TerminalTabsProps) {
+export function TerminalTabs({
+  projectId,
+  projectPath,
+  className,
+}: TerminalTabsProps) {
   const {
     // Session state
     activeSessionId,
@@ -54,6 +58,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     fontId,
     fontSize,
     fontFamily,
+    scrollback,
     setFontId,
     setFontSize,
     showSettings,
@@ -95,7 +100,9 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     // Check if active session belongs to a project
     for (const pt of projectTerminals) {
       // Check if active session is one of this project's sessions
-      const projectSession = pt.sessions.find((ps) => ps.session.id === activeSessionId);
+      const projectSession = pt.sessions.find(
+        (ps) => ps.session.id === activeSessionId,
+      );
       if (projectSession) {
         return {
           type: "project",
@@ -126,12 +133,15 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   const activeSlot = getActiveSlot();
 
   // Handler for project selection from switcher
-  const handleSelectProject = useCallback((pId: string) => {
-    const pt = projectTerminals.find((p) => p.projectId === pId);
-    if (pt) {
-      handleProjectTabClick(pt);
-    }
-  }, [projectTerminals, handleProjectTabClick]);
+  const handleSelectProject = useCallback(
+    (pId: string) => {
+      const pt = projectTerminals.find((p) => p.projectId === pId);
+      if (pt) {
+        handleProjectTabClick(pt);
+      }
+    },
+    [projectTerminals, handleProjectTabClick],
+  );
 
   // Prompt cleaner state
   const [showCleaner, setShowCleaner] = useState(false);
@@ -182,17 +192,33 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
   if (isLoading) {
     return (
       <div
-        className={clsx("flex flex-col h-full items-center justify-center", className)}
+        className={clsx(
+          "flex flex-col h-full items-center justify-center",
+          className,
+        )}
         style={{ backgroundColor: "var(--term-bg-deep)" }}
       >
-        <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--term-accent)" }} />
-        <span className="mt-2 text-sm" style={{ color: "var(--term-text-muted)" }}>Loading terminals...</span>
+        <Loader2
+          className="w-6 h-6 animate-spin"
+          style={{ color: "var(--term-accent)" }}
+        />
+        <span
+          className="mt-2 text-sm"
+          style={{ color: "var(--term-text-muted)" }}
+        >
+          Loading terminals...
+        </span>
       </div>
     );
   }
 
   return (
-    <div className={clsx("flex flex-col h-full min-h-0 overflow-visible", className)}>
+    <div
+      className={clsx(
+        "flex flex-col h-full min-h-0 overflow-visible",
+        className,
+      )}
+    >
       {/* Single mode: Unified header with switcher, layout, and actions */}
       {layoutMode === "single" && (
         <TerminalHeader
@@ -243,8 +269,14 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           }}
         >
           <div className="flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--term-accent)" }} />
-            <span className="text-sm" style={{ color: "var(--term-text-primary)" }}>
+            <Loader2
+              className="w-4 h-4 animate-spin"
+              style={{ color: "var(--term-accent)" }}
+            />
+            <span
+              className="text-sm"
+              style={{ color: "var(--term-text-primary)" }}
+            >
               Uploading... {progress}%
             </span>
           </div>
@@ -272,7 +304,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
         disabled={isUploading}
         className={clsx(
           "flex-1 min-h-0 relative overflow-hidden",
-          isMobile ? "order-1" : "order-2"
+          isMobile ? "order-1" : "order-2",
         )}
       >
         {sessions.length === 0 ? (
@@ -289,6 +321,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
             projectPath={projectPath}
             fontFamily={fontFamily}
             fontSize={fontSize}
+            scrollback={scrollback}
             onTerminalRef={setTerminalRef}
             onStatusChange={handleStatusChange}
           />
@@ -314,11 +347,16 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           />
         ) : (
           <Group
-            orientation={layoutMode === "horizontal" ? "vertical" : "horizontal"}
+            orientation={
+              layoutMode === "horizontal" ? "vertical" : "horizontal"
+            }
             className="h-full"
           >
             {terminalSlots.slice(0, splitPaneCount).map((slot, index) => {
-              const key = slot.type === "project" ? `project-${slot.projectId}` : `adhoc-${slot.sessionId}`;
+              const key =
+                slot.type === "project"
+                  ? `project-${slot.projectId}`
+                  : `adhoc-${slot.sessionId}`;
               return (
                 <SplitPane
                   key={key}

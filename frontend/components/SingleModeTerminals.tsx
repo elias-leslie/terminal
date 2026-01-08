@@ -5,6 +5,10 @@ import { TerminalComponent, type TerminalHandle } from "./Terminal";
 import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
 import { type TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 import { type ConnectionStatus } from "./terminal.types";
+import { useLazyMount } from "@/lib/hooks/use-lazy-mount";
+
+// Maximum number of terminals to keep mounted (for quick switching)
+const MAX_MOUNTED_TERMINALS = 3;
 
 interface SingleModeTerminalsProps {
   sessions: TerminalSession[];
@@ -12,6 +16,7 @@ interface SingleModeTerminalsProps {
   projectPath?: string;
   fontFamily: string;
   fontSize: number;
+  scrollback?: number;
   onTerminalRef: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange: (sessionId: string, status: ConnectionStatus) => void;
 }
@@ -22,13 +27,29 @@ export function SingleModeTerminals({
   projectPath,
   fontFamily,
   fontSize,
+  scrollback,
   onTerminalRef,
   onStatusChange,
 }: SingleModeTerminalsProps) {
+  // Use lazy mount hook to track which sessions should be rendered
+  const mountedSessionIds = useLazyMount(
+    activeSessionId,
+    MAX_MOUNTED_TERMINALS,
+  );
+
   return (
     <>
       {sessions.map((session) => {
-        const showClaudeOverlay = session.mode === "claude" &&
+        const isActive = session.id === activeSessionId;
+        const isMounted = mountedSessionIds.has(session.id);
+
+        // Only render mounted terminals
+        if (!isMounted) {
+          return null;
+        }
+
+        const showClaudeOverlay =
+          session.mode === "claude" &&
           session.claude_state !== "running" &&
           session.claude_state !== "stopped" &&
           session.claude_state !== "error";
@@ -38,7 +59,7 @@ export function SingleModeTerminals({
             key={session.id}
             className={clsx(
               "absolute inset-0 overflow-hidden flex flex-col",
-              session.id === activeSessionId ? "z-10 visible" : "z-0 invisible"
+              isActive ? "z-10 visible" : "z-0 invisible",
             )}
           >
             <TerminalComponent
@@ -48,7 +69,8 @@ export function SingleModeTerminals({
               className="flex-1"
               fontFamily={fontFamily}
               fontSize={fontSize}
-              isVisible={session.id === activeSessionId}
+              scrollback={scrollback}
+              isVisible={isActive}
               onStatusChange={(status) => onStatusChange(session.id, status)}
             />
             {showClaudeOverlay && <ClaudeLoadingOverlay variant="normal" />}
