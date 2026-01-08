@@ -17,8 +17,8 @@ from .terminal_utils import SessionId, _to_str
 # Standard SELECT field list for terminal_sessions queries
 # Keep in sync with _row_to_dict() field order
 TERMINAL_SESSION_FIELDS = """id, name, user_id, project_id, working_dir, display_order,
-               mode, is_alive, created_at, last_accessed_at, last_claude_session,
-               claude_state"""
+               mode, session_number, is_alive, created_at, last_accessed_at,
+               last_claude_session, claude_state"""
 
 
 @overload
@@ -68,11 +68,12 @@ def _row_to_dict(row: tuple) -> dict[str, Any]:
         "working_dir": row[4],
         "display_order": row[5],
         "mode": row[6],
-        "is_alive": row[7],
-        "created_at": row[8],
-        "last_accessed_at": row[9],
-        "last_claude_session": row[10] if len(row) > 10 else None,
-        "claude_state": row[11] if len(row) > 11 else "not_started",
+        "session_number": row[7],
+        "is_alive": row[8],
+        "created_at": row[9],
+        "last_accessed_at": row[10],
+        "last_claude_session": row[11] if len(row) > 11 else None,
+        "claude_state": row[12] if len(row) > 12 else "not_started",
     }
 
 
@@ -128,6 +129,8 @@ def create_session(
     """Create a new terminal session.
 
     The session ID is generated server-side to prevent client collisions.
+    session_number is computed as MAX+1 for the project+mode combination,
+    allowing multiple sessions per project (removed unique constraint).
 
     Args:
         name: Display name for the session
@@ -140,13 +143,29 @@ def create_session(
         Server-generated session UUID as string
     """
     with get_connection() as conn, conn.cursor() as cur:
+        # Compute session_number: MAX+1 for this project+mode, or 1 if none exist
+        if project_id:
+            cur.execute(
+                """
+                SELECT COALESCE(MAX(session_number), 0) + 1
+                FROM terminal_sessions
+                WHERE project_id = %s AND mode = %s AND is_alive = true
+                """,
+                (project_id, mode),
+            )
+            row = cur.fetchone()
+            session_number = row[0] if row else 1
+        else:
+            session_number = 1
+
         cur.execute(
             """
-            INSERT INTO terminal_sessions (name, user_id, project_id, working_dir, mode)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO terminal_sessions
+                (name, user_id, project_id, working_dir, mode, session_number)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (name, user_id, project_id, working_dir, mode),
+            (name, user_id, project_id, working_dir, mode, session_number),
         )
         row = cur.fetchone()
         conn.commit()

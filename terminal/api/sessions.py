@@ -38,6 +38,7 @@ class TerminalSessionResponse(BaseModel):
     working_dir: str | None
     display_order: int
     mode: str
+    session_number: int
     is_alive: bool
     created_at: str | None
     last_accessed_at: str | None
@@ -82,10 +83,15 @@ def _session_to_response(session: dict[str, Any]) -> TerminalSessionResponse:
         working_dir=session.get("working_dir"),
         display_order=session["display_order"],
         mode=session.get("mode", "shell"),
+        session_number=session.get("session_number", 1),
         is_alive=session["is_alive"],
-        created_at=session["created_at"].isoformat() if session.get("created_at") else None,
+        created_at=session["created_at"].isoformat()
+        if session.get("created_at")
+        else None,
         last_accessed_at=(
-            session["last_accessed_at"].isoformat() if session.get("last_accessed_at") else None
+            session["last_accessed_at"].isoformat()
+            if session.get("last_accessed_at")
+            else None
         ),
         claude_state=session.get("claude_state", "not_started"),
     )
@@ -132,23 +138,33 @@ async def create_session(request: CreateSessionRequest) -> TerminalSessionRespon
 
     session = terminal_store.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=500, detail="Session created but not found") from None
+        raise HTTPException(
+            status_code=500, detail="Session created but not found"
+        ) from None
 
     return _session_to_response(session)
 
 
-@router.get("/api/terminal/sessions/{session_id}", response_model=TerminalSessionResponse)
+@router.get(
+    "/api/terminal/sessions/{session_id}", response_model=TerminalSessionResponse
+)
 async def get_session(session_id: str) -> TerminalSessionResponse:
     """Get a single terminal session by ID."""
     session = terminal_store.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found") from None
+        raise HTTPException(
+            status_code=404, detail=f"Session {session_id} not found"
+        ) from None
 
     return _session_to_response(session)
 
 
-@router.patch("/api/terminal/sessions/{session_id}", response_model=TerminalSessionResponse)
-async def update_session(session_id: str, request: UpdateSessionRequest) -> TerminalSessionResponse:
+@router.patch(
+    "/api/terminal/sessions/{session_id}", response_model=TerminalSessionResponse
+)
+async def update_session(
+    session_id: str, request: UpdateSessionRequest
+) -> TerminalSessionResponse:
     """Update terminal session metadata.
 
     Can update: name, display_order
@@ -156,7 +172,9 @@ async def update_session(session_id: str, request: UpdateSessionRequest) -> Term
     # Verify session exists
     existing = terminal_store.get_session(session_id)
     if not existing:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found") from None
+        raise HTTPException(
+            status_code=404, detail=f"Session {session_id} not found"
+        ) from None
 
     # Build update fields
     update_fields: dict[str, Any] = {}
@@ -170,7 +188,9 @@ async def update_session(session_id: str, request: UpdateSessionRequest) -> Term
 
     session = terminal_store.update_session(session_id, **update_fields)
     if not session:
-        raise HTTPException(status_code=500, detail="Failed to update session") from None
+        raise HTTPException(
+            status_code=500, detail="Failed to update session"
+        ) from None
 
     return _session_to_response(session)
 
@@ -186,7 +206,9 @@ async def delete_session(session_id: str) -> dict[str, Any]:
     return {"deleted": True, "id": session_id}
 
 
-@router.post("/api/terminal/sessions/{session_id}/reset", response_model=TerminalSessionResponse)
+@router.post(
+    "/api/terminal/sessions/{session_id}/reset", response_model=TerminalSessionResponse
+)
 async def reset_session(session_id: str) -> TerminalSessionResponse:
     """Reset a terminal session.
 
@@ -195,11 +217,15 @@ async def reset_session(session_id: str) -> TerminalSessionResponse:
     """
     new_session_id = lifecycle.reset_session(session_id)
     if not new_session_id:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found") from None
+        raise HTTPException(
+            status_code=404, detail=f"Session {session_id} not found"
+        ) from None
 
     session = terminal_store.get_session(new_session_id)
     if not session:
-        raise HTTPException(status_code=500, detail="Session reset but not found") from None
+        raise HTTPException(
+            status_code=500, detail="Session reset but not found"
+        ) from None
 
     return _session_to_response(session)
 

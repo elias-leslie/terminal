@@ -27,3 +27,8 @@ CORS_ORIGINS = [
 # Terminal dimensions
 TMUX_DEFAULT_COLS = 120
 TMUX_DEFAULT_ROWS = 30
+
+# File upload configuration
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "10"))
+MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024  # Convert to bytes
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(Path.home() / "terminal-uploads")))
