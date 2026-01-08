@@ -1,0 +1,549 @@
+{
+  "project": "terminal-ui-overhaul",
+  "version": "1.0.0",
+  "status": "complete",
+  "last_updated": "2026-01-08T23:15:00Z",
+  "spirit": {
+    "why": "Simplify terminal pane management with consistent controls across all view modes, removing redundant UI chrome",
+    "anti": "Don't add new top bars, tab strips, or duplicate controls - use existing pane headers for all functionality"
+  },
+  "overview": {
+    "summary": "Comprehensive UI/UX overhaul of the terminal frontend focusing on unified pane controls, simplified session management, and consistent behavior across single/split/grid views and mobile.",
+    "current_state": "Terminal has inconsistent controls: SessionTabBar appears only in single mode with multiple terminals, TSD dropdown doesn't work in grid/split, Settings cog non-functional in grid/split, terminal/claude toggle is dropdown not toggle, modals have z-index issues in split view, mobile touch scrolling potentially broken.",
+    "desired_state": "All controls live in each terminal pane's header regardless of view mode. Single icon toggle for terminal/claude. TSD dropdown enables pane swapping in grid/split and terminal switching in single. No SessionTabBar. Modal opens from + icon on every pane header. Per-project terminal settings persist."
+  },
+  "gaps": [
+    {
+      "id": "gap-001",
+      "title": "SessionTabBar adds unwanted top bar",
+      "current": "SessionTabBar.tsx renders horizontal tab strip when layoutMode=single AND terminalSlots.length > 1",
+      "desired": "No SessionTabBar at all - all selection via TerminalSwitcher dropdown in pane header",
+      "files": ["frontend/components/SessionTabBar.tsx", "frontend/components/TerminalTabs.tsx:256-266"]
+    },
+    {
+      "id": "gap-002",
+      "title": "TSD dropdown non-functional in grid/split",
+      "current": "TerminalSwitcher in UnifiedTerminalHeader doesn't trigger pane swapping - onChange handler likely missing or broken",
+      "desired": "Clicking terminal in TSD dropdown performs data swap with current pane (exchanges orderedSlotIds)",
+      "files": ["frontend/components/TerminalSwitcher.tsx", "frontend/components/UnifiedTerminalHeader.tsx"]
+    },
+    {
+      "id": "gap-003",
+      "title": "Terminal modal contains + button in dropdown",
+      "current": "TerminalSwitcher dropdown includes 'New Terminal' and 'New Shell/Claude for Project' at bottom",
+      "desired": "Dropdown contains ONLY terminal list for selection. + icon on pane header opens separate modal.",
+      "files": ["frontend/components/TerminalSwitcher.tsx:228-252"]
+    },
+    {
+      "id": "gap-004",
+      "title": "Terminal/Claude toggle is dropdown not single-click",
+      "current": "TabModeDropdown shows dropdown with Shell/Claude options requiring two clicks",
+      "desired": "Single icon that toggles between terminal (terminal icon) and claude (sparkle icon) on single click",
+      "files": ["frontend/components/TabModeDropdown.tsx"]
+    },
+    {
+      "id": "gap-005",
+      "title": "Settings cog non-functional in grid/split",
+      "current": "IconButton for settings in UnifiedTerminalHeader has no onClick handler or broken one",
+      "desired": "Opens same SettingsDropdown modal as single pane view, with per-project persistence",
+      "files": ["frontend/components/UnifiedTerminalHeader.tsx:207-258"]
+    },
+    {
+      "id": "gap-006",
+      "title": "Modal z-index issues in split/grid",
+      "current": "Some modals pop up slightly and are hidden by bar/window elements",
+      "desired": "All modals render above all terminal chrome with proper z-index stacking",
+      "files": ["frontend/components/TerminalManagerModal.tsx", "frontend/components/SettingsDropdown.tsx"]
+    },
+    {
+      "id": "gap-007",
+      "title": "Project terminal naming for multiple instances",
+      "current": "Uses session_number but display unclear",
+      "desired": "Format: 'Project', 'Project [2]', 'Project [3]' - alphabetically sorted in dropdown",
+      "files": ["frontend/components/TerminalSwitcher.tsx", "frontend/lib/hooks/use-terminal-sessions.ts"]
+    },
+    {
+      "id": "gap-008",
+      "title": "Terminals modal has checkboxes and drag ordering",
+      "current": "TerminalManagerModal has enable/disable checkboxes per project and drag-to-reorder",
+      "desired": "Simple button list - clicking project name opens new project terminal instance. No checkboxes, no drag.",
+      "files": ["frontend/components/TerminalManagerModal.tsx"]
+    },
+    {
+      "id": "gap-009",
+      "title": "Split view drag-drop may not work",
+      "current": "User reports 2x2 drag works but split doesn't",
+      "desired": "Drag-drop reordering works in all multi-pane layouts",
+      "files": ["frontend/components/TerminalLayoutRenderer.tsx:159-192"]
+    },
+    {
+      "id": "gap-010",
+      "title": "Mobile touch scrolling potentially broken",
+      "current": "Terminal.tsx sets touchAction='none' which may break scrolling",
+      "desired": "Touch scrolling works on mobile. May need copy mode re-implementation.",
+      "files": ["frontend/components/Terminal.tsx:200-213"]
+    },
+    {
+      "id": "gap-011",
+      "title": "Per-project terminal settings not persisted",
+      "current": "Settings (font, theme, scrollback) are global or not persisted",
+      "desired": "Settings persist per-project: Portfolio-AI theme applies to all Portfolio-AI terminals",
+      "files": ["frontend/lib/hooks/use-terminal-settings.ts", "backend storage"]
+    }
+  ],
+  "requirements": {
+    "goals": [
+      {
+        "id": "goal-001",
+        "goal": "Remove SessionTabBar entirely",
+        "priority": "must",
+        "criteria": [
+          "SessionTabBar component never renders regardless of terminal count",
+          "All terminal selection via TerminalSwitcher dropdown in pane header",
+          "Keyboard shortcuts (Ctrl+Tab, Ctrl+1-9) still work for terminal cycling in single mode"
+        ]
+      },
+      {
+        "id": "goal-002",
+        "goal": "Implement TSD dropdown with pane swapping",
+        "priority": "must",
+        "criteria": [
+          "TSD dropdown lists all open terminals alphabetically (Project, Project [2], etc.)",
+          "In grid/split: selecting terminal performs data swap - exchanges orderedSlotIds",
+          "In single: selecting terminal switches active view",
+          "Current terminal shown as dropdown button text",
+          "Checkmark indicator on currently selected terminal in dropdown"
+        ]
+      },
+      {
+        "id": "goal-003",
+        "goal": "Move + icon to pane header, simplify modal",
+        "priority": "must",
+        "criteria": [
+          "+ icon appears in EVERY terminal pane header (single, split, grid)",
+          "Clicking + opens Terminals modal",
+          "Modal shows project list as simple buttons (no checkboxes)",
+          "Clicking project button opens new instance (Portfolio-AI, Portfolio-AI [2])",
+          "Generic terminal button at bottom",
+          "No drag-to-reorder in modal"
+        ]
+      },
+      {
+        "id": "goal-004",
+        "goal": "Convert terminal/claude to single-click toggle",
+        "priority": "must",
+        "criteria": [
+          "Single icon button replaces TabModeDropdown",
+          "Shows terminal icon when in shell mode, sparkle when in claude mode",
+          "Single click toggles mode",
+          "Loading state shown during mode switch",
+          "Tooltip shows current mode and 'Click to switch'"
+        ]
+      },
+      {
+        "id": "goal-005",
+        "goal": "Fix Settings cog in grid/split view",
+        "priority": "must",
+        "criteria": [
+          "Settings cog button works in all view modes",
+          "Opens same settings modal as single pane view",
+          "Settings include: font size, font family, theme, scrollback buffer",
+          "Settings persist per-project (all Portfolio-AI terminals share settings)",
+          "Global defaults for generic terminals"
+        ]
+      },
+      {
+        "id": "goal-006",
+        "goal": "Fix modal z-index stacking",
+        "priority": "must",
+        "criteria": [
+          "All modals render above terminal chrome in all view modes",
+          "Modals never clipped by pane headers or grid borders",
+          "Overlay covers entire viewport",
+          "Test in: single, horizontal split, vertical split, 2x2 grid"
+        ]
+      },
+      {
+        "id": "goal-007",
+        "goal": "Enforce pane and session limits",
+        "priority": "must",
+        "criteria": [
+          "Maximum 4 terminal panes visible at once",
+          "Project panes have 2 tmux sessions (shell + claude)",
+          "Generic panes have 1 tmux session",
+          "Total sessions: 4-8 depending on pane types",
+          "UI prevents opening 5th pane (+ button disabled or hidden when at limit)"
+        ]
+      },
+      {
+        "id": "goal-008",
+        "goal": "Fix split view drag-drop",
+        "priority": "must",
+        "criteria": [
+          "Drag handle (GripVertical) works in split layouts",
+          "Dragging reorders panes in split view",
+          "Order persists across layout mode changes"
+        ]
+      },
+      {
+        "id": "goal-009",
+        "goal": "Session lifecycle - auto-attach and cleanup",
+        "priority": "must",
+        "criteria": [
+          "Opening project terminal auto-attaches to existing tmux sessions if they exist",
+          "New sessions created if none exist",
+          "Browser close: tmux sessions persist for reconnection",
+          "Explicit close (X button): tmux sessions destroyed",
+          "Reset: kills all sessions for project, creates fresh ones",
+          "No orphaned web terminal tmux sessions"
+        ]
+      },
+      {
+        "id": "goal-010",
+        "goal": "Mobile support",
+        "priority": "must",
+        "criteria": [
+          "Single pane view only on mobile (no grid/split)",
+          "Touch scrolling works",
+          "On-screen keyboard functional",
+          "TSD dropdown works on mobile",
+          "Modal touch-friendly (larger tap targets)"
+        ]
+      },
+      {
+        "id": "goal-011",
+        "goal": "Remove + button from TSD dropdown",
+        "priority": "must",
+        "criteria": [
+          "TerminalSwitcher dropdown contains ONLY terminal list",
+          "No 'New Terminal' or 'New Shell/Claude for Project' in dropdown",
+          "All creation via + icon in pane header"
+        ]
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "comp-001",
+      "name": "TerminalSwitcher",
+      "path": "frontend/components/TerminalSwitcher.tsx",
+      "changes": [
+        "Remove 'New Terminal' and 'New Shell/Claude for Project' actions from dropdown",
+        "Add onChange handler for pane swapping (grid/split) or terminal switching (single)",
+        "Sort terminal list alphabetically",
+        "Format names as 'Project', 'Project [2]', etc."
+      ]
+    },
+    {
+      "id": "comp-002",
+      "name": "TabModeDropdown -> ModeToggle",
+      "path": "frontend/components/TabModeDropdown.tsx",
+      "changes": [
+        "Rename to ModeToggle.tsx",
+        "Convert from dropdown to single-click toggle button",
+        "Show terminal icon or sparkle based on current mode",
+        "Single click fires onChange with opposite mode"
+      ]
+    },
+    {
+      "id": "comp-003",
+      "name": "UnifiedTerminalHeader",
+      "path": "frontend/components/UnifiedTerminalHeader.tsx",
+      "changes": [
+        "Add + icon button that opens TerminalManagerModal",
+        "Replace TabModeDropdown with ModeToggle",
+        "Fix Settings cog onClick to open SettingsDropdown",
+        "Wire TSD dropdown onChange for pane swapping"
+      ]
+    },
+    {
+      "id": "comp-004",
+      "name": "TerminalManagerModal",
+      "path": "frontend/components/TerminalManagerModal.tsx",
+      "changes": [
+        "Remove enable/disable checkboxes",
+        "Remove drag-to-reorder",
+        "Convert project items to simple buttons",
+        "Clicking project creates new instance",
+        "Add session count indicator per project"
+      ]
+    },
+    {
+      "id": "comp-005",
+      "name": "SessionTabBar",
+      "path": "frontend/components/SessionTabBar.tsx",
+      "changes": [
+        "Remove entirely (delete file or stop rendering)"
+      ]
+    },
+    {
+      "id": "comp-006",
+      "name": "TerminalTabs",
+      "path": "frontend/components/TerminalTabs.tsx",
+      "changes": [
+        "Remove SessionTabBar rendering (lines 256-266)",
+        "Move keyboard shortcuts (Ctrl+Tab, Ctrl+1-9) to work without tab bar",
+        "Update handler for pane swapping"
+      ]
+    },
+    {
+      "id": "comp-007",
+      "name": "TerminalLayoutRenderer",
+      "path": "frontend/components/TerminalLayoutRenderer.tsx",
+      "changes": [
+        "Ensure split layouts support drag-drop reordering",
+        "Pass swap handler to UnifiedTerminalHeader"
+      ]
+    },
+    {
+      "id": "comp-008",
+      "name": "Terminal",
+      "path": "frontend/components/Terminal.tsx",
+      "changes": [
+        "Review touchAction setting for mobile scroll compatibility",
+        "May need copy mode re-implementation for mobile"
+      ]
+    },
+    {
+      "id": "comp-009",
+      "name": "SettingsDropdown",
+      "path": "frontend/components/SettingsDropdown.tsx",
+      "changes": [
+        "Add per-project settings persistence",
+        "Accept projectId prop to scope settings",
+        "Fall back to global defaults for generic terminals"
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "dec-001",
+      "title": "Tab bar removal",
+      "context": "SessionTabBar adds extra UI chrome when multiple terminals exist in single view",
+      "options": ["Remove entirely", "Keep but simplify", "Replace with different UI"],
+      "outcome": "Remove entirely - all selection via TerminalSwitcher dropdown",
+      "rationale": "Reduces UI clutter, consistent with grid/split views which use pane headers"
+    },
+    {
+      "id": "dec-002",
+      "title": "Terminal naming format",
+      "context": "Multiple instances of same project need distinguishing names",
+      "options": ["Project [N]", "Project [Mode][N]", "Project:N"],
+      "outcome": "Project [N] - simple sequential numbering",
+      "rationale": "Cleaner, mode shown separately via icon"
+    },
+    {
+      "id": "dec-003",
+      "title": "Terminal/Claude toggle style",
+      "context": "Current dropdown requires two clicks",
+      "options": ["Single icon toggle", "Side-by-side buttons", "Segmented control"],
+      "outcome": "Single icon toggle - one click switches mode",
+      "rationale": "Fastest interaction, minimal UI footprint"
+    },
+    {
+      "id": "dec-004",
+      "title": "Session limit model",
+      "context": "Need to cap resource usage",
+      "options": ["4 panes / 8 sessions max", "4 panes / variable sessions", "Hard 8 session cap", "Soft pane + hard session"],
+      "outcome": "4 panes max, sessions flex by pane type (4-8 total)",
+      "rationale": "Intuitive - users think in panes. Natural resource limit via pane count."
+    },
+    {
+      "id": "dec-005",
+      "title": "Pane swap behavior",
+      "context": "How TSD dropdown selection affects pane arrangement",
+      "options": ["Visual swap (render only)", "Data swap (state mutation)"],
+      "outcome": "Data swap - modify orderedSlotIds state",
+      "rationale": "Consistent with drag-drop, persists across layout changes"
+    },
+    {
+      "id": "dec-006",
+      "title": "Terminals modal scope",
+      "context": "What can user do in the + modal",
+      "options": ["Open only", "Open + manage (close terminals)"],
+      "outcome": "Open only - closing done via X button on pane",
+      "rationale": "Simpler modal, consistent close UX"
+    },
+    {
+      "id": "dec-007",
+      "title": "Session attachment on reopen",
+      "context": "When opening terminal that has existing sessions",
+      "options": ["Auto-attach", "Prompt user", "Always fresh"],
+      "outcome": "Auto-attach to existing tmux sessions",
+      "rationale": "Seamless reconnection, preserves work"
+    },
+    {
+      "id": "dec-008",
+      "title": "Settings persistence scope",
+      "context": "How terminal settings (font, theme) are stored",
+      "options": ["Global only", "Per-terminal", "Per-project"],
+      "outcome": "Per-project with global fallback for generic terminals",
+      "rationale": "Different projects may have different preferences"
+    }
+  ],
+  "implementation": {
+    "phases": [
+      {
+        "phase": 1,
+        "name": "Core control refactoring",
+        "tasks": [
+          "Create ModeToggle component (replace TabModeDropdown)",
+          "Update TerminalSwitcher to remove creation actions",
+          "Implement pane swap logic in state management",
+          "Add + icon to UnifiedTerminalHeader"
+        ]
+      },
+      {
+        "phase": 2,
+        "name": "Layout cleanup",
+        "tasks": [
+          "Remove SessionTabBar from TerminalTabs",
+          "Migrate keyboard shortcuts to work without tab bar",
+          "Fix split view drag-drop",
+          "Fix modal z-index issues"
+        ]
+      },
+      {
+        "phase": 3,
+        "name": "Modal and settings",
+        "tasks": [
+          "Refactor TerminalManagerModal (buttons instead of checkboxes)",
+          "Implement per-project settings persistence",
+          "Fix Settings cog in grid/split views"
+        ]
+      },
+      {
+        "phase": 4,
+        "name": "Mobile and polish",
+        "tasks": [
+          "Test and fix mobile touch scrolling",
+          "Verify on-screen keyboard",
+          "Ensure TSD works on mobile",
+          "Cross-browser testing"
+        ]
+      },
+      {
+        "phase": 5,
+        "name": "Testing and verification",
+        "tasks": [
+          "Test all view modes (single, horizontal, vertical, 2x2)",
+          "Test pane swapping in grid/split",
+          "Test session lifecycle (attach, close, browser close)",
+          "Test mobile",
+          "Test session limits (4 panes max)"
+        ]
+      }
+    ]
+  },
+  "testing": {
+    "scenarios": [
+      {
+        "id": "test-001",
+        "name": "Single pane basic operations",
+        "steps": [
+          "Open single terminal",
+          "Click + to open modal",
+          "Click project to open new terminal",
+          "Verify TSD shows both terminals",
+          "Switch between terminals via TSD",
+          "Toggle mode via single-click toggle",
+          "Close terminal via X button"
+        ]
+      },
+      {
+        "id": "test-002",
+        "name": "Grid view pane swapping",
+        "steps": [
+          "Open 4 project terminals",
+          "Switch to 2x2 grid",
+          "Click TSD in pane 1, select terminal from pane 2",
+          "Verify panes swap (data swap, not just visual)",
+          "Drag pane to reorder",
+          "Switch to single view and back - verify order persists"
+        ]
+      },
+      {
+        "id": "test-003",
+        "name": "Session lifecycle",
+        "steps": [
+          "Open project terminal (creates tmux sessions)",
+          "Close browser tab",
+          "Reopen terminal - verify auto-attach to existing sessions",
+          "Click X to close terminal",
+          "Verify tmux sessions destroyed",
+          "Check no orphaned sessions via tmux list-sessions"
+        ]
+      },
+      {
+        "id": "test-004",
+        "name": "Mobile",
+        "steps": [
+          "Open on mobile device/emulator",
+          "Verify single pane only (no grid/split buttons)",
+          "Test touch scrolling in terminal",
+          "Test TSD dropdown (touch)",
+          "Test on-screen keyboard",
+          "Verify modals are touch-friendly"
+        ]
+      },
+      {
+        "id": "test-005",
+        "name": "Pane limits",
+        "steps": [
+          "Open 4 terminals",
+          "Attempt to open 5th - verify blocked",
+          "Close one terminal",
+          "Verify can now open another"
+        ]
+      },
+      {
+        "id": "test-006",
+        "name": "Per-project settings",
+        "steps": [
+          "Open Portfolio-AI terminal",
+          "Change theme in settings",
+          "Open Portfolio-AI [2]",
+          "Verify same theme applied",
+          "Open SummitFlow terminal",
+          "Verify default theme (not Portfolio-AI theme)"
+        ]
+      }
+    ]
+  },
+  "recommended_next_steps": [
+    {
+      "priority": 1,
+      "action": "Run /task_it to generate implementation tasks from this spec",
+      "rationale": "Breaks down into actionable subtasks with acceptance criteria"
+    },
+    {
+      "priority": 2,
+      "action": "Use frontend-design skill for ModeToggle and modal redesign",
+      "rationale": "User requested frontend-design for all UI/UX work"
+    },
+    {
+      "priority": 3,
+      "action": "Test mobile touch scrolling FIRST before other changes",
+      "rationale": "May require restoring old copy mode code from git history"
+    }
+  ],
+  "discovery_meta": {
+    "phases_completed": ["detection", "spirit", "discovery", "interview", "specification"],
+    "questions_asked": 8,
+    "exploration_agents_spawned": 2,
+    "files_explored": [
+      {"path": "frontend/components/TerminalTabs.tsx", "confidence": "high"},
+      {"path": "frontend/components/Terminal.tsx", "confidence": "high"},
+      {"path": "frontend/components/TerminalSwitcher.tsx", "confidence": "high"},
+      {"path": "frontend/components/TabModeDropdown.tsx", "confidence": "high"},
+      {"path": "frontend/components/TerminalManagerModal.tsx", "confidence": "high"},
+      {"path": "frontend/components/UnifiedTerminalHeader.tsx", "confidence": "high"},
+      {"path": "frontend/components/SessionTabBar.tsx", "confidence": "high"},
+      {"path": "frontend/components/GridLayout.tsx", "confidence": "high"},
+      {"path": "frontend/components/TerminalLayoutRenderer.tsx", "confidence": "high"},
+      {"path": "terminal/services/lifecycle_core.py", "confidence": "high"},
+      {"path": "terminal/api/terminal.py", "confidence": "high"}
+    ],
+    "last_activity": "2026-01-08T23:15:00Z"
+  }
+}
