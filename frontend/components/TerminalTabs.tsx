@@ -12,6 +12,7 @@ import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { TerminalManagerModal } from "./TerminalManagerModal";
 import { SplitPane } from "./SplitPane";
 import { GridLayout } from "./GridLayout";
+import { SessionTabBar } from "./SessionTabBar";
 import { type GridLayoutMode } from "@/lib/constants/terminal";
 import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
 import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
@@ -263,6 +264,19 @@ export function TerminalTabs({
           setThemeId={setThemeId}
           setShowSettings={setShowSettings}
           setKeyboardSize={handleKeyboardSizeChange}
+        />
+      )}
+
+      {/* Session tab bar - only in single mode, not on mobile */}
+      {layoutMode === "single" && !isMobile && terminalSlots.length > 1 && (
+        <SessionTabBar
+          slots={terminalSlots}
+          activeSessionId={activeSessionId}
+          orderedSlotIds={orderedIds}
+          onReorder={reorder}
+          onSelectSlot={handleSlotSwitch}
+          onCloseSlot={handleSlotClose}
+          onNewTerminal={() => setShowTerminalManager(true)}
         />
       )}
 
