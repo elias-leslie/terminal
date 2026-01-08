@@ -50,6 +50,7 @@ export interface GridLayoutProps {
   onClean?: (slot: TerminalSlot) => void;
   onNewShell?: (slot: TerminalSlot) => void;
   onNewClaude?: (slot: TerminalSlot) => void;
+  onEmptyClick?: () => void;
   isMobile?: boolean;
 }
 
@@ -92,6 +93,7 @@ export function GridLayout({
   onClean,
   onNewShell,
   onNewClaude,
+  onEmptyClick,
   isMobile,
 }: GridLayoutProps) {
   const gridSize = getGridDimensions(layoutMode);
@@ -206,18 +208,37 @@ export function GridLayout({
             />
           ))}
 
-          {/* Empty placeholders */}
+          {/* Empty placeholders with improved affordance */}
           {Array.from({ length: emptyCount }).map((_, index) => (
             <div
               key={`empty-${index}`}
-              className="flex flex-col items-center justify-center rounded-md opacity-40 transition-opacity duration-150 hover:opacity-60"
+              onClick={onEmptyClick}
+              className="group flex flex-col items-center justify-center gap-2 rounded-md cursor-pointer transition-all duration-150 hover:border-[var(--term-accent)]"
               style={{
                 backgroundColor: "var(--term-bg-surface)",
                 border: "1px dashed var(--term-border)",
-                color: "var(--term-text-muted)",
               }}
             >
-              <span className="text-xs font-mono">+</span>
+              <div
+                className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-150 group-hover:scale-110"
+                style={{
+                  backgroundColor: "var(--term-bg-elevated)",
+                  border: "1px solid var(--term-border)",
+                }}
+              >
+                <span
+                  className="text-lg font-light transition-colors group-hover:text-[var(--term-accent)]"
+                  style={{ color: "var(--term-text-muted)" }}
+                >
+                  +
+                </span>
+              </div>
+              <span
+                className="text-xs transition-colors group-hover:text-[var(--term-text-primary)]"
+                style={{ color: "var(--term-text-muted)" }}
+              >
+                Add terminal
+              </span>
             </div>
           ))}
         </div>

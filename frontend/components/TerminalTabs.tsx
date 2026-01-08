@@ -13,6 +13,10 @@ import { TerminalManagerModal } from "./TerminalManagerModal";
 import { SplitPane } from "./SplitPane";
 import { GridLayout } from "./GridLayout";
 import { SessionTabBar } from "./SessionTabBar";
+import {
+  KeyboardShortcuts,
+  useTerminalKeyboardShortcuts,
+} from "./KeyboardShortcuts";
 import { type GridLayoutMode } from "@/lib/constants/terminal";
 import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
 import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
@@ -175,6 +179,24 @@ export function TerminalTabs({
     setShowCleaner,
     setCleanerRawPrompt,
   });
+
+  // Keyboard shortcuts
+  const { showHelp: showKeyboardHelp, closeHelp: closeKeyboardHelp } =
+    useTerminalKeyboardShortcuts({
+      onNewTerminal: () => setShowTerminalManager(true),
+      onCloseTab: () => {
+        // Close the current active slot if available
+        const activeSlot = terminalSlots.find(
+          (slot) =>
+            (slot.type === "project" &&
+              slot.activeSessionId === activeSessionId) ||
+            (slot.type === "adhoc" && slot.sessionId === activeSessionId),
+        );
+        if (activeSlot) {
+          handleSlotClose(activeSlot);
+        }
+      },
+    });
 
   // File upload and prompt cleaner functionality
   const { cleanPrompt, isLoading: isCleanerLoading } = usePromptCleaner();
@@ -382,6 +404,7 @@ export function TerminalTabs({
             onClean={handleSlotClean}
             onNewShell={handleSlotNewShell}
             onNewClaude={handleSlotNewClaude}
+            onEmptyClick={() => setShowTerminalManager(true)}
             isMobile={isMobile}
           />
         ) : (
@@ -458,6 +481,12 @@ export function TerminalTabs({
           showDiffToggle={true}
         />
       )}
+
+      {/* Keyboard shortcuts help overlay */}
+      <KeyboardShortcuts
+        isOpen={showKeyboardHelp}
+        onClose={closeKeyboardHelp}
+      />
     </div>
   );
 }
