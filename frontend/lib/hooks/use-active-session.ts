@@ -145,10 +145,8 @@ export function useActiveSession(): UseActiveSessionResult {
       const project = projectTerminals.find((p) => p.projectId === projectId);
       if (!project) return null;
 
-      // Return the session for the project's current active mode
-      return project.activeMode === "claude"
-        ? project.claudeSession
-        : project.shellSession;
+      // Return the active session (already computed by useProjectTerminals)
+      return project.activeSession;
     },
     [projectTerminals]
   );

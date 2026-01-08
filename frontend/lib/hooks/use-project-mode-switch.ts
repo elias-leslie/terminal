@@ -59,8 +59,7 @@ interface UseProjectModeSwitchReturn {
  * await switchProjectMode({
  *   projectId: "my-project",
  *   mode: "claude",
- *   shellSessionId: "shell-123",
- *   claudeSessionId: null,
+ *   projectSessions: [...], // all sessions for this project
  *   rootPath: "/home/user/project",
  * });
  * ```

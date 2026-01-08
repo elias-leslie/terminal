@@ -10,22 +10,26 @@ import type { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 export interface TerminalSwitcherProps {
   currentName: string;
   currentMode?: "shell" | "claude";
+  currentProjectId?: string | null;
   projectTerminals: ProjectTerminal[];
   adHocSessions: TerminalSession[];
   onSelectProject: (projectId: string) => void;
   onSelectAdHoc: (sessionId: string) => void;
   onNewTerminal: () => void;
+  onNewTerminalForProject?: (projectId: string, mode: "shell" | "claude") => void;
   isMobile?: boolean;
 }
 
 export function TerminalSwitcher({
   currentName,
   currentMode,
+  currentProjectId,
   projectTerminals,
   adHocSessions,
   onSelectProject,
   onSelectAdHoc,
   onNewTerminal,
+  onNewTerminalForProject,
   isMobile = false,
 }: TerminalSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -144,15 +148,30 @@ export function TerminalSwitcher({
             </>
           )}
 
-          {/* New terminal */}
+          {/* New terminal actions */}
           <div style={{ borderTop: "1px solid var(--term-border)" }}>
+            {/* New terminal for current project (if viewing a project) */}
+            {currentProjectId && onNewTerminalForProject && (
+              <button
+                onClick={() => {
+                  onNewTerminalForProject(currentProjectId, currentMode ?? "shell");
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left transition-colors hover:bg-[var(--term-bg-surface)]"
+                style={{ color: "var(--term-accent)" }}
+              >
+                <Plus className="w-3 h-3" />
+                <span>New {currentMode === "claude" ? "Claude" : "Shell"} for Project</span>
+              </button>
+            )}
+            {/* New generic terminal */}
             <button
               onClick={() => {
                 onNewTerminal();
                 setIsOpen(false);
               }}
               className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left transition-colors hover:bg-[var(--term-bg-surface)]"
-              style={{ color: "var(--term-accent)" }}
+              style={{ color: "var(--term-text-muted)" }}
             >
               <Plus className="w-3 h-3" />
               <span>New Terminal</span>

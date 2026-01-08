@@ -5,6 +5,7 @@ import { ClaudeIndicator } from "./ClaudeIndicator";
 import { TabModeDropdown } from "./TabModeDropdown";
 import { TabActionMenu } from "./TabActionMenu";
 import { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
+import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 
 // ============================================================================
 // Utility Functions
@@ -39,8 +40,7 @@ export interface ProjectTabProps {
   onModeChange: (
     projectId: string,
     mode: "shell" | "claude",
-    shellSessionId: string | null,
-    claudeSessionId: string | null,
+    projectSessions: TerminalSession[],
     rootPath: string | null
   ) => void;
   onReset: (projectId: string) => void;
@@ -86,8 +86,7 @@ export function ProjectTab({
           onChange={(mode) => onModeChange(
             pt.projectId,
             mode,
-            pt.shellSessionId,
-            pt.claudeSessionId,
+            pt.sessions.map((ps) => ps.session),
             pt.rootPath
           )}
           isMobile={isMobile}

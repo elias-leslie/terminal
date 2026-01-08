@@ -30,13 +30,6 @@ export interface GridLayoutProps {
   fontSize: number;
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
-  onModeChange?: (
-    projectId: string,
-    mode: "shell" | "claude",
-    shellSessionId: string | null,
-    claudeSessionId: string | null,
-    rootPath: string | null
-  ) => void;
 }
 
 /** Get grid dimensions based on layout mode */
@@ -64,7 +57,6 @@ export function GridLayout({
   fontSize,
   onTerminalRef,
   onStatusChange,
-  onModeChange,
 }: GridLayoutProps) {
   const gridSize = getGridDimensions(layoutMode);
   const maxCells = GRID_CELL_COUNTS[layoutMode];
@@ -159,7 +151,6 @@ export function GridLayout({
               isDraggable={displaySlots.length > 1}
               onTerminalRef={onTerminalRef}
               onStatusChange={onStatusChange}
-              onModeChange={onModeChange}
             />
           ))}
 

@@ -34,7 +34,6 @@ export function GridCell({
   isDraggable = true,
   onTerminalRef,
   onStatusChange,
-  onModeChange: _onModeChange,
 }: GridCellProps) {
   const panelId = getSlotPanelId(slot);
   const sessionId = getSlotSessionId(slot);

@@ -256,9 +256,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
             fontSize={fontSize}
             onTerminalRef={setTerminalRef}
             onStatusChange={handleStatusChange}
-            onModeChange={(projectId, mode, shellId, claudeId, rootPath) =>
-              handleProjectModeChange(projectId, mode, shellId, claudeId, rootPath)
-            }
           />
         ) : (
           <Group
@@ -278,9 +275,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                   fontSize={fontSize}
                   onTerminalRef={setTerminalRef}
                   onStatusChange={handleStatusChange}
-                  onModeChange={(projectId, mode, shellId, claudeId, rootPath) =>
-                    handleProjectModeChange(projectId, mode, shellId, claudeId, rootPath)
-                  }
                 />
               );
             })}

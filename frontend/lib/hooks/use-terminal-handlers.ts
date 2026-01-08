@@ -35,6 +35,7 @@ interface UseTerminalHandlersReturn {
   handleReconnect: () => void;
   handleLayoutModeChange: (mode: LayoutMode) => Promise<void>;
   handleAddTab: () => Promise<void>;
+  handleNewTerminalForProject: (projectId: string, mode: "shell" | "claude") => Promise<void>;
   handleProjectTabClick: (pt: ProjectTerminal) => Promise<void>;
   handleProjectModeChange: (
     projectId: string,
@@ -148,6 +149,32 @@ export function useTerminalHandlers({
     const name = getNextTerminalName(sessions);
     await create(name, undefined, undefined, true);
   }, [sessions, create]);
+
+  // Add new terminal for a specific project
+  const handleNewTerminalForProject = useCallback(async (
+    targetProjectId: string,
+    mode: "shell" | "claude"
+  ) => {
+    const project = projectTerminals.find((p) => p.projectId === targetProjectId);
+    if (!project) return;
+
+    try {
+      const newSession = await createProjectSession({
+        projectId: targetProjectId,
+        mode,
+        workingDir: project.rootPath,
+      });
+
+      navigateToSession(newSession.id);
+
+      if (mode === "claude") {
+        await new Promise(resolve => setTimeout(resolve, TMUX_INIT_DELAY_MS));
+        await startClaude(newSession.id);
+      }
+    } catch {
+      // Error already logged by createProjectSession
+    }
+  }, [projectTerminals, navigateToSession, startClaude]);
 
   // Navigate to session via URL
   const navigateToSession = useCallback((sessionId: string) => {
