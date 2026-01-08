@@ -39,8 +39,7 @@ interface UseTerminalHandlersReturn {
   handleProjectModeChange: (
     projectId: string,
     newMode: "shell" | "claude",
-    currentShellSessionId: string | null,
-    currentClaudeSessionId: string | null,
+    projectSessions: TerminalSession[],
     rootPath: string | null
   ) => Promise<void>;
   handleCloseAll: () => Promise<void>;
@@ -187,15 +186,13 @@ export function useTerminalHandlers({
     async (
       projectIdArg: string,
       newMode: "shell" | "claude",
-      currentShellSessionId: string | null,
-      currentClaudeSessionId: string | null,
+      projectSessions: TerminalSession[],
       rootPath: string | null
     ): Promise<void> => {
       await switchProjectMode({
         projectId: projectIdArg,
         mode: newMode,
-        shellSessionId: currentShellSessionId,
-        claudeSessionId: currentClaudeSessionId,
+        projectSessions,
         rootPath,
       });
     },

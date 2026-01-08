@@ -22,13 +22,6 @@ export interface SplitPaneProps {
   fontSize: number;
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
-  onModeChange?: (
-    projectId: string,
-    mode: "shell" | "claude",
-    shellSessionId: string | null,
-    claudeSessionId: string | null,
-    rootPath: string | null
-  ) => void;
 }
 
 /**
@@ -44,7 +37,6 @@ export function SplitPane({
   fontSize,
   onTerminalRef,
   onStatusChange,
-  onModeChange: _onModeChange,
 }: SplitPaneProps) {
   const defaultSize = 100 / paneCount;
   const minSize = `${Math.max(10, 100 / (paneCount * 2))}%`;

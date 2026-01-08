@@ -10,8 +10,11 @@ export interface ProjectSlot {
   projectName: string;
   rootPath: string | null;
   activeMode: "shell" | "claude";
-  shellSessionId: string | null;
-  claudeSessionId: string | null;
+  // Current active session (based on mode)
+  activeSessionId: string | null;
+  // Session badge (1-indexed position among project sessions)
+  sessionBadge: number | null;
+  // Claude state for the active session
   claudeState?: "not_started" | "starting" | "running" | "stopped" | "error";
 }
 
@@ -26,11 +29,11 @@ export type TerminalSlot = ProjectSlot | AdHocSlot;
 
 /**
  * Get the active session ID for a slot.
- * For project slots, returns claude or shell session based on active mode.
+ * For project slots, returns the active session ID.
  */
 export function getSlotSessionId(slot: TerminalSlot): string | null {
   if (slot.type === "project") {
-    return slot.activeMode === "claude" ? slot.claudeSessionId : slot.shellSessionId;
+    return slot.activeSessionId;
   }
   return slot.sessionId;
 }
@@ -46,9 +49,23 @@ export function getSlotPanelId(slot: TerminalSlot): string {
 }
 
 /**
- * Get display name for a slot.
+ * Get display name for a slot (includes badge if applicable).
  */
 export function getSlotName(slot: TerminalSlot): string {
+  if (slot.type === "project") {
+    const badge = slot.sessionBadge;
+    if (badge !== null && badge > 1) {
+      return `${slot.projectName} [${badge}]`;
+    }
+    return slot.projectName;
+  }
+  return slot.name;
+}
+
+/**
+ * Get base project name without badge.
+ */
+export function getSlotBaseName(slot: TerminalSlot): string {
   if (slot.type === "project") {
     return slot.projectName;
   }

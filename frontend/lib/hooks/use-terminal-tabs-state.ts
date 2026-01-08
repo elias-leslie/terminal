@@ -95,15 +95,15 @@ export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabs
     const slots: TerminalSlot[] = [];
 
     for (const pt of projectTerminals) {
-      const claudeState = pt.claudeSession?.claude_state;
+      const claudeState = pt.activeSession?.claude_state;
       slots.push({
         type: "project",
         projectId: pt.projectId,
         projectName: pt.projectName,
         rootPath: pt.rootPath,
         activeMode: pt.activeMode,
-        shellSessionId: pt.shellSessionId,
-        claudeSessionId: pt.claudeSessionId,
+        activeSessionId: pt.activeSessionId,
+        sessionBadge: pt.sessionBadge,
         claudeState,
       });
     }

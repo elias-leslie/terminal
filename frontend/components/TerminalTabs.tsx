@@ -88,17 +88,18 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
     // Check if active session belongs to a project
     for (const pt of projectTerminals) {
-      const sessionId = pt.activeMode === "claude" ? pt.claudeSessionId : pt.shellSessionId;
-      if (sessionId === activeSessionId) {
+      // Check if active session is one of this project's sessions
+      const projectSession = pt.sessions.find((ps) => ps.session.id === activeSessionId);
+      if (projectSession) {
         return {
           type: "project",
           projectId: pt.projectId,
           projectName: pt.projectName,
           rootPath: pt.rootPath,
           activeMode: pt.activeMode,
-          shellSessionId: pt.shellSessionId,
-          claudeSessionId: pt.claudeSessionId,
-          claudeState: pt.claudeSession?.claude_state,
+          activeSessionId: projectSession.session.id,
+          sessionBadge: projectSession.badge,
+          claudeState: projectSession.session.claude_state,
         };
       }
     }

@@ -10,17 +10,23 @@ import { useTerminalSessions, TerminalSession } from "./use-terminal-sessions";
 // Types
 // ============================================================================
 
+export interface ProjectSession {
+  session: TerminalSession;
+  badge: number; // 1-indexed badge number for this project
+}
+
 export interface ProjectTerminal {
   projectId: string;
   projectName: string;
   rootPath: string | null;
   activeMode: "shell" | "claude";
-  // Dual session IDs
-  shellSessionId: string | null;
-  claudeSessionId: string | null;
-  // Dual session objects
-  shellSession: TerminalSession | null;
-  claudeSession: TerminalSession | null;
+  // All sessions for this project (sorted by created_at)
+  sessions: ProjectSession[];
+  // Active session (based on mode - first matching session)
+  activeSession: TerminalSession | null;
+  activeSessionId: string | null;
+  // Session badge for the active session
+  sessionBadge: number | null;
 }
 
 export interface UseProjectTerminalsResult {
@@ -99,26 +105,39 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
     [searchParams, router]
   );
 
-  // Merge enabled projects with dual sessions
+  // Merge enabled projects with sessions, computing badges
   const projectTerminals = useMemo(() => {
     return enabledProjects.map((project) => {
-      // Find shell and claude sessions for this project
-      const shellSession = sessions.find(
-        (s) => s.project_id === project.id && s.mode === "shell"
-      ) ?? null;
-      const claudeSession = sessions.find(
-        (s) => s.project_id === project.id && s.mode === "claude"
-      ) ?? null;
+      // Find all sessions for this project, sorted by created_at for badge assignment
+      const projectSessions = sessions
+        .filter((s) => s.project_id === project.id)
+        .sort((a, b) => {
+          const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return aTime - bTime;
+        });
+
+      // Assign 1-indexed badges
+      const sessionsWithBadges: ProjectSession[] = projectSessions.map((session, index) => ({
+        session,
+        badge: index + 1,
+      }));
+
+      // Find active session based on mode (first matching session with that mode)
+      const activeSession = projectSessions.find((s) => s.mode === project.mode) ?? null;
+      const activeBadgeEntry = sessionsWithBadges.find(
+        (ps) => ps.session.id === activeSession?.id
+      );
 
       return {
         projectId: project.id,
         projectName: project.name,
         rootPath: project.root_path,
         activeMode: project.mode,
-        shellSessionId: shellSession?.id ?? null,
-        claudeSessionId: claudeSession?.id ?? null,
-        shellSession,
-        claudeSession,
+        sessions: sessionsWithBadges,
+        activeSession,
+        activeSessionId: activeSession?.id ?? null,
+        sessionBadge: activeBadgeEntry?.badge ?? null,
       };
     });
   }, [enabledProjects, sessions]);
@@ -158,10 +177,9 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
 
       // Get the project info for the old session IDs
       const project = projectTerminals.find((p) => p.projectId === projectId);
-      const oldShellId = project?.shellSessionId;
-      const oldClaudeId = project?.claudeSessionId;
+      const oldSessionIds = project?.sessions.map((ps) => ps.session.id) ?? [];
 
-      return { previousSessions, projectId, oldShellId, oldClaudeId };
+      return { previousSessions, projectId, oldSessionIds };
     },
     onSuccess: (data, projectId, context) => {
       // data = { project_id, shell_session_id, claude_session_id, mode }
@@ -177,7 +195,7 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
 
         // Remove old sessions for this project
         const filtered = old.filter(
-          (s) => s.id !== context?.oldShellId && s.id !== context?.oldClaudeId
+          (s) => !context?.oldSessionIds?.includes(s.id)
         );
 
         // Add new sessions with constructed data

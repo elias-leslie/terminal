@@ -15,8 +15,8 @@ const TAB_SCROLL_DELAY_MS = 100;
 interface SwitchProjectModeParams {
   projectId: string;
   mode: "shell" | "claude";
-  shellSessionId: string | null;
-  claudeSessionId: string | null;
+  /** All sessions for this project */
+  projectSessions: TerminalSession[];
   rootPath: string | null;
 }
 
@@ -97,13 +97,14 @@ export function useProjectModeSwitch({
   // Main orchestration function
   const switchProjectMode = useCallback(
     async (params: SwitchProjectModeParams): Promise<void> => {
-      const { projectId, mode, shellSessionId, claudeSessionId, rootPath } = params;
+      const { projectId, mode, projectSessions, rootPath } = params;
 
       // 1. Update mode in backend (optimistic update happens in switchMode)
       await switchMode(projectId, mode);
 
-      // 2. Determine which session to use
-      let targetSessionId = mode === "claude" ? claudeSessionId : shellSessionId;
+      // 2. Find first session matching the target mode
+      const matchingSession = projectSessions.find((s) => s.mode === mode);
+      let targetSessionId = matchingSession?.id ?? null;
       let needsClaudeStart = false;
       let isNewSession = false;
 
@@ -122,9 +123,7 @@ export function useProjectModeSwitch({
         }
       } else if (mode === "claude") {
         // Existing claude session - check if Claude is already running
-        // Look up session in the cache to check claude_state
-        const existingSession = sessions.find((s) => s.id === targetSessionId);
-        const claudeState = existingSession?.claude_state;
+        const claudeState = matchingSession?.claude_state;
         // Only start Claude if NOT already running or starting
         needsClaudeStart = claudeState !== "running" && claudeState !== "starting";
       }
@@ -152,7 +151,7 @@ export function useProjectModeSwitch({
         });
       }, TAB_SCROLL_DELAY_MS);
     },
-    [switchMode, sessions, startClaudeInSession, navigateToSession, projectTabRefs]
+    [switchMode, startClaudeInSession, navigateToSession, projectTabRefs]
   );
 
   return {

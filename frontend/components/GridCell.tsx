@@ -20,13 +20,6 @@ export interface GridCellProps {
   isDraggable?: boolean;
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
-  onModeChange?: (
-    projectId: string,
-    mode: "shell" | "claude",
-    shellSessionId: string | null,
-    claudeSessionId: string | null,
-    rootPath: string | null
-  ) => void;
 }
 
 /**
