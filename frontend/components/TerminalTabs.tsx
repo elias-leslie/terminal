@@ -20,7 +20,7 @@ import { type GridLayoutMode } from "@/lib/constants/terminal";
 import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
 import { useFileUpload } from "@/lib/hooks/use-file-upload";
 import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
-import { type TerminalSlot } from "@/lib/utils/slot";
+import { type TerminalSlot, getSlotSessionId } from "@/lib/utils/slot";
 
 interface TerminalTabsProps {
   projectId?: string;
@@ -85,6 +85,10 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
     // Project operations
     resetAll,
+    resetProject,
+    disableProject,
+    reset,
+    remove,
   } = useTerminalTabsState({ projectId, projectPath });
 
   // Compute active slot for unified header in single mode
@@ -132,6 +136,41 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
       handleProjectTabClick(pt);
     }
   }, [projectTerminals, handleProjectTabClick]);
+
+  // Slot-based handlers for grid/split mode headers
+  const handleSlotSwitch = useCallback((slot: TerminalSlot) => {
+    const sessionId = getSlotSessionId(slot);
+    if (sessionId) {
+      switchToSession(sessionId);
+    }
+  }, [switchToSession]);
+
+  const handleSlotReset = useCallback(async (slot: TerminalSlot) => {
+    if (slot.type === "project") {
+      await resetProject(slot.projectId);
+    } else {
+      await reset(slot.sessionId);
+    }
+  }, [resetProject, reset]);
+
+  const handleSlotClose = useCallback(async (slot: TerminalSlot) => {
+    if (slot.type === "project") {
+      await disableProject(slot.projectId);
+    } else {
+      await remove(slot.sessionId);
+    }
+  }, [disableProject, remove]);
+
+  const handleSlotClean = useCallback((slot: TerminalSlot) => {
+    const sessionId = getSlotSessionId(slot);
+    if (!sessionId) return;
+    const terminalRef = terminalRefs.current.get(sessionId);
+    if (!terminalRef) return;
+    const input = terminalRef.getLastLine();
+    if (!input.trim()) return;
+    setCleanerRawPrompt(input);
+    setShowCleaner(true);
+  }, [terminalRefs]);
 
   // File upload functionality
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -392,6 +431,13 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
             fontSize={fontSize}
             onTerminalRef={setTerminalRef}
             onStatusChange={handleStatusChange}
+            onSwitch={handleSlotSwitch}
+            onSettings={() => setShowSettings(true)}
+            onReset={handleSlotReset}
+            onClose={handleSlotClose}
+            onUpload={handleUploadClick}
+            onClean={handleSlotClean}
+            isMobile={isMobile}
           />
         ) : (
           <Group
@@ -411,6 +457,13 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                   fontSize={fontSize}
                   onTerminalRef={setTerminalRef}
                   onStatusChange={handleStatusChange}
+                  onSwitch={handleSlotSwitch}
+                  onSettings={() => setShowSettings(true)}
+                  onReset={handleSlotReset}
+                  onClose={handleSlotClose}
+                  onUpload={handleUploadClick}
+                  onClean={handleSlotClean}
+                  isMobile={isMobile}
                 />
               );
             })}

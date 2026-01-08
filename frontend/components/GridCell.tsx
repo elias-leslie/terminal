@@ -20,6 +20,14 @@ export interface GridCellProps {
   isDraggable?: boolean;
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
+  // Action handlers for per-cell header buttons
+  onSwitch?: (slot: TerminalSlot) => void;
+  onSettings?: () => void;
+  onReset?: (slot: TerminalSlot) => void;
+  onClose?: (slot: TerminalSlot) => void;
+  onUpload?: () => void;
+  onClean?: (slot: TerminalSlot) => void;
+  isMobile?: boolean;
 }
 
 /**
@@ -34,6 +42,13 @@ export function GridCell({
   isDraggable = true,
   onTerminalRef,
   onStatusChange,
+  onSwitch,
+  onSettings,
+  onReset,
+  onClose,
+  onUpload,
+  onClean,
+  isMobile,
 }: GridCellProps) {
   const panelId = getSlotPanelId(slot);
   const sessionId = getSlotSessionId(slot);
@@ -74,6 +89,14 @@ export function GridCell({
         isDraggable={isDraggable}
         dragAttributes={attributes}
         dragListeners={listeners}
+        showCleanButton={slot.type === "project" && slot.activeMode === "claude"}
+        onSwitch={onSwitch ? () => onSwitch(slot) : undefined}
+        onSettings={onSettings}
+        onReset={onReset ? () => onReset(slot) : undefined}
+        onClose={onClose ? () => onClose(slot) : undefined}
+        onUpload={onUpload}
+        onClean={onClean ? () => onClean(slot) : undefined}
+        isMobile={isMobile}
       />
 
       {/* Terminal content */}

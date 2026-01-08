@@ -22,6 +22,14 @@ export interface SplitPaneProps {
   fontSize: number;
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
+  // Action handlers for per-pane header buttons
+  onSwitch?: (slot: TerminalSlot) => void;
+  onSettings?: () => void;
+  onReset?: (slot: TerminalSlot) => void;
+  onClose?: (slot: TerminalSlot) => void;
+  onUpload?: () => void;
+  onClean?: (slot: TerminalSlot) => void;
+  isMobile?: boolean;
 }
 
 /**
@@ -37,6 +45,13 @@ export function SplitPane({
   fontSize,
   onTerminalRef,
   onStatusChange,
+  onSwitch,
+  onSettings,
+  onReset,
+  onClose,
+  onUpload,
+  onClean,
+  isMobile,
 }: SplitPaneProps) {
   const defaultSize = 100 / paneCount;
   const minSize = `${Math.max(10, 100 / (paneCount * 2))}%`;
@@ -55,7 +70,17 @@ export function SplitPane({
         className="flex flex-col h-full min-h-0 overflow-hidden"
       >
         {/* Unified header */}
-        <UnifiedTerminalHeader slot={slot} />
+        <UnifiedTerminalHeader
+          slot={slot}
+          showCleanButton={slot.type === "project" && slot.activeMode === "claude"}
+          onSwitch={onSwitch ? () => onSwitch(slot) : undefined}
+          onSettings={onSettings}
+          onReset={onReset ? () => onReset(slot) : undefined}
+          onClose={onClose ? () => onClose(slot) : undefined}
+          onUpload={onUpload}
+          onClean={onClean ? () => onClean(slot) : undefined}
+          isMobile={isMobile}
+        />
         <div className="flex-1 min-h-0 overflow-hidden relative">
           {sessionId ? (
             <>

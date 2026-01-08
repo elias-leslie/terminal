@@ -30,6 +30,14 @@ export interface GridLayoutProps {
   fontSize: number;
   onTerminalRef?: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange?: (sessionId: string, status: ConnectionStatus) => void;
+  // Action handlers for per-cell header buttons
+  onSwitch?: (slot: TerminalSlot) => void;
+  onSettings?: () => void;
+  onReset?: (slot: TerminalSlot) => void;
+  onClose?: (slot: TerminalSlot) => void;
+  onUpload?: () => void;
+  onClean?: (slot: TerminalSlot) => void;
+  isMobile?: boolean;
 }
 
 /** Get grid dimensions based on layout mode */
@@ -57,6 +65,13 @@ export function GridLayout({
   fontSize,
   onTerminalRef,
   onStatusChange,
+  onSwitch,
+  onSettings,
+  onReset,
+  onClose,
+  onUpload,
+  onClean,
+  isMobile,
 }: GridLayoutProps) {
   const gridSize = getGridDimensions(layoutMode);
   const maxCells = GRID_CELL_COUNTS[layoutMode];
@@ -151,6 +166,13 @@ export function GridLayout({
               isDraggable={displaySlots.length > 1}
               onTerminalRef={onTerminalRef}
               onStatusChange={onStatusChange}
+              onSwitch={onSwitch}
+              onSettings={onSettings}
+              onReset={onReset}
+              onClose={onClose}
+              onUpload={onUpload}
+              onClean={onClean}
+              isMobile={isMobile}
             />
           ))}
 
