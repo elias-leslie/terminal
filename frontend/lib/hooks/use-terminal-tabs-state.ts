@@ -22,7 +22,10 @@ interface UseTerminalTabsStateProps {
   projectPath?: string;
 }
 
-export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabsStateProps) {
+export function useTerminalTabsState({
+  projectId,
+  projectPath,
+}: UseTerminalTabsStateProps) {
   // URL-based active session (single source of truth)
   const {
     activeSessionId,
@@ -35,15 +38,29 @@ export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabs
 
   // Layout state
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("single");
-  const { fontId, fontSize, fontFamily, scrollback, setFontId, setFontSize, setScrollback } = useTerminalSettings();
+  const {
+    fontId,
+    fontSize,
+    fontFamily,
+    scrollback,
+    setFontId,
+    setFontSize,
+    setScrollback,
+  } = useTerminalSettings();
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [showSettings, setShowSettings] = useState(false);
-  const [keyboardSize, setKeyboardSize] = useLocalStorageState<KeyboardSizePreset>("terminal-keyboard-size", "medium");
+  const [keyboardSize, setKeyboardSize] =
+    useLocalStorageState<KeyboardSizePreset>(
+      "terminal-keyboard-size",
+      "medium",
+    );
   const [showTerminalManager, setShowTerminalManager] = useState(false);
 
   // Terminal refs and connection status tracking
   const terminalRefs = useRef<Map<string, TerminalHandle>>(new Map());
-  const [terminalStatuses, setTerminalStatuses] = useState<Map<string, ConnectionStatus>>(new Map());
+  const [terminalStatuses, setTerminalStatuses] = useState<
+    Map<string, ConnectionStatus>
+  >(new Map());
   const projectTabRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Handlers hook (includes session/project mutations and all event handlers)
@@ -130,8 +147,11 @@ export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabs
   const splitPaneCount = Math.min(terminalSlots.length, MAX_SPLIT_PANES);
 
   // Get active terminal status
-  const activeStatus = activeSessionId ? terminalStatuses.get(activeSessionId) : undefined;
-  const showReconnect = activeStatus && ["disconnected", "error", "timeout"].includes(activeStatus);
+  const activeStatus = activeSessionId
+    ? terminalStatuses.get(activeSessionId)
+    : undefined;
+  const showReconnect =
+    activeStatus && ["disconnected", "error", "timeout"].includes(activeStatus);
 
   // Auto-downgrade layout if current mode is no longer available
   useEffect(() => {
@@ -152,6 +172,20 @@ export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabs
       create("Terminal 1", undefined, undefined, true);
     }
   }, [isLoading, sessions.length, isCreating, create]);
+
+  // Auto-create session for project when ?project=X is in URL but no session exists
+  useEffect(() => {
+    if (isLoading || isCreating || !projectId) return;
+
+    // Check if any session exists for this project
+    const hasProjectSession = sessions.some((s) => s.project_id === projectId);
+    if (!hasProjectSession) {
+      // Create a new session for this project
+      const sessionName =
+        projectId.charAt(0).toUpperCase() + projectId.slice(1);
+      create(sessionName, projectPath, undefined, false);
+    }
+  }, [isLoading, sessions, isCreating, create, projectId, projectPath]);
 
   // Tab editing hook
   const tabEditingProps = useTabEditing({

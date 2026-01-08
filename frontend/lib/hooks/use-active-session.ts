@@ -51,8 +51,9 @@ export interface UseActiveSessionResult {
  * Derivation logic:
  * 1. Check URL `searchParams` for `?session=<id>`
  * 2. If valid session ID in URL, that's the active session
- * 3. If no URL param but sessions exist, use first session
- * 4. If no sessions, return null
+ * 3. If `?project=<id>` param exists, find session with matching project_id
+ * 4. If no URL param but sessions exist, use first session
+ * 5. If no sessions, return null
  *
  * @example
  * ```tsx
@@ -87,8 +88,9 @@ export function useActiveSession(): UseActiveSessionResult {
 
   const isLoading = sessionsLoading || projectsLoading;
 
-  // Get session ID from URL
+  // Get session ID and project ID from URL
   const urlSessionId = searchParams.get("session");
+  const urlProjectId = searchParams.get("project");
 
   // Derive active session ID from URL + available sessions
   const activeSessionId = useMemo(() => {
@@ -103,12 +105,23 @@ export function useActiveSession(): UseActiveSessionResult {
       if (sessionExists) {
         return urlSessionId;
       }
-      // URL has invalid session ID - fall through to default
+      // URL has invalid session ID - fall through to project/default
+    }
+
+    // If project param is set, find a session for that project
+    if (urlProjectId) {
+      const projectSession = sessions.find(
+        (s) => s.project_id === urlProjectId,
+      );
+      if (projectSession) {
+        return projectSession.id;
+      }
+      // No session for this project yet - fall through to default
     }
 
     // Default to first session if no valid URL param
     return sessions[0]?.id ?? null;
-  }, [sessions, urlSessionId]);
+  }, [sessions, urlSessionId, urlProjectId]);
 
   // Get the active session object
   const activeSession = useMemo(() => {
@@ -136,7 +149,7 @@ export function useActiveSession(): UseActiveSessionResult {
       // Use router.push with scroll: false for shallow navigation
       router.push(`?${params.toString()}`, { scroll: false });
     },
-    [sessions, searchParams, router]
+    [sessions, searchParams, router],
   );
 
   // Get the active session for a project based on its current mode
@@ -148,7 +161,7 @@ export function useActiveSession(): UseActiveSessionResult {
       // Return the active session (already computed by useProjectTerminals)
       return project.activeSession;
     },
-    [projectTerminals]
+    [projectTerminals],
   );
 
   return {
