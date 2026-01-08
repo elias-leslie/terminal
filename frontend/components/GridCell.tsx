@@ -2,17 +2,13 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Terminal as TerminalIcon } from "lucide-react";
 import { TerminalComponent, TerminalHandle, ConnectionStatus } from "./Terminal";
 import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
-import { ClaudeIndicator } from "./ClaudeIndicator";
-import { TabModeDropdown } from "./TabModeDropdown";
-import { SessionInfoIcon } from "./SessionInfoIcon";
+import { UnifiedTerminalHeader } from "./UnifiedTerminalHeader";
 import {
   type TerminalSlot,
   getSlotSessionId,
   getSlotPanelId,
-  getSlotName,
   getSlotWorkingDir,
 } from "@/lib/utils/slot";
 
@@ -45,11 +41,10 @@ export function GridCell({
   isDraggable = true,
   onTerminalRef,
   onStatusChange,
-  onModeChange,
+  onModeChange: _onModeChange,
 }: GridCellProps) {
   const panelId = getSlotPanelId(slot);
   const sessionId = getSlotSessionId(slot);
-  const name = getSlotName(slot);
   const workingDir = getSlotWorkingDir(slot);
 
   const {
@@ -81,65 +76,13 @@ export function GridCell({
       className="flex flex-col h-full min-h-0 overflow-hidden rounded-md hover:border-[var(--term-border-active)] transition-colors"
       data-cell-index={cellIndex}
     >
-      {/* Cell header with drag handle */}
-      <div
-        className="flex-shrink-0 flex items-center gap-1.5 px-2 py-0.5"
-        style={{
-          backgroundColor: "var(--term-bg-surface)",
-          borderBottom: "1px solid var(--term-border)",
-        }}
-      >
-        {/* Drag handle */}
-        {isDraggable && (
-          <button
-            className="p-0.5 cursor-grab active:cursor-grabbing rounded opacity-50 hover:opacity-100 hover:bg-[var(--term-bg-elevated)] transition-all duration-150"
-            {...attributes}
-            {...listeners}
-            aria-label="Drag to reorder"
-          >
-            <GripVertical className="w-3.5 h-3.5" style={{ color: "var(--term-text-muted)" }} />
-          </button>
-        )}
-
-        {/* Mode indicator */}
-        {slot.type === "project" && (
-          <ClaudeIndicator state={slot.activeMode === "claude" ? "idle" : "none"} />
-        )}
-        {slot.type === "adhoc" && (
-          <TerminalIcon className="w-3 h-3" style={{ color: "var(--term-text-muted)" }} />
-        )}
-
-        {/* Name */}
-        <span className="text-xs truncate flex-1" style={{ color: "var(--term-text-muted)" }}>
-          {name}
-        </span>
-
-        {/* Mode dropdown for project slots */}
-        {slot.type === "project" && onModeChange && (
-          <TabModeDropdown
-            value={slot.activeMode}
-            onChange={(mode) => onModeChange(
-              slot.projectId,
-              mode,
-              slot.shellSessionId,
-              slot.claudeSessionId,
-              slot.rootPath
-            )}
-          />
-        )}
-
-        {/* Session info icon per-cell */}
-        {sessionId && (
-          <SessionInfoIcon
-            sessionId={sessionId}
-            mode={slot.type === "project" ? slot.activeMode : "shell"}
-          />
-        )}
-
-        {!sessionId && (
-          <span className="text-xs" style={{ color: "var(--term-text-muted)" }}>(no session)</span>
-        )}
-      </div>
+      {/* Unified header */}
+      <UnifiedTerminalHeader
+        slot={slot}
+        isDraggable={isDraggable}
+        dragAttributes={attributes}
+        dragListeners={listeners}
+      />
 
       {/* Terminal content */}
       <div

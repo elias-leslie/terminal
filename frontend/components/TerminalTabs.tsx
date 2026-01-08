@@ -1,19 +1,22 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback } from "react";
 import { clsx } from "clsx";
 import { Group } from "react-resizable-panels";
 import { TerminalComponent } from "./Terminal";
 import { Plus, Loader2 } from "lucide-react";
 import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
-import { TabBar } from "./TabBar";
+import { TerminalSwitcher } from "./TerminalSwitcher";
+import { SettingsDropdown } from "./SettingsDropdown";
+import { GlobalActionMenu } from "./GlobalActionMenu";
+import { LayoutModeButtons } from "./LayoutModeButton";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { TerminalManagerModal } from "./TerminalManagerModal";
 import { SplitPane } from "./SplitPane";
 import { GridLayout } from "./GridLayout";
 import { type GridLayoutMode } from "@/lib/constants/terminal";
-import { getProjectSessionId } from "@/lib/utils/session";
 import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
+import { type TerminalSlot } from "@/lib/utils/slot";
 
 interface TerminalTabsProps {
   projectId?: string;
@@ -30,7 +33,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     projectTerminals,
     adHocSessions,
     isLoading,
-    isCreating,
 
     // Layout state
     layoutMode,
@@ -44,8 +46,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     reorder,
 
     // Terminal refs and statuses
-    terminalStatuses,
-    projectTabRefs,
     setTerminalRef,
 
     // Settings
@@ -66,16 +66,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
     // Connection status
     activeStatus,
-    showReconnect,
-
-    // Tab editing
-    editingId,
-    editValue,
-    setEditValue,
-    editInputRef,
-    startEdit,
-    saveEdit,
-    handleKeyDown: handleEditKeyDown,
 
     // Handlers
     handleStatusChange,
@@ -88,23 +78,53 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     handleCloseAll,
 
     // Project operations
-    resetProject,
-    disableProject,
-    reset,
     resetAll,
-    remove,
   } = useTerminalTabsState({ projectId, projectPath });
 
-  // Compute active session info for SessionInfoIcon
-  const activeSessionInfo = useMemo(() => {
-    if (!activeSessionId || !sessions.length) return null;
-    const session = sessions.find((s) => s.id === activeSessionId);
-    if (!session) return null;
-    return {
-      mode: session.mode,
-      timestamp: session.created_at || undefined,
-    };
-  }, [activeSessionId, sessions]);
+  // Compute active slot for unified header in single mode
+  // Helper function to find active slot - React Compiler handles memoization
+  const getActiveSlot = (): TerminalSlot | null => {
+    if (!activeSessionId) return null;
+
+    // Check if active session belongs to a project
+    for (const pt of projectTerminals) {
+      const sessionId = pt.activeMode === "claude" ? pt.claudeSessionId : pt.shellSessionId;
+      if (sessionId === activeSessionId) {
+        return {
+          type: "project",
+          projectId: pt.projectId,
+          projectName: pt.projectName,
+          rootPath: pt.rootPath,
+          activeMode: pt.activeMode,
+          shellSessionId: pt.shellSessionId,
+          claudeSessionId: pt.claudeSessionId,
+          claudeState: pt.claudeSession?.claude_state,
+        };
+      }
+    }
+
+    // Check ad-hoc sessions
+    const adHoc = adHocSessions.find((s) => s.id === activeSessionId);
+    if (adHoc) {
+      return {
+        type: "adhoc",
+        sessionId: adHoc.id,
+        name: adHoc.name,
+        workingDir: adHoc.working_dir,
+      };
+    }
+
+    return null;
+  };
+  const activeSlot = getActiveSlot();
+
+  // Handler for project selection from switcher
+  const handleSelectProject = useCallback((pId: string) => {
+    const pt = projectTerminals.find((p) => p.projectId === pId);
+    if (pt) {
+      handleProjectTabClick(pt);
+    }
+  }, [projectTerminals, handleProjectTabClick]);
 
   // Loading state
   if (isLoading) {
@@ -121,50 +141,68 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
   return (
     <div className={clsx("flex flex-col h-full min-h-0 overflow-visible", className)}>
-      {/* Tab bar */}
-      <TabBar
-        projectTerminals={projectTerminals}
-        projectTabRefs={projectTabRefs}
-        adHocSessions={adHocSessions}
-        activeSessionId={activeSessionId}
-        terminalStatuses={terminalStatuses}
-        onProjectTabClick={handleProjectTabClick}
-        onProjectModeChange={handleProjectModeChange}
-        onAdHocTabClick={switchToSession}
-        onResetProject={resetProject}
-        onDisableProject={disableProject}
-        onResetAdHoc={reset}
-        onRemoveAdHoc={remove}
-        onAddTerminal={() => setShowTerminalManager(true)}
-        onReconnect={handleReconnect}
-        onResetAll={resetAll}
-        onCloseAll={handleCloseAll}
-        editingId={editingId}
-        editValue={editValue}
-        setEditValue={setEditValue}
-        editInputRef={editInputRef}
-        startEdit={startEdit}
-        saveEdit={saveEdit}
-        handleEditKeyDown={handleEditKeyDown}
-        layoutMode={layoutMode}
-        onLayoutModeChange={handleLayoutModeChange}
-        availableLayouts={availableLayouts}
-        fontId={fontId}
-        fontSize={fontSize}
-        setFontId={setFontId}
-        setFontSize={setFontSize}
-        showSettings={showSettings}
-        setShowSettings={setShowSettings}
-        keyboardSize={keyboardSize}
-        onKeyboardSizeChange={handleKeyboardSizeChange}
-        isMobile={isMobile}
-        isCreating={isCreating}
-        showReconnect={!!showReconnect}
-        activeStatus={activeStatus}
-        getProjectSessionId={getProjectSessionId}
-        activeSessionMode={activeSessionInfo?.mode}
-        activeSessionTimestamp={activeSessionInfo?.timestamp}
-      />
+      {/* Single mode: Unified header with switcher, layout, and actions */}
+      {layoutMode === "single" && (
+        <div
+          className={clsx(
+            "flex-shrink-0 flex items-center gap-1",
+            isMobile ? "h-9 px-1.5 order-2" : "h-8 px-2 order-1"
+          )}
+          style={{
+            backgroundColor: "var(--term-bg-surface)",
+            borderBottom: "1px solid var(--term-border)",
+          }}
+        >
+          {/* Terminal switcher dropdown */}
+          <TerminalSwitcher
+            currentName={activeSlot ? (activeSlot.type === "project" ? activeSlot.projectName : activeSlot.name) : "Terminal"}
+            currentMode={activeSlot?.type === "project" ? activeSlot.activeMode : undefined}
+            projectTerminals={projectTerminals}
+            adHocSessions={adHocSessions}
+            onSelectProject={handleSelectProject}
+            onSelectAdHoc={switchToSession}
+            onNewTerminal={() => setShowTerminalManager(true)}
+            isMobile={isMobile}
+          />
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Layout mode buttons - desktop only */}
+          {!isMobile && (
+            <div className="flex items-center gap-0.5 mr-1">
+              <LayoutModeButtons
+                layoutMode={layoutMode}
+                onLayoutChange={handleLayoutModeChange}
+                availableLayouts={availableLayouts}
+              />
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-0.5">
+            {/* Global actions menu */}
+            <GlobalActionMenu
+              onResetAll={resetAll}
+              onCloseAll={handleCloseAll}
+              isMobile={isMobile}
+            />
+
+            {/* Settings dropdown */}
+            <SettingsDropdown
+              fontId={fontId}
+              fontSize={fontSize}
+              setFontId={setFontId}
+              setFontSize={setFontSize}
+              showSettings={showSettings}
+              setShowSettings={setShowSettings}
+              keyboardSize={keyboardSize}
+              setKeyboardSize={handleKeyboardSizeChange}
+              isMobile={isMobile}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Terminal panels */}
       <div className={clsx(
@@ -189,7 +227,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
               <div
                 key={session.id}
                 className={clsx(
-                  "absolute inset-0 overflow-hidden",
+                  "absolute inset-0 overflow-hidden flex flex-col",
                   session.id === activeSessionId ? "z-10 visible" : "z-0 invisible"
                 )}
               >
@@ -197,7 +235,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                   ref={(handle) => setTerminalRef(session.id, handle)}
                   sessionId={session.id}
                   workingDir={session.working_dir || projectPath}
-                  className="h-full"
+                  className="flex-1"
                   fontFamily={fontFamily}
                   fontSize={fontSize}
                   isVisible={session.id === activeSessionId}

@@ -2,17 +2,14 @@
 
 import { clsx } from "clsx";
 import { Panel, Separator } from "react-resizable-panels";
-import { Terminal as TerminalIcon } from "lucide-react";
 import { TerminalComponent, TerminalHandle, ConnectionStatus } from "./Terminal";
 import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
-import { ClaudeIndicator } from "./ClaudeIndicator";
-import { TabModeDropdown } from "./TabModeDropdown";
+import { UnifiedTerminalHeader } from "./UnifiedTerminalHeader";
 import { LayoutMode } from "./LayoutModeButton";
 import {
   type TerminalSlot,
   getSlotSessionId,
   getSlotPanelId,
-  getSlotName,
   getSlotWorkingDir,
 } from "@/lib/utils/slot";
 
@@ -47,7 +44,7 @@ export function SplitPane({
   fontSize,
   onTerminalRef,
   onStatusChange,
-  onModeChange,
+  onModeChange: _onModeChange,
 }: SplitPaneProps) {
   const defaultSize = 100 / paneCount;
   const minSize = `${Math.max(10, 100 / (paneCount * 2))}%`;
@@ -55,7 +52,6 @@ export function SplitPane({
   // Use slot utilities for discriminated union access
   const sessionId = getSlotSessionId(slot);
   const panelId = getSlotPanelId(slot);
-  const name = getSlotName(slot);
   const workingDir = getSlotWorkingDir(slot);
 
   return (
@@ -66,41 +62,8 @@ export function SplitPane({
         minSize={minSize}
         className="flex flex-col h-full min-h-0 overflow-hidden"
       >
-        {/* Small header showing terminal name */}
-        <div
-          className="flex-shrink-0 flex items-center gap-1.5 px-2 py-0.5"
-          style={{
-            backgroundColor: "var(--term-bg-surface)",
-            borderBottom: "1px solid var(--term-border)",
-          }}
-        >
-          {/* Mode indicator for projects */}
-          {slot.type === "project" && (
-            <ClaudeIndicator state={slot.activeMode === "claude" ? "idle" : "none"} />
-          )}
-          {slot.type === "adhoc" && (
-            <TerminalIcon className="w-3 h-3" style={{ color: "var(--term-text-muted)" }} />
-          )}
-          <span className="text-xs truncate flex-1" style={{ color: "var(--term-text-muted)" }}>
-            {name}
-          </span>
-          {/* Mode dropdown for project slots */}
-          {slot.type === "project" && onModeChange && (
-            <TabModeDropdown
-              value={slot.activeMode}
-              onChange={(mode) => onModeChange(
-                slot.projectId,
-                mode,
-                slot.shellSessionId,
-                slot.claudeSessionId,
-                slot.rootPath
-              )}
-            />
-          )}
-          {!sessionId && (
-            <span className="text-xs" style={{ color: "var(--term-text-muted)" }}>(no session)</span>
-          )}
-        </div>
+        {/* Unified header */}
+        <UnifiedTerminalHeader slot={slot} />
         <div className="flex-1 min-h-0 overflow-hidden relative">
           {sessionId ? (
             <>

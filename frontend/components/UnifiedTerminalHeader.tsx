@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { LayoutMode, LayoutModeButtons } from "./LayoutModeButton";
 import { ClaudeIndicator } from "./ClaudeIndicator";
-import { type TerminalSlot, getSlotName, getSlotSessionId } from "@/lib/utils/slot";
+import { type TerminalSlot, getSlotName } from "@/lib/utils/slot";
 
 export interface UnifiedTerminalHeaderProps {
   slot: TerminalSlot;
@@ -23,8 +23,10 @@ export interface UnifiedTerminalHeaderProps {
   showCleanButton?: boolean;
   showLayoutSelector?: boolean;
   isDraggable?: boolean;
-  dragAttributes?: Record<string, unknown>;
-  dragListeners?: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dragAttributes?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dragListeners?: any;
   onSwitch?: () => void;
   onLayout?: (mode: LayoutMode) => void;
   onSettings?: () => void;
@@ -55,7 +57,6 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
   isMobile = false,
 }: UnifiedTerminalHeaderProps) {
   const name = getSlotName(slot);
-  const sessionId = getSlotSessionId(slot);
   const isClaudeMode = slot.type === "project" && slot.activeMode === "claude";
 
   // Show clean button for claude mode
@@ -90,20 +91,32 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
       )}
 
       {/* Terminal name/switcher */}
-      <button
-        onClick={onSwitch}
-        className={clsx(
-          "flex items-center gap-1 px-1.5 py-0.5 rounded text-xs truncate max-w-[140px] transition-all duration-150",
-          "hover:bg-[var(--term-bg-elevated)]"
-        )}
-        style={{
-          color: isActive ? "var(--term-text-primary)" : "var(--term-text-muted)",
-        }}
-        title={name}
-      >
-        <span className="truncate">{name}</span>
-        <ChevronDown className="w-3 h-3 flex-shrink-0" />
-      </button>
+      {onSwitch ? (
+        <button
+          onClick={onSwitch}
+          className={clsx(
+            "flex items-center gap-1 px-1.5 py-0.5 rounded text-xs truncate max-w-[140px] transition-all duration-150",
+            "hover:bg-[var(--term-bg-elevated)]"
+          )}
+          style={{
+            color: isActive ? "var(--term-text-primary)" : "var(--term-text-muted)",
+          }}
+          title={name}
+        >
+          <span className="truncate">{name}</span>
+          <ChevronDown className="w-3 h-3 flex-shrink-0" />
+        </button>
+      ) : (
+        <span
+          className="flex items-center px-1.5 py-0.5 text-xs truncate max-w-[140px]"
+          style={{
+            color: isActive ? "var(--term-text-primary)" : "var(--term-text-muted)",
+          }}
+          title={name}
+        >
+          {name}
+        </span>
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />
