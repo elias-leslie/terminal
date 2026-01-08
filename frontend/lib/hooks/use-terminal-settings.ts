@@ -19,12 +19,22 @@ export const TERMINAL_FONTS = [
 
 export const TERMINAL_FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20] as const;
 
+// Scrollback buffer sizes (lines)
+export const TERMINAL_SCROLLBACK_OPTIONS = [
+  { value: 1000, label: "1K lines" },
+  { value: 10000, label: "10K lines" },
+  { value: 50000, label: "50K lines" },
+  { value: 999999, label: "Unlimited" },
+] as const;
+
 export type TerminalFontId = typeof TERMINAL_FONTS[number]["id"];
 export type TerminalFontSize = typeof TERMINAL_FONT_SIZES[number];
+export type TerminalScrollback = typeof TERMINAL_SCROLLBACK_OPTIONS[number]["value"];
 
 interface TerminalSettings {
   fontId: TerminalFontId;
   fontSize: TerminalFontSize;
+  scrollback: TerminalScrollback;
 }
 
 const STORAGE_KEY = "terminal-settings";
@@ -32,6 +42,7 @@ const STORAGE_KEY = "terminal-settings";
 const DEFAULT_SETTINGS: TerminalSettings = {
   fontId: "jetbrains-mono",
   fontSize: 14,
+  scrollback: 10000,
 };
 
 function loadSettings(): TerminalSettings {
@@ -44,6 +55,9 @@ function loadSettings(): TerminalSettings {
       return {
         fontId: TERMINAL_FONTS.some(f => f.id === parsed.fontId) ? parsed.fontId : DEFAULT_SETTINGS.fontId,
         fontSize: TERMINAL_FONT_SIZES.includes(parsed.fontSize) ? parsed.fontSize : DEFAULT_SETTINGS.fontSize,
+        scrollback: TERMINAL_SCROLLBACK_OPTIONS.some(o => o.value === parsed.scrollback)
+          ? parsed.scrollback
+          : DEFAULT_SETTINGS.scrollback,
       };
     }
   } catch {
@@ -82,12 +96,22 @@ export function useTerminalSettings() {
     });
   }, []);
 
+  const setScrollback = useCallback((scrollback: TerminalScrollback) => {
+    setSettings(prev => {
+      const next = { ...prev, scrollback };
+      saveSettings(next);
+      return next;
+    });
+  }, []);
+
   return {
     fontId: settings.fontId,
     fontSize: settings.fontSize,
     fontFamily,
+    scrollback: settings.scrollback,
     setFontId,
     setFontSize,
+    setScrollback,
     isLoaded,
   };
 }

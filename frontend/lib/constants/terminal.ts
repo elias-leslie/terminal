@@ -7,8 +7,8 @@ export const RETRY_BACKOFF = 2000;
 /** Scroll threshold for scroll handling */
 export const SCROLL_THRESHOLD = 50;
 
-/** Terminal scrollback buffer size */
-export const SCROLLBACK = 5000;
+/** Terminal scrollback buffer size (default: 10000 lines) */
+export const SCROLLBACK = 10000;
 
 /** Mobile device width threshold in pixels */
 export const MOBILE_WIDTH_THRESHOLD = 768;

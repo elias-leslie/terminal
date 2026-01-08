@@ -9,7 +9,6 @@ import {
   PHOSPHOR_THEME,
 } from "../lib/constants/terminal";
 import { useTerminalWebSocket } from "../lib/hooks/use-terminal-websocket";
-import { useTerminalScrolling } from "../lib/hooks/use-terminal-scrolling";
 import { setupTerminalMouseHandling } from "../lib/hooks/use-terminal-mouse-handling";
 import { isMobileDevice } from "../lib/utils/device";
 import type { TerminalProps, TerminalHandle } from "./terminal.types";
@@ -37,7 +36,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
   const fitAddonRef = useRef<InstanceType<typeof FitAddon> | null>(null);
   const onDataDisposableRef = useRef<{ dispose: () => void } | null>(null);
   const mouseCleanupRef = useRef<(() => void) | null>(null);
-  const scrollCleanupRef = useRef<{ wheelCleanup: () => void; touchCleanup: () => void } | null>(null);
   const isFocusedRef = useRef(false);
   const focusCleanupRef = useRef<(() => void) | null>(null);
   const isVisibleRef = useRef(isVisible);
@@ -70,12 +68,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       terminalRef.current?.writeln(message);
     },
     getDimensions: () => fitAddonRef.current?.proposeDimensions() ?? null,
-  });
-
-  // Scrolling management via hook
-  const { setupScrolling, resetCopyMode } = useTerminalScrolling({
-    wsRef,
-    isMobile: isMobileDevice(),
   });
 
   // Expose functions to parent
@@ -160,9 +152,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
       // Set up mouse handling to enable local selection when mouse reporting is active
       mouseCleanupRef.current = setupTerminalMouseHandling(term, containerRef.current);
 
-      // Set up scrolling via hook (handles wheel and touch events for tmux copy-mode)
-      scrollCleanupRef.current = setupScrolling(containerRef.current);
-
       terminalRef.current = term;
       fitAddonRef.current = fitAddon;
 
@@ -195,14 +184,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         };
       }
 
-      // Set up terminal input handler - forward to WebSocket and reset copy-mode on typing
+      // Set up terminal input handler - forward to WebSocket
       onDataDisposableRef.current = term.onData((data) => {
         // Only send input if this terminal has focus (prevents grid duplication)
         if (!isFocusedRef.current) return;
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(data);
-          // Typing exits tmux copy-mode, reset our tracking
-          resetCopyMode();
         }
       });
 
@@ -229,19 +216,13 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(funct
         mouseCleanupRef.current();
         mouseCleanupRef.current = null;
       }
-      // Clean up scroll listeners
-      if (scrollCleanupRef.current) {
-        scrollCleanupRef.current.wheelCleanup();
-        scrollCleanupRef.current.touchCleanup();
-        scrollCleanupRef.current = null;
-      }
       if (terminalRef.current) {
         terminalRef.current.dispose();
         terminalRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, workingDir, handleResize, connect, setupScrolling, resetCopyMode]);
+  }, [sessionId, workingDir, handleResize, connect]);
 
   // Handle container resize with debounce
   useEffect(() => {

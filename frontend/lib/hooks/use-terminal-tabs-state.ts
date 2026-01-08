@@ -35,7 +35,7 @@ export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabs
 
   // Layout state
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("single");
-  const { fontId, fontSize, fontFamily, setFontId, setFontSize } = useTerminalSettings();
+  const { fontId, fontSize, fontFamily, scrollback, setFontId, setFontSize, setScrollback } = useTerminalSettings();
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [showSettings, setShowSettings] = useState(false);
   const [keyboardSize, setKeyboardSize] = useLocalStorageState<KeyboardSizePreset>("terminal-keyboard-size", "medium");
@@ -195,8 +195,10 @@ export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabs
     fontId,
     fontSize,
     fontFamily,
+    scrollback,
     setFontId,
     setFontSize,
+    setScrollback,
     showSettings,
     setShowSettings,
     keyboardSize,
