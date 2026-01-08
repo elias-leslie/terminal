@@ -1,0 +1,519 @@
+{
+  "project": "terminal",
+  "version": "2.0.0",
+  "status": "complete",
+  "last_updated": "2026-01-08T05:00:00Z",
+  "objective": "Developer can implement all 7 terminal features without further clarification on UX, architecture, or edge cases",
+  "overview": {
+    "summary": "A comprehensive redesign of the terminal interface that eliminates the separate tab bar, introduces unified per-window headers with project context switching, native scrollbar support, a prompt cleaner powered by agent-hub, and file upload capabilities.",
+    "current_state": "Tab bar at top manages tabs, split/grid panels have minimal headers. Sessions are constrained to 1 shell + 1 claude per project (unique constraint). Scrolling uses tmux copymode. No prompt preprocessing or file upload.",
+    "desired_state": "Every terminal window (single, split, or grid) has a unified thin header with all controls. Multiple sessions per project supported. Native xterm.js scrollbar with configurable history. Prompt cleaner slide-up panel. File upload with server-side storage."
+  },
+  "features": [
+    {
+      "id": "F1",
+      "title": "Always Load At Least One Terminal",
+      "description": "On page load, if no terminals exist from previous session, auto-create an ad-hoc terminal with home directory context",
+      "priority": "must",
+      "requirements": [
+        {
+          "id": "F1.1",
+          "description": "Check sessionStorage/localStorage for existing session state on mount",
+          "acceptance": "useTerminalTabsState checks for sessions on load"
+        },
+        {
+          "id": "F1.2",
+          "description": "If no sessions exist, auto-create ad-hoc terminal (project_id=null, working_dir=~)",
+          "acceptance": "Ad-hoc terminal appears without user action"
+        },
+        {
+          "id": "F1.3",
+          "description": "Prevent empty state - always minimum 1 terminal visible",
+          "acceptance": "Closing last terminal auto-creates new ad-hoc terminal"
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "title": "Unified Terminal Headers with Per-Window Controls",
+      "description": "Every terminal window has its own thin header bar with all controls, eliminating the separate tab bar",
+      "priority": "must",
+      "requirements": [
+        {
+          "id": "F2.1",
+          "description": "Remove TabBar component from TerminalTabs",
+          "acceptance": "No separate tab bar rendered"
+        },
+        {
+          "id": "F2.2",
+          "description": "Each terminal (single, split, grid cell) has inline header with controls",
+          "acceptance": "Header visible on every terminal panel"
+        },
+        {
+          "id": "F2.3",
+          "description": "Header contains: project/terminal name dropdown, layout mode selector, settings button, reset button, close button, file upload button, prompt cleaner button (when Claude mode)",
+          "acceptance": "All controls accessible from header"
+        },
+        {
+          "id": "F2.4",
+          "description": "In single mode, project name is dropdown to switch between terminals",
+          "acceptance": "Clicking terminal name shows dropdown of all terminals"
+        },
+        {
+          "id": "F2.5",
+          "description": "Project dropdown shows only enabled projects",
+          "acceptance": "Dropdown filters to terminal_enabled=true projects"
+        },
+        {
+          "id": "F2.6",
+          "description": "Layout mode selector allows switching between single/horizontal/vertical/grid modes",
+          "acceptance": "Same layout options as current TabBar"
+        },
+        {
+          "id": "F2.7",
+          "description": "Settings button opens per-terminal settings modal (font size, scrollback buffer)",
+          "acceptance": "Settings apply to that specific terminal"
+        }
+      ]
+    },
+    {
+      "id": "F3",
+      "title": "Preserve Narrow Header Height",
+      "description": "Keep header bar thin to maximize terminal real estate, especially for 2x2 grid",
+      "priority": "must",
+      "requirements": [
+        {
+          "id": "F3.1",
+          "description": "Header height matches current split/grid panel headers (~28-32px)",
+          "acceptance": "Height measured <= 32px"
+        },
+        {
+          "id": "F3.2",
+          "description": "Controls use compact icons with tooltips, not full text labels",
+          "acceptance": "Icons with hover tooltips for all controls"
+        },
+        {
+          "id": "F3.3",
+          "description": "Mobile header slightly taller (~36px) for touch targets",
+          "acceptance": "min-h-[36px] on mobile breakpoint"
+        }
+      ]
+    },
+    {
+      "id": "F4",
+      "title": "Multiple Terminals Per Project",
+      "description": "Allow multiple terminal sessions for the same project, with distinguishing badges",
+      "priority": "must",
+      "requirements": [
+        {
+          "id": "F4.1",
+          "description": "Remove unique constraint on (project_id, mode) in terminal_sessions table",
+          "acceptance": "Database migration removes UNIQUE constraint"
+        },
+        {
+          "id": "F4.2",
+          "description": "Update backend session creation to allow multiple sessions per project",
+          "acceptance": "POST /api/terminal/sessions accepts duplicate project_id+mode"
+        },
+        {
+          "id": "F4.3",
+          "description": "Add numeric badge to distinguish same-project terminals",
+          "acceptance": "Header shows badge: Project Name [1], [2], [3]"
+        },
+        {
+          "id": "F4.4",
+          "description": "Badge is auto-assigned based on creation order per project",
+          "acceptance": "First session = 1, second = 2, etc."
+        },
+        {
+          "id": "F4.5",
+          "description": "Update useProjectTerminals hook to handle multiple sessions per project",
+          "acceptance": "projectTerminals array can have multiple entries for same projectId"
+        },
+        {
+          "id": "F4.6",
+          "description": "Header 'Add Terminal' action creates new session for current project context",
+          "acceptance": "Button in header creates another terminal for same project"
+        }
+      ]
+    },
+    {
+      "id": "F5",
+      "title": "Prompt Cleaner",
+      "description": "LLM-powered prompt cleanup with preview and refinement before sending",
+      "priority": "should",
+      "requirements": [
+        {
+          "id": "F5.1",
+          "description": "Trigger button in terminal header (Claude mode only)",
+          "acceptance": "Sparkle/magic icon visible in header when mode=claude"
+        },
+        {
+          "id": "F5.2",
+          "description": "Button captures current terminal input buffer",
+          "acceptance": "Uses xterm.js buffer to extract pending input"
+        },
+        {
+          "id": "F5.3",
+          "description": "Slide-up panel shows processing animation during LLM call",
+          "acceptance": "Phosphor noir panel slides up with scan-line animation"
+        },
+        {
+          "id": "F5.4",
+          "description": "Cleaned prompt shown with typewriter reveal effect",
+          "acceptance": "Text appears character-by-character"
+        },
+        {
+          "id": "F5.5",
+          "description": "Diff toggle shows side-by-side original vs cleaned",
+          "acceptance": "Toggle button switches between single view and diff view"
+        },
+        {
+          "id": "F5.6",
+          "description": "Refinement input allows natural language adjustment ('make it shorter')",
+          "acceptance": "Input field triggers re-processing with refinement instruction"
+        },
+        {
+          "id": "F5.7",
+          "description": "Edit mode allows direct text editing of cleaned prompt",
+          "acceptance": "Toggle switches to editable textarea"
+        },
+        {
+          "id": "F5.8",
+          "description": "Send button submits cleaned prompt to terminal",
+          "acceptance": "Prompt sent, panel closes, terminal receives input"
+        },
+        {
+          "id": "F5.9",
+          "description": "Cancel button closes panel without action",
+          "acceptance": "Panel closes, original input preserved in terminal"
+        },
+        {
+          "id": "F5.10",
+          "description": "LLM integration uses agent-hub SDK (not direct Anthropic API)",
+          "acceptance": "cleanPrompt function calls agent-hub endpoint"
+        },
+        {
+          "id": "F5.11",
+          "description": "Mobile responsive - panel stacks vertically, touch-friendly",
+          "acceptance": "Works on mobile with appropriate touch targets"
+        }
+      ],
+      "design_artifacts": [
+        "frontend/components/PromptCleaner.tsx",
+        "frontend/components/PromptCleanerTrigger.tsx"
+      ]
+    },
+    {
+      "id": "F6",
+      "title": "Native Scrollbar with Configurable History",
+      "description": "Replace tmux copymode scrolling with native xterm.js scrollbar and configurable scrollback buffer",
+      "priority": "must",
+      "requirements": [
+        {
+          "id": "F6.1",
+          "description": "Enable xterm.js native scrollbar",
+          "acceptance": "xterm ITerminalOptions.scrollback set, scrollbar visible"
+        },
+        {
+          "id": "F6.2",
+          "description": "Remove use-terminal-scrolling hook (copymode implementation)",
+          "acceptance": "Hook deleted, no Ctrl+B [ sent"
+        },
+        {
+          "id": "F6.3",
+          "description": "Add scrollback buffer setting to per-terminal settings",
+          "acceptance": "Options: 1K, 10K, 50K, unlimited"
+        },
+        {
+          "id": "F6.4",
+          "description": "Preserve scroll position behavior - new output appends below while view stays fixed",
+          "acceptance": "Standard xterm.js behavior maintained"
+        },
+        {
+          "id": "F6.5",
+          "description": "Scrolling to absolute bottom resumes auto-follow of new output",
+          "acceptance": "Standard xterm.js behavior"
+        },
+        {
+          "id": "F6.6",
+          "description": "User can type immediately when scrolled to bottom (no q to exit)",
+          "acceptance": "Input works without copymode exit"
+        },
+        {
+          "id": "F6.7",
+          "description": "Scrollbar styled to match terminal theme (phosphor green accent)",
+          "acceptance": "Custom scrollbar CSS with --term-accent color"
+        },
+        {
+          "id": "F6.8",
+          "description": "Mobile: scrollbar visible or touch scroll works",
+          "acceptance": "Touch scrolling functional on mobile"
+        }
+      ]
+    },
+    {
+      "id": "F7",
+      "title": "File Upload",
+      "description": "Upload files for reference, stored server-side with path inserted into terminal",
+      "priority": "should",
+      "requirements": [
+        {
+          "id": "F7.1",
+          "description": "Upload button in terminal header",
+          "acceptance": "Paperclip/upload icon in header"
+        },
+        {
+          "id": "F7.2",
+          "description": "Drag-and-drop onto terminal panel",
+          "acceptance": "Dropzone overlay appears on drag, file uploads on drop"
+        },
+        {
+          "id": "F7.3",
+          "description": "Backend endpoint: POST /api/terminal/files",
+          "acceptance": "Multipart form-data, returns file path/URL"
+        },
+        {
+          "id": "F7.4",
+          "description": "Files stored in server-accessible location",
+          "acceptance": "Files in ~/terminal-uploads/ or configurable path"
+        },
+        {
+          "id": "F7.5",
+          "description": "After upload, file path inserted at cursor position in terminal",
+          "acceptance": "Path like /path/to/file.png inserted"
+        },
+        {
+          "id": "F7.6",
+          "description": "Supported file types: images (png, jpg, gif, webp), text (md, txt, json), PDFs",
+          "acceptance": "MIME type validation on backend"
+        },
+        {
+          "id": "F7.7",
+          "description": "Max file size limit (configurable, default 10MB)",
+          "acceptance": "413 error for oversized files"
+        },
+        {
+          "id": "F7.8",
+          "description": "Upload progress indicator",
+          "acceptance": "Progress bar or spinner during upload"
+        },
+        {
+          "id": "F7.9",
+          "description": "Mobile: file picker works via button tap",
+          "acceptance": "Native file picker on mobile browsers"
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Eliminate Tab Bar in Favor of Per-Window Headers",
+      "context": "User wants to maximize terminal real estate and have all controls local to each terminal window",
+      "alternatives": [
+        "Keep tab bar + add per-window controls (redundant)",
+        "Tab bar for switching, minimal per-window controls",
+        "Eliminate tab bar, unified per-window headers (chosen)"
+      ],
+      "outcome": "Eliminate tab bar entirely. Each terminal has inline header with all controls including terminal switcher dropdown.",
+      "rationale": "Maximizes vertical space, especially for 2x2 grid. Controls are contextual to each terminal. Consistent UX across all layout modes."
+    },
+    {
+      "id": "D2",
+      "title": "Multiple Sessions Per Project via Badge System",
+      "context": "User wants multiple terminals for same project (e.g., 3 terminals working on same codebase)",
+      "alternatives": [
+        "Sequential numbering: 'Project (1)', 'Project (2)'",
+        "Custom naming: 'Project: tests', 'Project: server'",
+        "Icon badge only (chosen)"
+      ],
+      "outcome": "Use numeric icon badge to distinguish same-project terminals. Badge auto-assigned by creation order.",
+      "rationale": "Minimal visual clutter in narrow header. User requested icon badge specifically."
+    },
+    {
+      "id": "D3",
+      "title": "Prompt Cleaner UX: Slide-Up Panel with Refinement",
+      "context": "User wants to clean/format prompts before sending to Claude",
+      "alternatives": [
+        "Modal dialog",
+        "Inline expansion below input",
+        "Slide-up panel (chosen)"
+      ],
+      "outcome": "Phosphor noir slide-up panel with scan animation, typewriter reveal, diff toggle, refinement input, and edit mode.",
+      "rationale": "Feels native to terminal culture. Doesn't fully obscure terminal. Supports iterative refinement."
+    },
+    {
+      "id": "D4",
+      "title": "LLM Integration via Agent-Hub SDK",
+      "context": "Need LLM to power prompt cleanup",
+      "alternatives": [
+        "Direct Anthropic API call",
+        "Local model (Ollama)",
+        "Agent-hub SDK (chosen)"
+      ],
+      "outcome": "Use existing agent-hub solution. Reference task-37346c12 for integration details.",
+      "rationale": "User already has agent-hub infrastructure. No separate API key management needed."
+    },
+    {
+      "id": "D5",
+      "title": "Native xterm.js Scrollbar Instead of tmux Copymode",
+      "context": "Current scrolling uses tmux copymode which requires 'q' to exit and has UX friction",
+      "alternatives": [
+        "Keep tmux copymode (current)",
+        "Hybrid: scrollbar triggers copymode",
+        "Pure xterm.js scrollbar (chosen)"
+      ],
+      "outcome": "Enable native xterm.js scrollbar, remove use-terminal-scrolling hook entirely.",
+      "rationale": "Standard terminal behavior. No mode-switching friction. Scrollback is in xterm buffer, not tmux."
+    },
+    {
+      "id": "D6",
+      "title": "Server-Side File Storage with Path Reference",
+      "context": "User wants to upload files for Claude reference",
+      "alternatives": [
+        "Base64 inline (risks buffer overflow)",
+        "Clipboard integration (requires user paste)",
+        "Server-side storage with path (chosen)"
+      ],
+      "outcome": "Upload to server, insert file path into terminal input.",
+      "rationale": "Clean terminal experience. Claude can access files via path. No buffer bloat."
+    }
+  ],
+  "implementation": {
+    "phases": [
+      {
+        "id": "P1",
+        "name": "Architecture Changes",
+        "items": [
+          "Database migration: remove UNIQUE constraint on (project_id, mode)",
+          "Add session_number field or compute badge dynamically",
+          "Create /api/terminal/files endpoint (multipart)"
+        ]
+      },
+      {
+        "id": "P2",
+        "name": "Scrollbar Overhaul",
+        "items": [
+          "Configure xterm.js scrollback buffer in Terminal.tsx",
+          "Add scrollback setting to useTerminalSettings",
+          "Remove use-terminal-scrolling hook",
+          "Style scrollbar with CSS"
+        ]
+      },
+      {
+        "id": "P3",
+        "name": "Header Redesign",
+        "items": [
+          "Create UnifiedTerminalHeader component",
+          "Remove TabBar component from TerminalTabs",
+          "Update GridLayout, SplitPane, and single-mode rendering to use new header",
+          "Implement terminal switcher dropdown",
+          "Add layout mode selector to header"
+        ]
+      },
+      {
+        "id": "P4",
+        "name": "Multi-Session Support",
+        "items": [
+          "Update useProjectTerminals to handle multiple sessions per project",
+          "Implement badge assignment logic",
+          "Add 'New Terminal' button in header for current project"
+        ]
+      },
+      {
+        "id": "P5",
+        "name": "File Upload",
+        "items": [
+          "Backend: file upload endpoint with storage",
+          "Frontend: upload button and drag-drop zone",
+          "Insert file path into terminal on success"
+        ]
+      },
+      {
+        "id": "P6",
+        "name": "Prompt Cleaner Integration",
+        "items": [
+          "Connect PromptCleaner to agent-hub SDK",
+          "Add trigger button to header (Claude mode only)",
+          "Implement input buffer extraction from xterm"
+        ]
+      }
+    ],
+    "breaking_changes": [
+      "TabBar component removed - any external imports will break",
+      "Database schema change - requires migration",
+      "use-terminal-scrolling hook removed"
+    ],
+    "files_to_modify": [
+      "terminal/storage/schema.py - remove unique constraint",
+      "terminal/api/sessions.py - allow multiple sessions per project",
+      "frontend/components/TerminalTabs.tsx - remove TabBar, use new headers",
+      "frontend/components/Terminal.tsx - enable scrollbar, add scrollback setting",
+      "frontend/components/GridLayout.tsx - use UnifiedTerminalHeader",
+      "frontend/components/SplitPane.tsx - use UnifiedTerminalHeader",
+      "frontend/lib/hooks/use-terminal-settings.ts - add scrollback buffer setting",
+      "frontend/lib/hooks/use-project-terminals.ts - handle multiple sessions per project"
+    ],
+    "files_to_delete": [
+      "frontend/components/TabBar.tsx",
+      "frontend/lib/hooks/use-terminal-scrolling.ts"
+    ],
+    "files_to_create": [
+      "frontend/components/UnifiedTerminalHeader.tsx",
+      "frontend/components/TerminalSwitcher.tsx",
+      "frontend/components/FileUploadDropzone.tsx",
+      "frontend/lib/hooks/use-file-upload.ts",
+      "terminal/api/files.py"
+    ]
+  },
+  "gaps": [],
+  "recommended_next_steps": [
+    {
+      "action": "Create SummitFlow tasks from this spec",
+      "command": "/task_it ~/terminal/spec/terminal-improvements-spec.json",
+      "priority": 1
+    },
+    {
+      "action": "Database migration for multi-session support",
+      "details": "Remove UNIQUE constraint, add session_number or badge field",
+      "priority": 2
+    },
+    {
+      "action": "Complete agent-hub integration (task-37346c12)",
+      "details": "Required for prompt cleaner functionality",
+      "priority": 3
+    }
+  ],
+  "discovery_meta": {
+    "phases_completed": ["detection", "discovery", "interview", "specification"],
+    "questions_asked": 12,
+    "exploration_agents_spawned": 3,
+    "files_explored": [
+      {"path": "frontend/components/TerminalTabs.tsx", "confidence": "high", "summary": "Root orchestrator, manages tabs and layout"},
+      {"path": "frontend/components/TabBar.tsx", "confidence": "high", "summary": "Current tab bar implementation - to be removed"},
+      {"path": "frontend/components/Terminal.tsx", "confidence": "high", "summary": "xterm.js wrapper"},
+      {"path": "frontend/lib/hooks/use-terminal-scrolling.ts", "confidence": "high", "summary": "tmux copymode scrolling - to be removed"},
+      {"path": "frontend/lib/hooks/use-terminal-tabs-state.ts", "confidence": "high", "summary": "Main state orchestration hook"},
+      {"path": "frontend/lib/hooks/use-project-terminals.ts", "confidence": "high", "summary": "Project+session merging logic"},
+      {"path": "terminal/storage/schema.py", "confidence": "high", "summary": "Database schema with unique constraint"},
+      {"path": "terminal/api/sessions.py", "confidence": "high", "summary": "Session CRUD endpoints"},
+      {"path": "terminal/api/terminal.py", "confidence": "high", "summary": "WebSocket API"}
+    ],
+    "key_discoveries": [
+      "Tab bar is ~40px desktop, ~36px mobile - user wants to keep headers thin",
+      "Unique constraint (project_id, mode) prevents multiple same-project sessions",
+      "Scrolling uses tmux copymode which has UX friction",
+      "No file upload API exists currently",
+      "Split/grid panels already have minimal headers - this is the target UX"
+    ],
+    "confidence_factors": {
+      "completeness": 24,
+      "accuracy": 25,
+      "clarity": 20,
+      "user_alignment": 14,
+      "decision_quality": 14
+    },
+    "last_activity": "2026-01-08T05:00:00Z"
+  }
+}
