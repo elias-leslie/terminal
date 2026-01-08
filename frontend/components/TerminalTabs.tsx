@@ -80,7 +80,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     handleAddTab,
     handleNewTerminalForProject,
     handleProjectTabClick,
-    handleProjectModeChange,
+    handleProjectModeChange: _handleProjectModeChange,
     handleCloseAll,
 
     // Project operations
@@ -161,6 +161,10 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, [disableProject, remove]);
 
+  // Prompt cleaner state (must be declared before callbacks that use them)
+  const [showCleaner, setShowCleaner] = useState(false);
+  const [cleanerRawPrompt, setCleanerRawPrompt] = useState("");
+
   const handleSlotClean = useCallback((slot: TerminalSlot) => {
     const sessionId = getSlotSessionId(slot);
     if (!sessionId) return;
@@ -171,6 +175,18 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     setCleanerRawPrompt(input);
     setShowCleaner(true);
   }, [terminalRefs]);
+
+  const handleSlotNewShell = useCallback((slot: TerminalSlot) => {
+    if (slot.type === "project") {
+      handleNewTerminalForProject(slot.projectId, "shell");
+    }
+  }, [handleNewTerminalForProject]);
+
+  const handleSlotNewClaude = useCallback((slot: TerminalSlot) => {
+    if (slot.type === "project") {
+      handleNewTerminalForProject(slot.projectId, "claude");
+    }
+  }, [handleNewTerminalForProject]);
 
   // File upload functionality
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -202,8 +218,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
 
   // Prompt cleaner functionality
   const { cleanPrompt, isLoading: isCleanerLoading } = usePromptCleaner();
-  const [showCleaner, setShowCleaner] = useState(false);
-  const [cleanerRawPrompt, setCleanerRawPrompt] = useState("");
 
   const handleCleanClick = useCallback(() => {
     if (!activeSessionId) return;
@@ -437,6 +451,8 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
             onClose={handleSlotClose}
             onUpload={handleUploadClick}
             onClean={handleSlotClean}
+            onNewShell={handleSlotNewShell}
+            onNewClaude={handleSlotNewClaude}
             isMobile={isMobile}
           />
         ) : (
@@ -463,6 +479,8 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
                   onClose={handleSlotClose}
                   onUpload={handleUploadClick}
                   onClean={handleSlotClean}
+                  onNewShell={handleSlotNewShell}
+                  onNewClaude={handleSlotNewClaude}
                   isMobile={isMobile}
                 />
               );

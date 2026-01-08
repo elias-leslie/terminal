@@ -53,6 +53,8 @@ export function SplitPane({
   onClose,
   onUpload,
   onClean,
+  onNewShell,
+  onNewClaude,
   isMobile,
 }: SplitPaneProps) {
   const defaultSize = 100 / paneCount;
@@ -81,6 +83,8 @@ export function SplitPane({
           onClose={onClose ? () => onClose(slot) : undefined}
           onUpload={onUpload}
           onClean={onClean ? () => onClean(slot) : undefined}
+          onNewShell={onNewShell ? () => onNewShell(slot) : undefined}
+          onNewClaude={onNewClaude ? () => onNewClaude(slot) : undefined}
           isMobile={isMobile}
         />
         <div className="flex-1 min-h-0 overflow-hidden relative">

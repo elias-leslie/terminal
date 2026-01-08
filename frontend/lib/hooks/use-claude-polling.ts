@@ -6,8 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 /** Poll interval for Claude state check (500ms) */
 export const CLAUDE_POLL_INTERVAL_MS = 500;
 
-/** Max time to poll before giving up (10 seconds) */
-export const CLAUDE_POLL_TIMEOUT_MS = 10000;
+/** Max time to poll before giving up (15 seconds - slightly longer than backend verify) */
+export const CLAUDE_POLL_TIMEOUT_MS = 15000;
 
 interface UseClaudePollingReturn {
   /** Start Claude in a session and poll for confirmation */
@@ -80,6 +80,8 @@ export function useClaudePolling(): UseClaudePollingReturn {
       while (!controller.signal.aborted) {
         // Check timeout
         if (Date.now() - pollStart > CLAUDE_POLL_TIMEOUT_MS) {
+          // Timeout - always invalidate to sync state from backend
+          queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
           break;
         }
 
@@ -108,6 +110,8 @@ export function useClaudePolling(): UseClaudePollingReturn {
         }
       }
 
+      // Always invalidate on exit to ensure state sync
+      queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
       setIsPolling(false);
       abortControllerRef.current = null;
     },

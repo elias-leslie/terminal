@@ -23,8 +23,6 @@ interface SwitchProjectModeParams {
 interface UseProjectModeSwitchOptions {
   /** Function to switch mode in backend (from useProjectTerminals) */
   switchMode: (projectId: string, mode: "shell" | "claude") => Promise<void>;
-  /** All current sessions (for checking claude_state) */
-  sessions: TerminalSession[];
   /** Refs to project tabs for scroll-into-view */
   projectTabRefs: MutableRefObject<Map<string, HTMLDivElement>>;
 }
@@ -66,7 +64,6 @@ interface UseProjectModeSwitchReturn {
  */
 export function useProjectModeSwitch({
   switchMode,
-  sessions,
   projectTabRefs,
 }: UseProjectModeSwitchOptions): UseProjectModeSwitchReturn {
   const router = useRouter();
