@@ -101,7 +101,6 @@ export function useTerminalHandlers({
   // Project mode switch
   const { switchProjectMode } = useProjectModeSwitch({
     switchMode,
-    sessions,
     projectTabRefs,
   });
 

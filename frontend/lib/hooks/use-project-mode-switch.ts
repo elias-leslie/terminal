@@ -49,7 +49,6 @@ interface UseProjectModeSwitchReturn {
  * ```tsx
  * const { switchProjectMode } = useProjectModeSwitch({
  *   switchMode,
- *   sessions,
  *   projectTabRefs,
  * });
  *
