@@ -2,28 +2,24 @@
 
 import { useState, useCallback } from "react";
 import { clsx } from "clsx";
-import { Group } from "react-resizable-panels";
-import { Plus, Loader2 } from "lucide-react";
-import { SingleModeTerminals } from "./SingleModeTerminals";
+import { UploadProgressToast, UploadErrorToast } from "./UploadStatusToast";
 import { FileUploadDropzone } from "./FileUploadDropzone";
 import { PromptCleaner } from "./PromptCleaner";
 import { TerminalHeader } from "./TerminalHeader";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { TerminalManagerModal } from "./TerminalManagerModal";
-import { SplitPane } from "./SplitPane";
-import { GridLayout } from "./GridLayout";
 import { SessionTabBar } from "./SessionTabBar";
 import {
   KeyboardShortcuts,
   useTerminalKeyboardShortcuts,
 } from "./KeyboardShortcuts";
 import { TerminalSkeleton } from "./TerminalSkeleton";
-import { type GridLayoutMode } from "@/lib/constants/terminal";
+import { TerminalLayoutRenderer } from "./TerminalLayoutRenderer";
 import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
 import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
 import { useTerminalSlotHandlers } from "@/lib/hooks/use-terminal-slot-handlers";
 import { useTerminalActionHandlers } from "@/lib/hooks/use-terminal-action-handlers";
-import { type TerminalSlot } from "@/lib/utils/slot";
+import { findActiveSlot } from "@/lib/utils/slot";
 
 interface TerminalTabsProps {
   projectId?: string;
@@ -107,44 +103,11 @@ export function TerminalTabs({
   } = useTerminalTabsState({ projectId, projectPath });
 
   // Compute active slot for unified header in single mode
-  // Helper function to find active slot - React Compiler handles memoization
-  const getActiveSlot = (): TerminalSlot | null => {
-    if (!activeSessionId) return null;
-
-    // Check if active session belongs to a project
-    for (const pt of projectTerminals) {
-      // Check if active session is one of this project's sessions
-      const projectSession = pt.sessions.find(
-        (ps) => ps.session.id === activeSessionId,
-      );
-      if (projectSession) {
-        return {
-          type: "project",
-          projectId: pt.projectId,
-          projectName: pt.projectName,
-          rootPath: pt.rootPath,
-          activeMode: pt.activeMode,
-          activeSessionId: projectSession.session.id,
-          sessionBadge: projectSession.badge,
-          claudeState: projectSession.session.claude_state,
-        };
-      }
-    }
-
-    // Check ad-hoc sessions
-    const adHoc = adHocSessions.find((s) => s.id === activeSessionId);
-    if (adHoc) {
-      return {
-        type: "adhoc",
-        sessionId: adHoc.id,
-        name: adHoc.name,
-        workingDir: adHoc.working_dir,
-      };
-    }
-
-    return null;
-  };
-  const activeSlot = getActiveSlot();
+  const activeSlot = findActiveSlot(
+    activeSessionId,
+    projectTerminals,
+    adHocSessions,
+  );
 
   // Handler for project selection from switcher
   const handleSelectProject = useCallback(
@@ -160,6 +123,20 @@ export function TerminalTabs({
   // Prompt cleaner state
   const [showCleaner, setShowCleaner] = useState(false);
   const [cleanerRawPrompt, setCleanerRawPrompt] = useState("");
+
+  // Memoized modal/settings openers to avoid inline arrow functions
+  const handleOpenTerminalManager = useCallback(
+    () => setShowTerminalManager(true),
+    [setShowTerminalManager],
+  );
+  const handleCloseTerminalManager = useCallback(
+    () => setShowTerminalManager(false),
+    [setShowTerminalManager],
+  );
+  const handleOpenSettings = useCallback(
+    () => setShowSettings(true),
+    [setShowSettings],
+  );
 
   // Slot-based handlers for grid/split mode headers
   const {
@@ -184,7 +161,7 @@ export function TerminalTabs({
   // Keyboard shortcuts
   const { showHelp: showKeyboardHelp, closeHelp: closeKeyboardHelp } =
     useTerminalKeyboardShortcuts({
-      onNewTerminal: () => setShowTerminalManager(true),
+      onNewTerminal: handleOpenTerminalManager,
       onCloseTab: () => {
         // Close the current active slot if available
         const activeSlot = terminalSlots.find(
@@ -257,7 +234,7 @@ export function TerminalTabs({
           keyboardSize={keyboardSize}
           onSelectProject={handleSelectProject}
           onSelectAdHoc={switchToSession}
-          onNewTerminal={() => setShowTerminalManager(true)}
+          onNewTerminal={handleOpenTerminalManager}
           onNewTerminalForProject={handleNewTerminalForProject}
           onLayoutChange={handleLayoutModeChange}
           onCleanClick={handleCleanClick}
@@ -284,7 +261,7 @@ export function TerminalTabs({
           onReorder={reorder}
           onSelectSlot={handleSlotSwitch}
           onCloseSlot={handleSlotClose}
-          onNewTerminal={() => setShowTerminalManager(true)}
+          onNewTerminal={handleOpenTerminalManager}
         />
       )}
 
@@ -297,44 +274,9 @@ export function TerminalTabs({
         accept="image/*,.md,.txt,.json,.pdf"
       />
 
-      {/* Upload progress indicator */}
-      {isUploading && (
-        <div
-          className="absolute top-10 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-lg"
-          style={{
-            backgroundColor: "var(--term-bg-elevated)",
-            border: "1px solid var(--term-border)",
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <Loader2
-              className="w-4 h-4 animate-spin"
-              style={{ color: "var(--term-accent)" }}
-            />
-            <span
-              className="text-sm"
-              style={{ color: "var(--term-text-primary)" }}
-            >
-              Uploading... {progress}%
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Upload error indicator */}
-      {uploadError && (
-        <div
-          className="absolute top-10 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-lg"
-          style={{
-            backgroundColor: "var(--term-bg-elevated)",
-            border: "1px solid var(--term-error)",
-          }}
-        >
-          <span className="text-sm" style={{ color: "var(--term-error)" }}>
-            {uploadError.message}
-          </span>
-        </div>
-      )}
+      {/* Upload status indicators */}
+      {isUploading && <UploadProgressToast progress={progress} />}
+      {uploadError && <UploadErrorToast message={uploadError.message} />}
 
       {/* Terminal panels with drag-drop upload */}
       <FileUploadDropzone
@@ -345,97 +287,37 @@ export function TerminalTabs({
           isMobile ? "order-1" : "order-2",
         )}
       >
-        {sessions.length === 0 ? (
-          <div
-            className="flex items-center justify-center h-full text-sm"
-            style={{ color: "var(--term-text-muted)" }}
-          >
-            Click <Plus className="w-4 h-4 mx-1 inline" /> to start a terminal
-          </div>
-        ) : layoutMode === "single" ? (
-          <SingleModeTerminals
-            sessions={sessions}
-            activeSessionId={activeSessionId}
-            projectPath={projectPath}
-            fontFamily={fontFamily}
-            fontSize={fontSize}
-            scrollback={scrollback}
-            cursorStyle={cursorStyle}
-            cursorBlink={cursorBlink}
-            theme={theme}
-            onTerminalRef={setTerminalRef}
-            onStatusChange={handleStatusChange}
-          />
-        ) : isGridMode ? (
-          <GridLayout
-            layoutMode={layoutMode as GridLayoutMode}
-            availableLayouts={availableLayouts}
-            onLayout={handleLayoutModeChange}
-            slots={terminalSlots}
-            orderedSlotIds={orderedIds}
-            onReorder={reorder}
-            fontFamily={fontFamily}
-            fontSize={fontSize}
-            scrollback={scrollback}
-            cursorStyle={cursorStyle}
-            cursorBlink={cursorBlink}
-            theme={theme}
-            onTerminalRef={setTerminalRef}
-            onStatusChange={handleStatusChange}
-            onSwitch={handleSlotSwitch}
-            onSettings={() => setShowSettings(true)}
-            onReset={handleSlotReset}
-            onClose={handleSlotClose}
-            onUpload={handleUploadClick}
-            onClean={handleSlotClean}
-            onNewShell={handleSlotNewShell}
-            onNewClaude={handleSlotNewClaude}
-            onEmptyClick={() => setShowTerminalManager(true)}
-            isMobile={isMobile}
-          />
-        ) : (
-          <Group
-            orientation={
-              layoutMode === "horizontal" ? "vertical" : "horizontal"
-            }
-            className="h-full"
-          >
-            {terminalSlots.slice(0, splitPaneCount).map((slot, index) => {
-              const key =
-                slot.type === "project"
-                  ? `project-${slot.projectId}`
-                  : `adhoc-${slot.sessionId}`;
-              return (
-                <SplitPane
-                  key={key}
-                  slot={slot}
-                  layoutMode={layoutMode}
-                  availableLayouts={availableLayouts}
-                  onLayout={handleLayoutModeChange}
-                  isLast={index === splitPaneCount - 1}
-                  paneCount={splitPaneCount}
-                  fontFamily={fontFamily}
-                  fontSize={fontSize}
-                  scrollback={scrollback}
-                  cursorStyle={cursorStyle}
-                  cursorBlink={cursorBlink}
-                  theme={theme}
-                  onTerminalRef={setTerminalRef}
-                  onStatusChange={handleStatusChange}
-                  onSwitch={handleSlotSwitch}
-                  onSettings={() => setShowSettings(true)}
-                  onReset={handleSlotReset}
-                  onClose={handleSlotClose}
-                  onUpload={handleUploadClick}
-                  onClean={handleSlotClean}
-                  onNewShell={handleSlotNewShell}
-                  onNewClaude={handleSlotNewClaude}
-                  isMobile={isMobile}
-                />
-              );
-            })}
-          </Group>
-        )}
+        <TerminalLayoutRenderer
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          projectPath={projectPath}
+          layoutMode={layoutMode}
+          availableLayouts={availableLayouts}
+          isGridMode={isGridMode}
+          splitPaneCount={splitPaneCount}
+          terminalSlots={terminalSlots}
+          orderedSlotIds={orderedIds}
+          onReorder={reorder}
+          fontFamily={fontFamily}
+          fontSize={fontSize}
+          scrollback={scrollback}
+          cursorStyle={cursorStyle}
+          cursorBlink={cursorBlink}
+          theme={theme}
+          onTerminalRef={setTerminalRef}
+          onStatusChange={handleStatusChange}
+          onLayoutChange={handleLayoutModeChange}
+          onSlotSwitch={handleSlotSwitch}
+          onSlotReset={handleSlotReset}
+          onSlotClose={handleSlotClose}
+          onSlotClean={handleSlotClean}
+          onSlotNewShell={handleSlotNewShell}
+          onSlotNewClaude={handleSlotNewClaude}
+          onShowSettings={handleOpenSettings}
+          onShowTerminalManager={handleOpenTerminalManager}
+          onUploadClick={handleUploadClick}
+          isMobile={isMobile}
+        />
       </FileUploadDropzone>
 
       {/* Mobile keyboard */}
@@ -453,7 +335,7 @@ export function TerminalTabs({
       {/* Terminal Manager Modal */}
       <TerminalManagerModal
         isOpen={showTerminalManager}
-        onClose={() => setShowTerminalManager(false)}
+        onClose={handleCloseTerminalManager}
         onCreateGenericTerminal={handleAddTab}
       />
 

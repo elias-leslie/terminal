@@ -3,6 +3,12 @@
  * Used by SplitPane and other components that work with TerminalSlot.
  */
 
+import type {
+  ProjectTerminal,
+  ProjectSession,
+} from "@/lib/hooks/use-project-terminals";
+import type { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
+
 // Slot types for split-pane terminals
 export interface ProjectSlot {
   type: "project";
@@ -80,4 +86,48 @@ export function getSlotWorkingDir(slot: TerminalSlot): string | null {
     return slot.rootPath;
   }
   return slot.workingDir;
+}
+
+/**
+ * Find the active slot based on active session ID.
+ * Searches project terminals first, then ad-hoc sessions.
+ */
+export function findActiveSlot(
+  activeSessionId: string | null,
+  projectTerminals: ProjectTerminal[],
+  adHocSessions: TerminalSession[],
+): TerminalSlot | null {
+  if (!activeSessionId) return null;
+
+  // Check if active session belongs to a project
+  for (const pt of projectTerminals) {
+    const projectSession = pt.sessions.find(
+      (ps: ProjectSession) => ps.session.id === activeSessionId,
+    );
+    if (projectSession) {
+      return {
+        type: "project",
+        projectId: pt.projectId,
+        projectName: pt.projectName,
+        rootPath: pt.rootPath,
+        activeMode: pt.activeMode,
+        activeSessionId: projectSession.session.id,
+        sessionBadge: projectSession.badge,
+        claudeState: projectSession.session.claude_state,
+      };
+    }
+  }
+
+  // Check ad-hoc sessions
+  const adHoc = adHocSessions.find((s) => s.id === activeSessionId);
+  if (adHoc) {
+    return {
+      type: "adhoc",
+      sessionId: adHoc.id,
+      name: adHoc.name,
+      workingDir: adHoc.working_dir,
+    };
+  }
+
+  return null;
 }
