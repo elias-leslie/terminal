@@ -12,32 +12,15 @@ import { useTerminalWebSocket } from "../lib/hooks/use-terminal-websocket";
 import { useTerminalScrolling } from "../lib/hooks/use-terminal-scrolling";
 import { setupTerminalMouseHandling } from "../lib/hooks/use-terminal-mouse-handling";
 import { isMobileDevice } from "../lib/utils/device";
+import type { TerminalProps, TerminalHandle } from "./terminal.types";
+
+export type { ConnectionStatus, TerminalHandle, TerminalProps } from "./terminal.types";
 
 // Dynamic imports for xterm (client-side only)
 let Terminal: typeof import("@xterm/xterm").Terminal;
 let FitAddon: typeof import("@xterm/addon-fit").FitAddon;
 let WebLinksAddon: typeof import("@xterm/addon-web-links").WebLinksAddon;
 let ClipboardAddon: typeof import("@xterm/addon-clipboard").ClipboardAddon;
-
-interface TerminalProps {
-  sessionId: string;
-  workingDir?: string;
-  className?: string;
-  onDisconnect?: () => void;
-  onStatusChange?: (status: ConnectionStatus) => void;
-  fontFamily?: string;
-  fontSize?: number;
-  isVisible?: boolean;
-}
-
-export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "error" | "session_dead" | "timeout";
-
-export interface TerminalHandle {
-  reconnect: () => void;
-  getContent: () => string;
-  sendInput: (data: string) => void;
-  status: ConnectionStatus;
-}
 
 export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(function TerminalComponent({
   sessionId,
