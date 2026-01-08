@@ -46,6 +46,7 @@ export function PromptCleaner({
   // Auto-start cleaning on mount
   useEffect(() => {
     handleClean();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Typewriter effect for cleaned prompt

@@ -80,7 +80,6 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     handleAddTab,
     handleNewTerminalForProject,
     handleProjectTabClick,
-    handleProjectModeChange: _handleProjectModeChange,
     handleCloseAll,
 
     // Project operations
