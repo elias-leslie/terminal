@@ -17,6 +17,7 @@ import {
   KeyboardShortcuts,
   useTerminalKeyboardShortcuts,
 } from "./KeyboardShortcuts";
+import { TerminalSkeleton } from "./TerminalSkeleton";
 import { type GridLayoutMode } from "@/lib/constants/terminal";
 import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
 import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
@@ -219,26 +220,11 @@ export function TerminalTabs({
     setCleanerRawPrompt,
   });
 
-  // Loading state
+  // Loading state - show skeleton instead of spinner
   if (isLoading) {
     return (
-      <div
-        className={clsx(
-          "flex flex-col h-full items-center justify-center",
-          className,
-        )}
-        style={{ backgroundColor: "var(--term-bg-deep)" }}
-      >
-        <Loader2
-          className="w-6 h-6 animate-spin"
-          style={{ color: "var(--term-accent)" }}
-        />
-        <span
-          className="mt-2 text-sm"
-          style={{ color: "var(--term-text-muted)" }}
-        >
-          Loading terminals...
-        </span>
+      <div className={clsx("flex flex-col h-full min-h-0", className)}>
+        <TerminalSkeleton />
       </div>
     );
   }

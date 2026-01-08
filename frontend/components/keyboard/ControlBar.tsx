@@ -35,10 +35,22 @@ export function ControlBar({
   }, [ctrlActive, onCtrlToggle, resetModifiers]);
 
   // Arrow key handlers - don't clear modifiers for arrows
-  const handleArrowLeft = useCallback(() => onSend(KEY_SEQUENCES.ARROW_LEFT), [onSend]);
-  const handleArrowUp = useCallback(() => onSend(KEY_SEQUENCES.ARROW_UP), [onSend]);
-  const handleArrowDown = useCallback(() => onSend(KEY_SEQUENCES.ARROW_DOWN), [onSend]);
-  const handleArrowRight = useCallback(() => onSend(KEY_SEQUENCES.ARROW_RIGHT), [onSend]);
+  const handleArrowLeft = useCallback(
+    () => onSend(KEY_SEQUENCES.ARROW_LEFT),
+    [onSend],
+  );
+  const handleArrowUp = useCallback(
+    () => onSend(KEY_SEQUENCES.ARROW_UP),
+    [onSend],
+  );
+  const handleArrowDown = useCallback(
+    () => onSend(KEY_SEQUENCES.ARROW_DOWN),
+    [onSend],
+  );
+  const handleArrowRight = useCallback(
+    () => onSend(KEY_SEQUENCES.ARROW_RIGHT),
+    [onSend],
+  );
 
   // Special key handlers
   const handleEsc = useCallback(() => {
@@ -49,7 +61,7 @@ export function ControlBar({
   const handleTab = useCallback(() => {
     if (shiftActive) {
       // Shift+Tab (backtab) - reverse tab completion
-      onSend('\x1b[Z');
+      onSend("\x1b[Z");
     } else {
       onSend(KEY_SEQUENCES.TAB);
     }
@@ -88,6 +100,49 @@ export function ControlBar({
         />
       </div>
 
+      {/* Quick Ctrl shortcuts */}
+      <div className="flex items-center gap-0.5 ml-0.5">
+        <button
+          type="button"
+          onClick={() => onSend("\x03")} // Ctrl+C (ETX)
+          className="h-9 px-2 rounded-md text-[10px] font-medium transition-all duration-150 active:scale-95"
+          style={{
+            backgroundColor: "var(--term-bg-elevated)",
+            color: "var(--term-text-muted)",
+            border: "1px solid var(--term-border)",
+          }}
+          title="Interrupt (Ctrl+C)"
+        >
+          ^C
+        </button>
+        <button
+          type="button"
+          onClick={() => onSend("\x04")} // Ctrl+D (EOT)
+          className="h-9 px-2 rounded-md text-[10px] font-medium transition-all duration-150 active:scale-95"
+          style={{
+            backgroundColor: "var(--term-bg-elevated)",
+            color: "var(--term-text-muted)",
+            border: "1px solid var(--term-border)",
+          }}
+          title="EOF (Ctrl+D)"
+        >
+          ^D
+        </button>
+        <button
+          type="button"
+          onClick={() => onSend("\x1a")} // Ctrl+Z (SUB)
+          className="h-9 px-2 rounded-md text-[10px] font-medium transition-all duration-150 active:scale-95"
+          style={{
+            backgroundColor: "var(--term-bg-elevated)",
+            color: "var(--term-text-muted)",
+            border: "1px solid var(--term-border)",
+          }}
+          title="Suspend (Ctrl+Z)"
+        >
+          ^Z
+        </button>
+      </div>
+
       {/* Special terminal keys */}
       <div className="flex items-center gap-0.5 ml-0.5">
         <KeyboardKey
@@ -103,10 +158,14 @@ export function ControlBar({
         <button
           type="button"
           onClick={onCtrlToggle}
-          className="h-9 px-2 rounded-md text-xs font-medium transition-all duration-150"
+          className="h-9 px-2 rounded-md text-xs font-medium transition-all duration-150 active:scale-95"
           style={{
-            backgroundColor: ctrlActive ? "var(--term-accent)" : "var(--term-bg-elevated)",
-            color: ctrlActive ? "var(--term-bg-deep)" : "var(--term-text-muted)",
+            backgroundColor: ctrlActive
+              ? "var(--term-accent)"
+              : "var(--term-bg-elevated)",
+            color: ctrlActive
+              ? "var(--term-bg-deep)"
+              : "var(--term-text-muted)",
             border: `1px solid ${ctrlActive ? "var(--term-accent)" : "var(--term-border)"}`,
             boxShadow: ctrlActive ? "0 0 8px var(--term-accent-glow)" : "none",
           }}
@@ -122,14 +181,20 @@ export function ControlBar({
           onClick={onToggleMinimize}
           className="flex items-center justify-center h-9 w-9 rounded-md transition-all duration-150 ml-auto"
           style={{
-            backgroundColor: minimized ? "var(--term-accent)" : "var(--term-bg-elevated)",
+            backgroundColor: minimized
+              ? "var(--term-accent)"
+              : "var(--term-bg-elevated)",
             color: minimized ? "var(--term-bg-deep)" : "var(--term-text-muted)",
             border: `1px solid ${minimized ? "var(--term-accent)" : "var(--term-border)"}`,
             boxShadow: minimized ? "0 0 8px var(--term-accent-glow)" : "none",
           }}
           title={minimized ? "Show keyboard" : "Hide keyboard"}
         >
-          {minimized ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          {minimized ? (
+            <ChevronUp className="w-4 h-4" />
+          ) : (
+            <ChevronDown className="w-4 h-4" />
+          )}
         </button>
       )}
     </div>
