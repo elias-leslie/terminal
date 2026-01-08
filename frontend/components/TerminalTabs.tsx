@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { clsx } from "clsx";
 import { Group } from "react-resizable-panels";
 import { TerminalComponent } from "./Terminal";
@@ -18,8 +18,9 @@ import { SplitPane } from "./SplitPane";
 import { GridLayout } from "./GridLayout";
 import { type GridLayoutMode } from "@/lib/constants/terminal";
 import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
-import { useFileUpload } from "@/lib/hooks/use-file-upload";
 import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
+import { useTerminalSlotHandlers } from "@/lib/hooks/use-terminal-slot-handlers";
+import { useTerminalActionHandlers } from "@/lib/hooks/use-terminal-action-handlers";
 import { type TerminalSlot, getSlotSessionId } from "@/lib/utils/slot";
 
 interface TerminalTabsProps {
@@ -136,114 +137,50 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     }
   }, [projectTerminals, handleProjectTabClick]);
 
-  // Slot-based handlers for grid/split mode headers
-  const handleSlotSwitch = useCallback((slot: TerminalSlot) => {
-    const sessionId = getSlotSessionId(slot);
-    if (sessionId) {
-      switchToSession(sessionId);
-    }
-  }, [switchToSession]);
-
-  const handleSlotReset = useCallback(async (slot: TerminalSlot) => {
-    if (slot.type === "project") {
-      await resetProject(slot.projectId);
-    } else {
-      await reset(slot.sessionId);
-    }
-  }, [resetProject, reset]);
-
-  const handleSlotClose = useCallback(async (slot: TerminalSlot) => {
-    if (slot.type === "project") {
-      await disableProject(slot.projectId);
-    } else {
-      await remove(slot.sessionId);
-    }
-  }, [disableProject, remove]);
-
-  // Prompt cleaner state (must be declared before callbacks that use them)
+  // Prompt cleaner state
   const [showCleaner, setShowCleaner] = useState(false);
   const [cleanerRawPrompt, setCleanerRawPrompt] = useState("");
 
-  const handleSlotClean = useCallback((slot: TerminalSlot) => {
-    const sessionId = getSlotSessionId(slot);
-    if (!sessionId) return;
-    const terminalRef = terminalRefs.current.get(sessionId);
-    if (!terminalRef) return;
-    const input = terminalRef.getLastLine();
-    if (!input.trim()) return;
-    setCleanerRawPrompt(input);
-    setShowCleaner(true);
-  }, [terminalRefs]);
+  // Slot-based handlers for grid/split mode headers
+  const {
+    handleSlotSwitch,
+    handleSlotReset,
+    handleSlotClose,
+    handleSlotClean,
+    handleSlotNewShell,
+    handleSlotNewClaude,
+  } = useTerminalSlotHandlers({
+    terminalRefs,
+    switchToSession,
+    resetProject,
+    reset,
+    disableProject,
+    remove,
+    handleNewTerminalForProject,
+    setShowCleaner,
+    setCleanerRawPrompt,
+  });
 
-  const handleSlotNewShell = useCallback((slot: TerminalSlot) => {
-    if (slot.type === "project") {
-      handleNewTerminalForProject(slot.projectId, "shell");
-    }
-  }, [handleNewTerminalForProject]);
-
-  const handleSlotNewClaude = useCallback((slot: TerminalSlot) => {
-    if (slot.type === "project") {
-      handleNewTerminalForProject(slot.projectId, "claude");
-    }
-  }, [handleNewTerminalForProject]);
-
-  // File upload functionality
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { uploadFile, progress, isUploading, error: uploadError } = useFileUpload();
-
-  const handleUploadClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileSelect = useCallback(async (file: File) => {
-    const result = await uploadFile(file);
-    if (result && activeSessionId) {
-      // Insert path at cursor in the active terminal
-      const terminalRef = terminalRefs.current.get(activeSessionId);
-      if (terminalRef) {
-        terminalRef.sendInput(result.path);
-      }
-    }
-  }, [uploadFile, activeSessionId, terminalRefs]);
-
-  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
-    }
-    // Reset input so the same file can be selected again
-    e.target.value = "";
-  }, [handleFileSelect]);
-
-  // Prompt cleaner functionality
+  // File upload and prompt cleaner functionality
   const { cleanPrompt, isLoading: isCleanerLoading } = usePromptCleaner();
-
-  const handleCleanClick = useCallback(() => {
-    if (!activeSessionId) return;
-    const terminalRef = terminalRefs.current.get(activeSessionId);
-    if (!terminalRef) return;
-    const input = terminalRef.getLastLine();
-    if (!input.trim()) return;
-    setCleanerRawPrompt(input);
-    setShowCleaner(true);
-  }, [activeSessionId, terminalRefs]);
-
-  const handleCleanerSend = useCallback((cleanedPrompt: string) => {
-    if (!activeSessionId) return;
-    const terminalRef = terminalRefs.current.get(activeSessionId);
-    if (terminalRef) {
-      // Clear current line (send Ctrl+U) then send cleaned prompt
-      terminalRef.sendInput("\x15"); // Ctrl+U
-      terminalRef.sendInput(cleanedPrompt);
-    }
-    setShowCleaner(false);
-    setCleanerRawPrompt("");
-  }, [activeSessionId, terminalRefs]);
-
-  const handleCleanerCancel = useCallback(() => {
-    setShowCleaner(false);
-    setCleanerRawPrompt("");
-  }, []);
+  const {
+    fileInputRef,
+    progress,
+    isUploading,
+    uploadError,
+    handleUploadClick,
+    handleFileSelect,
+    handleFileInputChange,
+    handleCleanClick,
+    handleCleanerSend,
+    handleCleanerCancel,
+  } = useTerminalActionHandlers({
+    terminalRefs,
+    activeSessionId,
+    showCleaner,
+    setShowCleaner,
+    setCleanerRawPrompt,
+  });
 
   // Loading state
   if (isLoading) {
