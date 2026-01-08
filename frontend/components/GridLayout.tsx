@@ -19,10 +19,13 @@ import {
 import { GridCell } from "./GridCell";
 import { TerminalHandle, ConnectionStatus } from "./Terminal";
 import { GridLayoutMode, GRID_CELL_COUNTS } from "@/lib/constants/terminal";
+import { LayoutMode } from "./LayoutModeButton";
 import { type TerminalSlot, getSlotPanelId } from "@/lib/utils/slot";
 
 export interface GridLayoutProps {
   layoutMode: GridLayoutMode;
+  availableLayouts?: LayoutMode[];
+  onLayout?: (mode: LayoutMode) => void;
   slots: TerminalSlot[];
   orderedSlotIds: string[];
   onReorder: (newOrder: string[]) => void;
@@ -60,6 +63,8 @@ function getGridDimensions(layoutMode: GridLayoutMode): number {
  */
 export function GridLayout({
   layoutMode,
+  availableLayouts,
+  onLayout,
   slots,
   orderedSlotIds,
   onReorder,
@@ -89,7 +94,7 @@ export function GridLayout({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   // Sort slots by orderedSlotIds, fill with unordered, cap at max
@@ -118,7 +123,7 @@ export function GridLayout({
   // Get IDs for sortable context
   const sortableIds = useMemo(
     () => displaySlots.map(getSlotPanelId),
-    [displaySlots]
+    [displaySlots],
   );
 
   // Handle drag end
@@ -136,7 +141,7 @@ export function GridLayout({
         }
       }
     },
-    [sortableIds, onReorder]
+    [sortableIds, onReorder],
   );
 
   // Calculate empty placeholder count
@@ -165,6 +170,9 @@ export function GridLayout({
               key={getSlotPanelId(slot)}
               slot={slot}
               cellIndex={index}
+              layoutMode={layoutMode}
+              availableLayouts={availableLayouts}
+              onLayout={onLayout}
               fontFamily={fontFamily}
               fontSize={fontSize}
               isDraggable={displaySlots.length > 1}

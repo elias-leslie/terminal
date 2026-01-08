@@ -2,9 +2,14 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { TerminalComponent, TerminalHandle, ConnectionStatus } from "./Terminal";
+import {
+  TerminalComponent,
+  TerminalHandle,
+  ConnectionStatus,
+} from "./Terminal";
 import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
 import { UnifiedTerminalHeader } from "./UnifiedTerminalHeader";
+import { LayoutMode } from "./LayoutModeButton";
 import {
   type TerminalSlot,
   getSlotSessionId,
@@ -15,6 +20,9 @@ import {
 export interface GridCellProps {
   slot: TerminalSlot;
   cellIndex: number;
+  layoutMode?: LayoutMode;
+  availableLayouts?: LayoutMode[];
+  onLayout?: (mode: LayoutMode) => void;
   fontFamily: string;
   fontSize: number;
   isDraggable?: boolean;
@@ -39,6 +47,9 @@ export interface GridCellProps {
 export function GridCell({
   slot,
   cellIndex,
+  layoutMode,
+  availableLayouts,
+  onLayout,
   fontFamily,
   fontSize,
   isDraggable = true,
@@ -72,7 +83,9 @@ export function GridCell({
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || "transform 150ms ease, opacity 150ms ease, box-shadow 150ms ease",
+    transition:
+      transition ||
+      "transform 150ms ease, opacity 150ms ease, box-shadow 150ms ease",
     opacity: isDragging ? 0.6 : 1,
     boxShadow: isDragging
       ? "0 0 0 2px var(--term-accent), 0 8px 24px rgba(0, 0, 0, 0.4)"
@@ -87,13 +100,19 @@ export function GridCell({
       className="flex flex-col h-full min-h-0 overflow-hidden rounded-md hover:border-[var(--term-border-active)] transition-colors"
       data-cell-index={cellIndex}
     >
-      {/* Unified header */}
+      {/* Per-cell header with full controls including layout selector */}
       <UnifiedTerminalHeader
         slot={slot}
         isDraggable={isDraggable}
         dragAttributes={attributes}
         dragListeners={listeners}
-        showCleanButton={slot.type === "project" && slot.activeMode === "claude"}
+        showCleanButton={
+          slot.type === "project" && slot.activeMode === "claude"
+        }
+        showLayoutSelector={!isMobile && !!availableLayouts && !!onLayout}
+        layoutMode={layoutMode}
+        availableLayouts={availableLayouts}
+        onLayout={onLayout}
         onSwitch={onSwitch ? () => onSwitch(slot) : undefined}
         onSettings={onSettings}
         onReset={onReset ? () => onReset(slot) : undefined}
@@ -126,7 +145,9 @@ export function GridCell({
               slot.activeMode === "claude" &&
               slot.claudeState !== "running" &&
               slot.claudeState !== "stopped" &&
-              slot.claudeState !== "error" && <ClaudeLoadingOverlay variant="compact" />}
+              slot.claudeState !== "error" && (
+                <ClaudeLoadingOverlay variant="compact" />
+              )}
           </>
         ) : (
           <div

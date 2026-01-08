@@ -2,7 +2,11 @@
 
 import { clsx } from "clsx";
 import { Panel, Separator } from "react-resizable-panels";
-import { TerminalComponent, TerminalHandle, ConnectionStatus } from "./Terminal";
+import {
+  TerminalComponent,
+  TerminalHandle,
+  ConnectionStatus,
+} from "./Terminal";
 import { ClaudeLoadingOverlay } from "./ClaudeLoadingOverlay";
 import { UnifiedTerminalHeader } from "./UnifiedTerminalHeader";
 import { LayoutMode } from "./LayoutModeButton";
@@ -16,6 +20,8 @@ import {
 export interface SplitPaneProps {
   slot: TerminalSlot;
   layoutMode: LayoutMode;
+  availableLayouts?: LayoutMode[];
+  onLayout?: (mode: LayoutMode) => void;
   isLast: boolean;
   paneCount: number;
   fontFamily: string;
@@ -41,6 +47,8 @@ export interface SplitPaneProps {
 export function SplitPane({
   slot,
   layoutMode,
+  availableLayouts,
+  onLayout,
   isLast,
   paneCount,
   fontFamily,
@@ -73,10 +81,16 @@ export function SplitPane({
         minSize={minSize}
         className="flex flex-col h-full min-h-0 overflow-hidden"
       >
-        {/* Unified header */}
+        {/* Per-pane header with full controls including layout selector */}
         <UnifiedTerminalHeader
           slot={slot}
-          showCleanButton={slot.type === "project" && slot.activeMode === "claude"}
+          showCleanButton={
+            slot.type === "project" && slot.activeMode === "claude"
+          }
+          showLayoutSelector={!isMobile && !!availableLayouts && !!onLayout}
+          layoutMode={layoutMode}
+          availableLayouts={availableLayouts}
+          onLayout={onLayout}
           onSwitch={onSwitch ? () => onSwitch(slot) : undefined}
           onSettings={onSettings}
           onReset={onReset ? () => onReset(slot) : undefined}
@@ -104,12 +118,17 @@ export function SplitPane({
                 slot.activeMode === "claude" &&
                 slot.claudeState !== "running" &&
                 slot.claudeState !== "stopped" &&
-                slot.claudeState !== "error" && <ClaudeLoadingOverlay variant="compact" />}
+                slot.claudeState !== "error" && (
+                  <ClaudeLoadingOverlay variant="compact" />
+                )}
             </>
           ) : (
             <div
               className="flex items-center justify-center h-full text-xs"
-              style={{ color: "var(--term-text-muted)", backgroundColor: "var(--term-bg-deep)" }}
+              style={{
+                color: "var(--term-text-muted)",
+                backgroundColor: "var(--term-bg-deep)",
+              }}
             >
               Click tab to start session
             </div>
@@ -122,11 +141,15 @@ export function SplitPane({
             layoutMode === "horizontal"
               ? "h-1 cursor-row-resize"
               : "w-1 cursor-col-resize",
-            "transition-colors"
+            "transition-colors",
           )}
           style={{ backgroundColor: "var(--term-border)" }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--term-border-active)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "var(--term-border)"; }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "var(--term-border-active)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "var(--term-border)";
+          }}
         />
       )}
     </>
