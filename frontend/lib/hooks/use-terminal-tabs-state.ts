@@ -45,7 +45,6 @@ export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabs
   const terminalRefs = useRef<Map<string, TerminalHandle>>(new Map());
   const [terminalStatuses, setTerminalStatuses] = useState<Map<string, ConnectionStatus>>(new Map());
   const projectTabRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const hasAutoCreated = useRef(false);
 
   // Handlers hook (includes session/project mutations and all event handlers)
   const {
@@ -55,6 +54,7 @@ export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabs
     handleReconnect,
     handleLayoutModeChange,
     handleAddTab,
+    handleNewTerminalForProject,
     handleProjectTabClick,
     handleProjectModeChange,
     handleCloseAll,
@@ -142,19 +142,16 @@ export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabs
     }
   }, [availableLayouts, layoutMode, setLayoutMode]);
 
-  // Auto-create terminal on initial load
+  // Auto-create ad-hoc terminal when no sessions exist (initial load or after closing all)
   useEffect(() => {
-    if (isLoading || hasAutoCreated.current || isCreating) return;
+    if (isLoading || isCreating) return;
 
-    const sessionKey = `terminal-autocreated-${projectId || 'default'}`;
-    const alreadyCreated = sessionStorage.getItem(sessionKey);
-
-    if (sessions.length === 0 && !alreadyCreated) {
-      hasAutoCreated.current = true;
-      sessionStorage.setItem(sessionKey, 'true');
-      create("Terminal 1", projectPath);
+    // Always auto-create when sessions become empty (prevents empty terminal state)
+    if (sessions.length === 0) {
+      // Create ad-hoc terminal with home directory as working dir
+      create("Terminal 1", undefined, undefined, true);
     }
-  }, [isLoading, sessions.length, isCreating, create, projectPath, projectId]);
+  }, [isLoading, sessions.length, isCreating, create]);
 
   // Tab editing hook
   const tabEditingProps = useTabEditing({
@@ -222,6 +219,7 @@ export function useTerminalTabsState({ projectId, projectPath }: UseTerminalTabs
     handleReconnect,
     handleLayoutModeChange,
     handleAddTab,
+    handleNewTerminalForProject,
     handleProjectTabClick,
     handleProjectModeChange,
     handleCloseAll,

@@ -73,6 +73,7 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
     handleReconnect,
     handleLayoutModeChange,
     handleAddTab,
+    handleNewTerminalForProject,
     handleProjectTabClick,
     handleProjectModeChange,
     handleCloseAll,
@@ -158,11 +159,13 @@ export function TerminalTabs({ projectId, projectPath, className }: TerminalTabs
           <TerminalSwitcher
             currentName={activeSlot ? (activeSlot.type === "project" ? activeSlot.projectName : activeSlot.name) : "Terminal"}
             currentMode={activeSlot?.type === "project" ? activeSlot.activeMode : undefined}
+            currentProjectId={activeSlot?.type === "project" ? activeSlot.projectId : null}
             projectTerminals={projectTerminals}
             adHocSessions={adHocSessions}
             onSelectProject={handleSelectProject}
             onSelectAdHoc={switchToSession}
             onNewTerminal={() => setShowTerminalManager(true)}
+            onNewTerminalForProject={handleNewTerminalForProject}
             isMobile={isMobile}
           />
 

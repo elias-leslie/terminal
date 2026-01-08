@@ -150,6 +150,13 @@ export function useTerminalHandlers({
     await create(name, undefined, undefined, true);
   }, [sessions, create]);
 
+  // Navigate to session via URL
+  const navigateToSession = useCallback((sessionId: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("session", sessionId);
+    router.push(`?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+
   // Add new terminal for a specific project
   const handleNewTerminalForProject = useCallback(async (
     targetProjectId: string,
@@ -175,13 +182,6 @@ export function useTerminalHandlers({
       // Error already logged by createProjectSession
     }
   }, [projectTerminals, navigateToSession, startClaude]);
-
-  // Navigate to session via URL
-  const navigateToSession = useCallback((sessionId: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("session", sessionId);
-    router.push(`?${params.toString()}`, { scroll: false });
-  }, [searchParams, router]);
 
   // Project tab click handler
   const handleProjectTabClick = useCallback(async (pt: ProjectTerminal) => {
@@ -252,6 +252,7 @@ export function useTerminalHandlers({
     handleReconnect,
     handleLayoutModeChange,
     handleAddTab,
+    handleNewTerminalForProject,
     handleProjectTabClick,
     handleProjectModeChange,
     handleCloseAll,
