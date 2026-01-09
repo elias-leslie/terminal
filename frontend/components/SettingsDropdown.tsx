@@ -38,6 +38,9 @@ export interface SettingsDropdownProps {
   keyboardSize?: KeyboardSizePreset;
   setKeyboardSize?: (size: KeyboardSizePreset) => void;
   isMobile?: boolean;
+  // When false, only renders the dropdown panel (no trigger button)
+  // Used for grid/split modes where trigger is in UnifiedTerminalHeader
+  renderTrigger?: boolean;
 }
 
 export function SettingsDropdown({
@@ -58,6 +61,7 @@ export function SettingsDropdown({
   keyboardSize,
   setKeyboardSize,
   isMobile,
+  renderTrigger = true,
 }: SettingsDropdownProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -65,7 +69,11 @@ export function SettingsDropdown({
     () => setShowSettings(false),
     [setShowSettings],
   );
-  const clickOutsideRefs = useMemo(() => [buttonRef, dropdownRef], []);
+  // Only include buttonRef if we're rendering it
+  const clickOutsideRefs = useMemo(
+    () => (renderTrigger ? [buttonRef, dropdownRef] : [dropdownRef]),
+    [renderTrigger],
+  );
 
   // Close dropdown when clicking outside
   useClickOutside(clickOutsideRefs, closeDropdown, showSettings);
@@ -75,59 +83,74 @@ export function SettingsDropdown({
   const [dropdownStyle, setDropdownStyle] =
     useState<React.CSSProperties | null>(null);
   useLayoutEffect(() => {
-    if (showSettings && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
+    if (showSettings) {
       // Get safe area inset (for PWA apps with title bars)
       const safeAreaTop = parseInt(
         getComputedStyle(document.documentElement).getPropertyValue("--sat") ||
           "0",
         10,
       );
-      // Add extra buffer for PWA title bars (~32px typical)
       const minTop = Math.max(safeAreaTop, 8);
-      const calculatedTop = rect.bottom + 4;
-      const top = Math.max(minTop, calculatedTop);
 
-      setDropdownStyle({
-        position: "fixed",
-        right: window.innerWidth - rect.right,
-        top,
-        zIndex: 10001,
-      });
+      if (renderTrigger && buttonRef.current) {
+        // Position relative to button
+        const rect = buttonRef.current.getBoundingClientRect();
+        const calculatedTop = rect.bottom + 4;
+        setDropdownStyle({
+          position: "fixed",
+          right: window.innerWidth - rect.right,
+          top: Math.max(minTop, calculatedTop),
+          zIndex: 10001,
+        });
+      } else {
+        // No button - position in top-right corner
+        setDropdownStyle({
+          position: "fixed",
+          right: 16,
+          top: Math.max(minTop, 56), // Below typical header height
+          zIndex: 10001,
+        });
+      }
     } else {
       setDropdownStyle(null);
     }
-  }, [showSettings]);
+  }, [showSettings, renderTrigger]);
 
   return (
-    <div className="relative ml-2">
-      <button
-        ref={buttonRef}
-        onClick={() => setShowSettings(!showSettings)}
-        title="Terminal settings"
-        className="p-1.5 rounded-md transition-all duration-150"
-        style={{
-          backgroundColor: showSettings
-            ? "var(--term-bg-elevated)"
-            : "transparent",
-          color: showSettings ? "var(--term-accent)" : "var(--term-text-muted)",
-          boxShadow: showSettings ? "0 0 8px var(--term-accent-glow)" : "none",
-        }}
-        onMouseEnter={(e) => {
-          if (!showSettings) {
-            e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
-            e.currentTarget.style.color = "var(--term-text-primary)";
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!showSettings) {
-            e.currentTarget.style.backgroundColor = "transparent";
-            e.currentTarget.style.color = "var(--term-text-muted)";
-          }
-        }}
-      >
-        <Settings2 className="w-4 h-4" />
-      </button>
+    <div className={renderTrigger ? "relative ml-2" : ""}>
+      {renderTrigger && (
+        <button
+          ref={buttonRef}
+          onClick={() => setShowSettings(!showSettings)}
+          title="Terminal settings"
+          className="p-1.5 rounded-md transition-all duration-150"
+          style={{
+            backgroundColor: showSettings
+              ? "var(--term-bg-elevated)"
+              : "transparent",
+            color: showSettings
+              ? "var(--term-accent)"
+              : "var(--term-text-muted)",
+            boxShadow: showSettings
+              ? "0 0 8px var(--term-accent-glow)"
+              : "none",
+          }}
+          onMouseEnter={(e) => {
+            if (!showSettings) {
+              e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
+              e.currentTarget.style.color = "var(--term-text-primary)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!showSettings) {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "var(--term-text-muted)";
+            }
+          }}
+        >
+          <Settings2 className="w-4 h-4" />
+        </button>
+      )}
 
       {/* Settings dropdown - glass-morphism style */}
       {/* Only render when position is calculated to avoid flash at wrong position */}

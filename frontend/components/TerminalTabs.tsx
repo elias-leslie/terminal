@@ -8,6 +8,7 @@ import { PromptCleaner } from "./PromptCleaner";
 import { TerminalHeader } from "./TerminalHeader";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { TerminalManagerModal } from "./TerminalManagerModal";
+import { SettingsDropdown } from "./SettingsDropdown";
 // SessionTabBar removed - all terminal selection via TerminalSwitcher dropdown in pane header
 import {
   KeyboardShortcuts,
@@ -309,6 +310,30 @@ export function TerminalTabs({
           setThemeId={setThemeId}
           setShowSettings={setShowSettings}
           setKeyboardSize={handleKeyboardSizeChange}
+        />
+      )}
+
+      {/* Settings dropdown for grid/split modes (single mode has it in TerminalHeader) */}
+      {layoutMode !== "single" && (
+        <SettingsDropdown
+          fontId={fontId}
+          fontSize={fontSize}
+          scrollback={scrollback}
+          cursorStyle={cursorStyle}
+          cursorBlink={cursorBlink}
+          themeId={themeId}
+          setFontId={setFontId}
+          setFontSize={setFontSize}
+          setScrollback={setScrollback}
+          setCursorStyle={setCursorStyle}
+          setCursorBlink={setCursorBlink}
+          setThemeId={setThemeId}
+          showSettings={showSettings}
+          setShowSettings={setShowSettings}
+          keyboardSize={keyboardSize}
+          setKeyboardSize={handleKeyboardSizeChange}
+          isMobile={isMobile}
+          renderTrigger={false}
         />
       )}
 
