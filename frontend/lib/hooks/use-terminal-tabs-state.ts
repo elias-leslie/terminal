@@ -38,6 +38,14 @@ export function useTerminalTabsState({
 
   // Layout state
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("single");
+
+  // Get the active session's project_id for per-project settings
+  const activeSessionProjectId = useMemo(() => {
+    if (!activeSessionId) return undefined;
+    const activeSession = sessions.find((s) => s.id === activeSessionId);
+    return activeSession?.project_id ?? undefined;
+  }, [activeSessionId, sessions]);
+
   const {
     fontId,
     fontSize,
@@ -53,7 +61,7 @@ export function useTerminalTabsState({
     setCursorStyle,
     setCursorBlink,
     setThemeId,
-  } = useTerminalSettings();
+  } = useTerminalSettings(activeSessionProjectId);
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [showSettings, setShowSettings] = useState(false);
   const [keyboardSize, setKeyboardSize] =

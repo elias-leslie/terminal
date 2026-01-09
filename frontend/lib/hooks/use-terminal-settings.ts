@@ -79,7 +79,8 @@ interface TerminalSettings {
   themeId: TerminalThemeId;
 }
 
-const STORAGE_KEY = "terminal-settings";
+const STORAGE_KEY_GLOBAL = "terminal-settings";
+const STORAGE_KEY_PROJECT_PREFIX = "terminal-settings-project-";
 
 const DEFAULT_SETTINGS: TerminalSettings = {
   fontId: "jetbrains-mono",
@@ -90,37 +91,29 @@ const DEFAULT_SETTINGS: TerminalSettings = {
   themeId: "phosphor",
 };
 
-function loadSettings(): TerminalSettings {
+function getStorageKey(projectId?: string): string {
+  return projectId
+    ? `${STORAGE_KEY_PROJECT_PREFIX}${projectId}`
+    : STORAGE_KEY_GLOBAL;
+}
+
+function loadSettings(projectId?: string): TerminalSettings {
   if (typeof window === "undefined") return DEFAULT_SETTINGS;
 
+  const storageKey = getStorageKey(projectId);
+
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return {
-        fontId: TERMINAL_FONTS.some((f) => f.id === parsed.fontId)
-          ? parsed.fontId
-          : DEFAULT_SETTINGS.fontId,
-        fontSize: TERMINAL_FONT_SIZES.includes(parsed.fontSize)
-          ? parsed.fontSize
-          : DEFAULT_SETTINGS.fontSize,
-        scrollback: TERMINAL_SCROLLBACK_OPTIONS.some(
-          (o) => o.value === parsed.scrollback,
-        )
-          ? parsed.scrollback
-          : DEFAULT_SETTINGS.scrollback,
-        cursorStyle: TERMINAL_CURSOR_STYLES.includes(parsed.cursorStyle)
-          ? parsed.cursorStyle
-          : DEFAULT_SETTINGS.cursorStyle,
-        cursorBlink:
-          typeof parsed.cursorBlink === "boolean"
-            ? parsed.cursorBlink
-            : DEFAULT_SETTINGS.cursorBlink,
-        themeId:
-          parsed.themeId && parsed.themeId in TERMINAL_THEMES
-            ? parsed.themeId
-            : DEFAULT_SETTINGS.themeId,
-      };
+      return parseSettings(parsed);
+    }
+    // If project-specific settings not found, try global defaults
+    if (projectId) {
+      const globalStored = localStorage.getItem(STORAGE_KEY_GLOBAL);
+      if (globalStored) {
+        return parseSettings(JSON.parse(globalStored));
+      }
     }
   } catch {
     // Ignore parse errors
@@ -128,15 +121,52 @@ function loadSettings(): TerminalSettings {
   return DEFAULT_SETTINGS;
 }
 
-function saveSettings(settings: TerminalSettings): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+function parseSettings(parsed: Record<string, unknown>): TerminalSettings {
+  return {
+    fontId: TERMINAL_FONTS.some((f) => f.id === parsed.fontId)
+      ? (parsed.fontId as TerminalFontId)
+      : DEFAULT_SETTINGS.fontId,
+    fontSize: TERMINAL_FONT_SIZES.includes(parsed.fontSize as TerminalFontSize)
+      ? (parsed.fontSize as TerminalFontSize)
+      : DEFAULT_SETTINGS.fontSize,
+    scrollback: TERMINAL_SCROLLBACK_OPTIONS.some(
+      (o) => o.value === parsed.scrollback,
+    )
+      ? (parsed.scrollback as TerminalScrollback)
+      : DEFAULT_SETTINGS.scrollback,
+    cursorStyle: TERMINAL_CURSOR_STYLES.includes(
+      parsed.cursorStyle as TerminalCursorStyle,
+    )
+      ? (parsed.cursorStyle as TerminalCursorStyle)
+      : DEFAULT_SETTINGS.cursorStyle,
+    cursorBlink:
+      typeof parsed.cursorBlink === "boolean"
+        ? parsed.cursorBlink
+        : DEFAULT_SETTINGS.cursorBlink,
+    themeId:
+      parsed.themeId && (parsed.themeId as string) in TERMINAL_THEMES
+        ? (parsed.themeId as TerminalThemeId)
+        : DEFAULT_SETTINGS.themeId,
+  };
 }
 
-export function useTerminalSettings() {
+function saveSettings(settings: TerminalSettings, projectId?: string): void {
+  if (typeof window === "undefined") return;
+  const storageKey = getStorageKey(projectId);
+  localStorage.setItem(storageKey, JSON.stringify(settings));
+}
+
+/**
+ * Hook for terminal visual settings.
+ *
+ * @param projectId - Optional project ID for per-project settings.
+ *                    When provided, settings are stored with project scope.
+ *                    When not provided, uses global settings.
+ */
+export function useTerminalSettings(projectId?: string) {
   // Use lazy initialization to load settings synchronously
   const [settings, setSettings] = useState<TerminalSettings>(() =>
-    loadSettings(),
+    loadSettings(projectId),
   );
   // isLoaded is now always true after initial render since we use lazy init
   const isLoaded = true;
@@ -146,53 +176,71 @@ export function useTerminalSettings() {
     TERMINAL_FONTS.find((f) => f.id === settings.fontId)?.family ??
     TERMINAL_FONTS[0].family;
 
-  const setFontId = useCallback((fontId: TerminalFontId) => {
-    setSettings((prev) => {
-      const next = { ...prev, fontId };
-      saveSettings(next);
-      return next;
-    });
-  }, []);
+  const setFontId = useCallback(
+    (fontId: TerminalFontId) => {
+      setSettings((prev) => {
+        const next = { ...prev, fontId };
+        saveSettings(next, projectId);
+        return next;
+      });
+    },
+    [projectId],
+  );
 
-  const setFontSize = useCallback((fontSize: TerminalFontSize) => {
-    setSettings((prev) => {
-      const next = { ...prev, fontSize };
-      saveSettings(next);
-      return next;
-    });
-  }, []);
+  const setFontSize = useCallback(
+    (fontSize: TerminalFontSize) => {
+      setSettings((prev) => {
+        const next = { ...prev, fontSize };
+        saveSettings(next, projectId);
+        return next;
+      });
+    },
+    [projectId],
+  );
 
-  const setScrollback = useCallback((scrollback: TerminalScrollback) => {
-    setSettings((prev) => {
-      const next = { ...prev, scrollback };
-      saveSettings(next);
-      return next;
-    });
-  }, []);
+  const setScrollback = useCallback(
+    (scrollback: TerminalScrollback) => {
+      setSettings((prev) => {
+        const next = { ...prev, scrollback };
+        saveSettings(next, projectId);
+        return next;
+      });
+    },
+    [projectId],
+  );
 
-  const setCursorStyle = useCallback((cursorStyle: TerminalCursorStyle) => {
-    setSettings((prev) => {
-      const next = { ...prev, cursorStyle };
-      saveSettings(next);
-      return next;
-    });
-  }, []);
+  const setCursorStyle = useCallback(
+    (cursorStyle: TerminalCursorStyle) => {
+      setSettings((prev) => {
+        const next = { ...prev, cursorStyle };
+        saveSettings(next, projectId);
+        return next;
+      });
+    },
+    [projectId],
+  );
 
-  const setCursorBlink = useCallback((cursorBlink: boolean) => {
-    setSettings((prev) => {
-      const next = { ...prev, cursorBlink };
-      saveSettings(next);
-      return next;
-    });
-  }, []);
+  const setCursorBlink = useCallback(
+    (cursorBlink: boolean) => {
+      setSettings((prev) => {
+        const next = { ...prev, cursorBlink };
+        saveSettings(next, projectId);
+        return next;
+      });
+    },
+    [projectId],
+  );
 
-  const setThemeId = useCallback((themeId: TerminalThemeId) => {
-    setSettings((prev) => {
-      const next = { ...prev, themeId };
-      saveSettings(next);
-      return next;
-    });
-  }, []);
+  const setThemeId = useCallback(
+    (themeId: TerminalThemeId) => {
+      setSettings((prev) => {
+        const next = { ...prev, themeId };
+        saveSettings(next, projectId);
+        return next;
+      });
+    },
+    [projectId],
+  );
 
   // Get the theme object for the current theme
   const theme = TERMINAL_THEMES[settings.themeId].theme;
