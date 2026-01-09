@@ -133,6 +133,12 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
 export function useTerminalKeyboardShortcuts(handlers: {
   onNewTerminal: () => void;
   onCloseTab: () => void;
+  /** Switch to next terminal (Ctrl+Tab) */
+  onNextTerminal?: () => void;
+  /** Switch to previous terminal (Ctrl+Shift+Tab) */
+  onPrevTerminal?: () => void;
+  /** Jump to terminal at position (Ctrl+1-9) */
+  onJumpToTerminal?: (index: number) => void;
 }) {
   const [showHelp, setShowHelp] = useState(false);
 
@@ -166,6 +172,27 @@ export function useTerminalKeyboardShortcuts(handlers: {
       if (e.ctrlKey && e.key === "w") {
         e.preventDefault();
         handlers.onCloseTab();
+        return;
+      }
+
+      // Ctrl+Tab for next terminal
+      if (e.ctrlKey && e.key === "Tab" && !e.shiftKey) {
+        e.preventDefault();
+        handlers.onNextTerminal?.();
+        return;
+      }
+
+      // Ctrl+Shift+Tab for previous terminal
+      if (e.ctrlKey && e.key === "Tab" && e.shiftKey) {
+        e.preventDefault();
+        handlers.onPrevTerminal?.();
+        return;
+      }
+
+      // Ctrl+1-9 to jump to terminal at position
+      if (e.ctrlKey && /^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        handlers.onJumpToTerminal?.(parseInt(e.key, 10) - 1); // 0-indexed
         return;
       }
     },

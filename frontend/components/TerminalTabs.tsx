@@ -175,6 +175,67 @@ export function TerminalTabs({
           handleSlotClose(activeSlot);
         }
       },
+      onNextTerminal: () => {
+        // Cycle to next terminal in orderedIds
+        if (orderedIds.length <= 1) return;
+        const currentIndex = orderedIds.findIndex((id) =>
+          terminalSlots.some(
+            (slot) =>
+              (slot.type === "project" &&
+                slot.activeSessionId === activeSessionId &&
+                `project-${slot.projectId}` === id) ||
+              (slot.type === "adhoc" &&
+                slot.sessionId === activeSessionId &&
+                `adhoc-${slot.sessionId}` === id),
+          ),
+        );
+        const nextIndex = (currentIndex + 1) % orderedIds.length;
+        const nextSlot = terminalSlots.find(
+          (slot) =>
+            (slot.type === "project" &&
+              `project-${slot.projectId}` === orderedIds[nextIndex]) ||
+            (slot.type === "adhoc" &&
+              `adhoc-${slot.sessionId}` === orderedIds[nextIndex]),
+        );
+        if (nextSlot) handleSlotSwitch(nextSlot);
+      },
+      onPrevTerminal: () => {
+        // Cycle to previous terminal in orderedIds
+        if (orderedIds.length <= 1) return;
+        const currentIndex = orderedIds.findIndex((id) =>
+          terminalSlots.some(
+            (slot) =>
+              (slot.type === "project" &&
+                slot.activeSessionId === activeSessionId &&
+                `project-${slot.projectId}` === id) ||
+              (slot.type === "adhoc" &&
+                slot.sessionId === activeSessionId &&
+                `adhoc-${slot.sessionId}` === id),
+          ),
+        );
+        const prevIndex =
+          (currentIndex - 1 + orderedIds.length) % orderedIds.length;
+        const prevSlot = terminalSlots.find(
+          (slot) =>
+            (slot.type === "project" &&
+              `project-${slot.projectId}` === orderedIds[prevIndex]) ||
+            (slot.type === "adhoc" &&
+              `adhoc-${slot.sessionId}` === orderedIds[prevIndex]),
+        );
+        if (prevSlot) handleSlotSwitch(prevSlot);
+      },
+      onJumpToTerminal: (index) => {
+        // Jump to terminal at position (0-indexed)
+        if (index >= orderedIds.length) return;
+        const targetSlot = terminalSlots.find(
+          (slot) =>
+            (slot.type === "project" &&
+              `project-${slot.projectId}` === orderedIds[index]) ||
+            (slot.type === "adhoc" &&
+              `adhoc-${slot.sessionId}` === orderedIds[index]),
+        );
+        if (targetSlot) handleSlotSwitch(targetSlot);
+      },
     });
 
   // File upload and prompt cleaner functionality
