@@ -385,6 +385,10 @@ export function TerminalTabs({
         isOpen={showTerminalManager}
         onClose={handleCloseTerminalManager}
         onCreateGenericTerminal={handleAddTab}
+        onCreateProjectTerminal={(projectId) =>
+          handleNewTerminalForProject(projectId, "shell")
+        }
+        sessions={sessions}
       />
 
       {/* Prompt Cleaner Panel */}

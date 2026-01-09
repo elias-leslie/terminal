@@ -1,51 +1,150 @@
 "use client";
 
-import { useState, useLayoutEffect } from "react";
-import { X, Plus, Terminal } from "lucide-react";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { useMemo } from "react";
+import { X, Plus, Terminal, Folder } from "lucide-react";
 import {
   useProjectSettings,
   ProjectSetting,
 } from "@/lib/hooks/use-project-settings";
 import { useHoverStyle } from "@/lib/hooks/use-hover-style";
-import { SortableProjectRow } from "./SortableProjectRow";
+import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 
 interface TerminalManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateGenericTerminal: () => void;
+  onCreateProjectTerminal: (projectId: string) => void;
+  sessions: TerminalSession[];
+}
+
+interface ProjectButtonProps {
+  project: ProjectSetting;
+  sessionCount: number;
+  onClick: () => void;
+}
+
+function ProjectButton({ project, sessionCount, onClick }: ProjectButtonProps) {
+  const hoverStyle = useHoverStyle({
+    hoverBg: "var(--term-bg-surface)",
+    defaultBg: "transparent",
+    hoverColor: "var(--term-text-primary)",
+    defaultColor: "var(--term-text-secondary)",
+  });
+
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md transition-colors text-left"
+      style={{
+        ...hoverStyle.style,
+        fontFamily: "var(--font-mono)",
+      }}
+      onMouseEnter={hoverStyle.onMouseEnter}
+      onMouseLeave={hoverStyle.onMouseLeave}
+    >
+      <Folder
+        size={16}
+        style={{ color: "var(--term-accent)", flexShrink: 0 }}
+      />
+      <span className="flex-1 text-sm truncate">{project.name}</span>
+      {sessionCount > 0 && (
+        <span
+          className="text-xs px-1.5 py-0.5 rounded"
+          style={{
+            backgroundColor: "var(--term-bg-surface)",
+            color: "var(--term-text-muted)",
+          }}
+        >
+          {sessionCount} open
+        </span>
+      )}
+      <Plus
+        size={14}
+        style={{ color: "var(--term-text-muted)", flexShrink: 0 }}
+      />
+    </button>
+  );
+}
+
+interface GenericTerminalButtonProps {
+  sessionCount: number;
+  onClick: () => void;
+}
+
+function GenericTerminalButton({
+  sessionCount,
+  onClick,
+}: GenericTerminalButtonProps) {
+  const hoverStyle = useHoverStyle({
+    hoverBg: "var(--term-bg-surface)",
+    defaultBg: "transparent",
+    hoverColor: "var(--term-accent)",
+    defaultColor: "var(--term-text-muted)",
+  });
+
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md transition-colors"
+      style={{
+        ...hoverStyle.style,
+        fontFamily: "var(--font-mono)",
+      }}
+      onMouseEnter={hoverStyle.onMouseEnter}
+      onMouseLeave={hoverStyle.onMouseLeave}
+    >
+      <Terminal
+        size={16}
+        style={{ color: "var(--term-accent)", flexShrink: 0 }}
+      />
+      <span className="flex-1 text-sm text-left">New Terminal</span>
+      {sessionCount > 0 && (
+        <span
+          className="text-xs px-1.5 py-0.5 rounded"
+          style={{
+            backgroundColor: "var(--term-bg-surface)",
+            color: "var(--term-text-muted)",
+          }}
+        >
+          {sessionCount} open
+        </span>
+      )}
+      <Plus
+        size={14}
+        style={{ color: "var(--term-text-muted)", flexShrink: 0 }}
+      />
+    </button>
+  );
 }
 
 /**
  * Terminal Manager Modal - opened via + button in tab bar.
- * Features:
- * - Enable/disable project terminals via checkboxes
- * - Drag-and-drop reordering of projects
- * - "New Generic Terminal" button for ad-hoc sessions
+ * Simple project selector - click a project to create a new terminal for it.
  */
 export function TerminalManagerModal({
   isOpen,
   onClose,
   onCreateGenericTerminal,
+  onCreateProjectTerminal,
+  sessions,
 }: TerminalManagerModalProps) {
-  const { projects, updateSettings, updateOrder, isUpdating } =
-    useProjectSettings();
-  const [localProjects, setLocalProjects] = useState<ProjectSetting[]>([]);
-  const [hasChanges, setHasChanges] = useState(false);
+  const { projects } = useProjectSettings();
+
+  // Count sessions per project
+  const sessionCountByProject = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const session of sessions) {
+      if (session.project_id) {
+        counts[session.project_id] = (counts[session.project_id] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [sessions]);
+
+  // Count generic sessions (no project_id)
+  const genericSessionCount = useMemo(() => {
+    return sessions.filter((s) => !s.project_id).length;
+  }, [sessions]);
 
   // Hover styles for close button
   const closeButtonHover = useHoverStyle({
@@ -55,90 +154,9 @@ export function TerminalManagerModal({
     defaultColor: "var(--term-text-muted)",
   });
 
-  // Hover styles for "New Generic Terminal" button
-  const newTerminalHover = useHoverStyle({
-    hoverBg: "var(--term-bg-surface)",
-    defaultBg: "transparent",
-    hoverColor: "var(--term-accent)",
-    defaultColor: "var(--term-text-muted)",
-  });
-
-  // Hover styles for Cancel button
-  const cancelButtonHover = useHoverStyle({
-    defaultBorderColor: "var(--term-border)",
-    hoverBorderColor: "var(--term-border-active)",
-    hoverColor: "var(--term-text-primary)",
-    defaultColor: "var(--term-text-muted)",
-  });
-
-  // Sync local state with server state
-  useLayoutEffect(() => {
-    if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: sync local copy with props when modal opens
-      setLocalProjects([...projects]);
-      setHasChanges(false);
-    }
-  }, [isOpen, projects]);
-
-  // DnD sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
-  // Handle drag end
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    setLocalProjects((items) => {
-      const oldIndex = items.findIndex((i) => i.id === active.id);
-      const newIndex = items.findIndex((i) => i.id === over.id);
-      return arrayMove(items, oldIndex, newIndex);
-    });
-    setHasChanges(true);
-  };
-
-  // Toggle project enabled
-  const handleToggle = (projectId: string) => {
-    setLocalProjects((items) =>
-      items.map((item) =>
-        item.id === projectId
-          ? { ...item, terminal_enabled: !item.terminal_enabled }
-          : item,
-      ),
-    );
-    setHasChanges(true);
-  };
-
-  // Apply changes - batch updates for parallel execution
-  const handleApply = async () => {
-    // Collect all settings updates into an array
-    const settingsUpdates = localProjects
-      .filter((local) => {
-        const original = projects.find((p) => p.id === local.id);
-        return original && local.terminal_enabled !== original.terminal_enabled;
-      })
-      .map((local) =>
-        updateSettings(local.id, { enabled: local.terminal_enabled }),
-      );
-
-    // Check if order changed
-    const originalOrder = projects.map((p) => p.id);
-    const newOrder = localProjects.map((p) => p.id);
-    const orderChanged =
-      originalOrder.length !== newOrder.length ||
-      originalOrder.some((id, idx) => id !== newOrder[idx]);
-
-    // Execute all updates in parallel
-    await Promise.all([
-      ...settingsUpdates,
-      ...(orderChanged ? [updateOrder(newOrder)] : []),
-    ]);
-
-    setHasChanges(false);
+  // Handle clicking a project - create new terminal for it
+  const handleProjectClick = (project: ProjectSetting) => {
+    onCreateProjectTerminal(project.id);
     onClose();
   };
 
@@ -199,7 +217,7 @@ export function TerminalManagerModal({
         {/* Content */}
         <div className="p-3 max-h-[400px] overflow-y-auto">
           {/* Projects section */}
-          {localProjects.length > 0 && (
+          {projects.length > 0 && (
             <>
               <div
                 className="text-xs font-medium mb-2 px-2"
@@ -210,28 +228,20 @@ export function TerminalManagerModal({
               >
                 PROJECTS
               </div>
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={localProjects.map((p) => p.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {localProjects.map((project) => (
-                    <SortableProjectRow
-                      key={project.id}
-                      project={project}
-                      onToggle={() => handleToggle(project.id)}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
+              <div className="space-y-1">
+                {projects.map((project) => (
+                  <ProjectButton
+                    key={project.id}
+                    project={project}
+                    sessionCount={sessionCountByProject[project.id] || 0}
+                    onClick={() => handleProjectClick(project)}
+                  />
+                ))}
+              </div>
             </>
           )}
 
-          {localProjects.length === 0 && (
+          {projects.length === 0 && (
             <p
               className="text-sm text-center py-4"
               style={{ color: "var(--term-text-muted)" }}
@@ -245,63 +255,11 @@ export function TerminalManagerModal({
             className="mt-3 pt-3"
             style={{ borderTop: "1px solid var(--term-border)" }}
           >
-            <button
+            <GenericTerminalButton
+              sessionCount={genericSessionCount}
               onClick={handleCreateGeneric}
-              className="flex items-center gap-2 w-full px-3 py-2.5 rounded-md transition-colors"
-              style={{
-                ...newTerminalHover.style,
-                fontFamily: "var(--font-mono)",
-              }}
-              onMouseEnter={newTerminalHover.onMouseEnter}
-              onMouseLeave={newTerminalHover.onMouseLeave}
-            >
-              <Plus size={16} style={{ color: "var(--term-accent)" }} />
-              <Terminal size={16} />
-              <span className="text-sm">New Generic Terminal</span>
-            </button>
+            />
           </div>
-        </div>
-
-        {/* Footer */}
-        <div
-          className="flex justify-end gap-2 px-5 py-4"
-          style={{ borderTop: "1px solid var(--term-border)" }}
-        >
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm rounded transition-colors"
-            style={{
-              backgroundColor: "transparent",
-              border: `1px solid ${cancelButtonHover.style.borderColor || "var(--term-border)"}`,
-              color: cancelButtonHover.style.color,
-              fontFamily: "var(--font-mono)",
-            }}
-            onMouseEnter={cancelButtonHover.onMouseEnter}
-            onMouseLeave={cancelButtonHover.onMouseLeave}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleApply}
-            disabled={!hasChanges || isUpdating}
-            className="px-4 py-2 text-sm font-medium rounded transition-all"
-            style={{
-              backgroundColor: hasChanges
-                ? "var(--term-accent)"
-                : "var(--term-bg-surface)",
-              border: `1px solid ${hasChanges ? "var(--term-accent)" : "var(--term-border)"}`,
-              color: hasChanges
-                ? "var(--term-bg-deep)"
-                : "var(--term-text-muted)",
-              fontFamily: "var(--font-mono)",
-              opacity: isUpdating ? 0.5 : 1,
-              boxShadow: hasChanges
-                ? "0 0 12px rgba(0, 255, 159, 0.3)"
-                : "none",
-            }}
-          >
-            {isUpdating ? "Saving..." : "Apply"}
-          </button>
         </div>
       </div>
     </>
