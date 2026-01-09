@@ -6,7 +6,7 @@ import { TerminalSwitcher } from "./TerminalSwitcher";
 import { SettingsDropdown } from "./SettingsDropdown";
 import { GlobalActionMenu } from "./GlobalActionMenu";
 import { LayoutModeButtons } from "./LayoutModeButton";
-import { type TerminalSlot } from "@/lib/utils/slot";
+import { type TerminalSlot, getSlotSessionId } from "@/lib/utils/slot";
 import { type LayoutMode } from "./LayoutModeButton";
 import { type ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import { type TerminalSession } from "@/lib/hooks/use-terminal-sessions";
@@ -38,11 +38,6 @@ interface TerminalHeaderProps {
   keyboardSize: KeyboardSizePreset;
   onSelectProject: (projectId: string) => void;
   onSelectAdHoc: (sessionId: string) => void;
-  onNewTerminal: () => void;
-  onNewTerminalForProject: (
-    projectId: string,
-    mode: "shell" | "claude",
-  ) => void;
   onLayoutChange: (mode: LayoutMode) => void;
   onCleanClick: () => void;
   onUploadClick: () => void;
@@ -77,8 +72,6 @@ export function TerminalHeader({
   keyboardSize,
   onSelectProject,
   onSelectAdHoc,
-  onNewTerminal,
-  onNewTerminalForProject,
   onLayoutChange,
   onCleanClick,
   onUploadClick,
@@ -119,12 +112,11 @@ export function TerminalHeader({
         currentProjectId={
           activeSlot?.type === "project" ? activeSlot.projectId : null
         }
+        currentSessionId={activeSlot ? getSlotSessionId(activeSlot) : null}
         projectTerminals={projectTerminals}
         adHocSessions={adHocSessions}
         onSelectProject={onSelectProject}
         onSelectAdHoc={onSelectAdHoc}
-        onNewTerminal={onNewTerminal}
-        onNewTerminalForProject={onNewTerminalForProject}
         isMobile={isMobile}
       />
 

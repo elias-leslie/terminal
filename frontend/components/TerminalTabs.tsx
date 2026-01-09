@@ -234,8 +234,6 @@ export function TerminalTabs({
           keyboardSize={keyboardSize}
           onSelectProject={handleSelectProject}
           onSelectAdHoc={switchToSession}
-          onNewTerminal={handleOpenTerminalManager}
-          onNewTerminalForProject={handleNewTerminalForProject}
           onLayoutChange={handleLayoutModeChange}
           onCleanClick={handleCleanClick}
           onUploadClick={handleUploadClick}
