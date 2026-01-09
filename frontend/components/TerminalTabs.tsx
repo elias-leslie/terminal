@@ -8,7 +8,7 @@ import { PromptCleaner } from "./PromptCleaner";
 import { TerminalHeader } from "./TerminalHeader";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { TerminalManagerModal } from "./TerminalManagerModal";
-import { SessionTabBar } from "./SessionTabBar";
+// SessionTabBar removed - all terminal selection via TerminalSwitcher dropdown in pane header
 import {
   KeyboardShortcuts,
   useTerminalKeyboardShortcuts,
@@ -251,18 +251,7 @@ export function TerminalTabs({
         />
       )}
 
-      {/* Session tab bar - only in single mode, not on mobile */}
-      {layoutMode === "single" && !isMobile && terminalSlots.length > 1 && (
-        <SessionTabBar
-          slots={terminalSlots}
-          activeSessionId={activeSessionId}
-          orderedSlotIds={orderedIds}
-          onReorder={reorder}
-          onSelectSlot={handleSlotSwitch}
-          onCloseSlot={handleSlotClose}
-          onNewTerminal={handleOpenTerminalManager}
-        />
-      )}
+      {/* SessionTabBar removed - all terminal selection via TerminalSwitcher dropdown in pane header */}
 
       {/* Hidden file input for upload button */}
       <input
