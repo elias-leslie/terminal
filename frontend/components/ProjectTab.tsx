@@ -2,7 +2,7 @@
 
 import { clsx } from "clsx";
 import { ClaudeIndicator } from "./ClaudeIndicator";
-import { TabModeDropdown } from "./TabModeDropdown";
+import { ModeToggle } from "./ModeToggle";
 import { TabActionMenu } from "./TabActionMenu";
 import { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
 import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
@@ -18,9 +18,7 @@ function getTabClassName(isActive: boolean, isMobile: boolean): string {
     isMobile
       ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
       : "gap-1.5 px-2 py-1.5 text-sm",
-    isActive
-      ? "tab-active"
-      : "tab-inactive"
+    isActive ? "tab-active" : "tab-inactive",
   );
 }
 
@@ -41,7 +39,7 @@ export interface ProjectTabProps {
     projectId: string,
     mode: "shell" | "claude",
     projectSessions: TerminalSession[],
-    rootPath: string | null
+    rootPath: string | null,
   ) => void;
   onReset: (projectId: string) => void;
   onDisable: (projectId: string) => void;
@@ -76,19 +74,26 @@ export function ProjectTab({
       {/* Claude indicator for project tabs */}
       <ClaudeIndicator state={pt.activeMode === "claude" ? "idle" : "none"} />
       {/* Project name */}
-      <span className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[100px]")}>
+      <span
+        className={clsx(
+          "truncate",
+          isMobile ? "max-w-[80px]" : "max-w-[100px]",
+        )}
+      >
         {pt.projectName}
       </span>
-      {/* Mode dropdown - stop propagation to prevent tab click */}
+      {/* Mode toggle - stop propagation to prevent tab click */}
       <div onClick={(e) => e.stopPropagation()}>
-        <TabModeDropdown
+        <ModeToggle
           value={pt.activeMode}
-          onChange={(mode) => onModeChange(
-            pt.projectId,
-            mode,
-            pt.sessions.map((ps) => ps.session),
-            pt.rootPath
-          )}
+          onChange={(mode) =>
+            onModeChange(
+              pt.projectId,
+              mode,
+              pt.sessions.map((ps) => ps.session),
+              pt.rootPath,
+            )
+          }
           isMobile={isMobile}
         />
       </div>
