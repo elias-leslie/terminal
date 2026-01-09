@@ -48,8 +48,10 @@ export interface GridLayoutProps {
   onClose?: (slot: TerminalSlot) => void;
   onUpload?: () => void;
   onClean?: (slot: TerminalSlot) => void;
-  onNewShell?: (slot: TerminalSlot) => void;
-  onNewClaude?: (slot: TerminalSlot) => void;
+  /** Opens terminal manager modal */
+  onOpenModal?: () => void;
+  /** Whether new panes can be added (at limit = false) */
+  canAddPane?: boolean;
   onEmptyClick?: () => void;
   isMobile?: boolean;
 }
@@ -91,8 +93,8 @@ export function GridLayout({
   onClose,
   onUpload,
   onClean,
-  onNewShell,
-  onNewClaude,
+  onOpenModal,
+  canAddPane,
   onEmptyClick,
   isMobile,
 }: GridLayoutProps) {
@@ -202,8 +204,8 @@ export function GridLayout({
               onClose={onClose}
               onUpload={onUpload}
               onClean={onClean}
-              onNewShell={onNewShell}
-              onNewClaude={onNewClaude}
+              onOpenModal={onOpenModal}
+              canAddPane={canAddPane}
               isMobile={isMobile}
             />
           ))}

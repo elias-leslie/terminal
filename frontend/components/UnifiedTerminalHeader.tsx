@@ -11,7 +11,6 @@ import {
   GripVertical,
   ChevronDown,
   Plus,
-  Terminal as TerminalIcon,
 } from "lucide-react";
 import { LayoutMode, LayoutModeButtons } from "./LayoutModeButton";
 import { ClaudeIndicator } from "./ClaudeIndicator";
@@ -36,8 +35,10 @@ export interface UnifiedTerminalHeaderProps {
   onClose?: () => void;
   onUpload?: () => void;
   onClean?: () => void;
-  onNewShell?: () => void;
-  onNewClaude?: () => void;
+  /** Opens terminal manager modal - appears in ALL pane headers */
+  onOpenModal?: () => void;
+  /** Whether new panes can be added (at limit = false) */
+  canAddPane?: boolean;
   isMobile?: boolean;
 }
 
@@ -58,8 +59,8 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
   onClose,
   onUpload,
   onClean,
-  onNewShell,
-  onNewClaude,
+  onOpenModal,
+  canAddPane = true,
   isMobile = false,
 }: UnifiedTerminalHeaderProps) {
   const name = getSlotName(slot);
@@ -72,10 +73,12 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
     <div
       className={clsx(
         "flex-shrink-0 flex items-center gap-1",
-        isMobile ? "h-9 px-1.5" : "h-8 px-2"
+        isMobile ? "h-9 px-1.5" : "h-8 px-2",
       )}
       style={{
-        backgroundColor: isActive ? "var(--term-bg-elevated)" : "var(--term-bg-surface)",
+        backgroundColor: isActive
+          ? "var(--term-bg-elevated)"
+          : "var(--term-bg-surface)",
         borderBottom: "1px solid var(--term-border)",
       }}
     >
@@ -87,13 +90,18 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
           {...dragListeners}
           aria-label="Drag to reorder"
         >
-          <GripVertical className="w-3.5 h-3.5" style={{ color: "var(--term-text-muted)" }} />
+          <GripVertical
+            className="w-3.5 h-3.5"
+            style={{ color: "var(--term-text-muted)" }}
+          />
         </button>
       )}
 
       {/* Mode indicator */}
       {slot.type === "project" && (
-        <ClaudeIndicator state={slot.activeMode === "claude" ? "idle" : "none"} />
+        <ClaudeIndicator
+          state={slot.activeMode === "claude" ? "idle" : "none"}
+        />
       )}
 
       {/* Terminal name/switcher */}
@@ -102,10 +110,12 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
           onClick={onSwitch}
           className={clsx(
             "flex items-center gap-1 px-1.5 py-0.5 rounded text-xs truncate max-w-[140px] transition-all duration-150",
-            "hover:bg-[var(--term-bg-elevated)]"
+            "hover:bg-[var(--term-bg-elevated)]",
           )}
           style={{
-            color: isActive ? "var(--term-text-primary)" : "var(--term-text-muted)",
+            color: isActive
+              ? "var(--term-text-primary)"
+              : "var(--term-text-muted)",
           }}
           title={name}
         >
@@ -116,7 +126,9 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
         <span
           className="flex items-center px-1.5 py-0.5 text-xs truncate max-w-[140px]"
           style={{
-            color: isActive ? "var(--term-text-primary)" : "var(--term-text-muted)",
+            color: isActive
+              ? "var(--term-text-primary)"
+              : "var(--term-text-muted)",
           }}
           title={name}
         >
@@ -124,84 +136,57 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
         </span>
       )}
 
-      {/* Quick Spawn Buttons - for project terminals */}
-      {slot.type === "project" && (onNewShell || onNewClaude) && (
-        <div
-          className="flex items-center rounded overflow-hidden ml-1"
+      {/* Add terminal button - appears in ALL pane headers */}
+      {onOpenModal && (
+        <button
+          onClick={onOpenModal}
+          disabled={!canAddPane}
+          className={clsx(
+            "flex items-center justify-center rounded ml-1 transition-all duration-150",
+            isMobile ? "w-7 h-7" : "w-5 h-5",
+            !canAddPane && "opacity-50 cursor-not-allowed",
+          )}
           style={{
-            border: "1px solid var(--term-border)",
             backgroundColor: "var(--term-bg-surface)",
+            border: "1px solid var(--term-border)",
+            color: "var(--term-text-muted)",
           }}
+          onMouseEnter={(e) => {
+            if (canAddPane) {
+              e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
+              e.currentTarget.style.borderColor = "var(--term-accent)";
+              e.currentTarget.style.color = "var(--term-accent)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
+            e.currentTarget.style.borderColor = "var(--term-border)";
+            e.currentTarget.style.color = "var(--term-text-muted)";
+          }}
+          title={canAddPane ? "Open terminal" : "Maximum 4 terminals"}
+          aria-label={canAddPane ? "Open terminal" : "Maximum 4 terminals"}
         >
-          {/* New Shell button */}
-          {onNewShell && (
-            <button
-              onClick={onNewShell}
-              className={clsx(
-                "flex items-center gap-0.5 px-1 py-0.5 text-[10px] transition-all duration-150",
-                "hover:bg-[var(--term-bg-elevated)]"
-              )}
-              style={{ color: "var(--term-text-muted)" }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "var(--term-accent)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "var(--term-text-muted)";
-              }}
-              title="New Shell"
-            >
-              <Plus className="w-2.5 h-2.5" />
-              <TerminalIcon className="w-3 h-3" />
-            </button>
-          )}
-
-          {/* Divider */}
-          {onNewShell && onNewClaude && (
-            <div
-              className="w-px h-3.5"
-              style={{ backgroundColor: "var(--term-border)" }}
-            />
-          )}
-
-          {/* New Claude button */}
-          {onNewClaude && (
-            <button
-              onClick={onNewClaude}
-              className={clsx(
-                "flex items-center gap-0.5 px-1 py-0.5 text-[10px] transition-all duration-150",
-                "hover:bg-[var(--term-bg-elevated)]"
-              )}
-              style={{ color: "var(--term-text-muted)" }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "var(--term-accent)";
-                e.currentTarget.style.textShadow = "0 0 8px var(--term-accent-glow)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "var(--term-text-muted)";
-                e.currentTarget.style.textShadow = "none";
-              }}
-              title="New Claude"
-            >
-              <Plus className="w-2.5 h-2.5" />
-              <Sparkles className="w-3 h-3" />
-            </button>
-          )}
-        </div>
+          <Plus className={isMobile ? "w-4 h-4" : "w-3 h-3"} />
+        </button>
       )}
 
       {/* Spacer */}
       <div className="flex-1" />
 
       {/* Layout selector (single mode only) */}
-      {showLayoutSelector && layoutMode && availableLayouts && onLayout && !isMobile && (
-        <div className="flex items-center gap-0.5 mr-1">
-          <LayoutModeButtons
-            layoutMode={layoutMode}
-            onLayoutChange={onLayout}
-            availableLayouts={availableLayouts}
-          />
-        </div>
-      )}
+      {showLayoutSelector &&
+        layoutMode &&
+        availableLayouts &&
+        onLayout &&
+        !isMobile && (
+          <div className="flex items-center gap-0.5 mr-1">
+            <LayoutModeButtons
+              layoutMode={layoutMode}
+              onLayoutChange={onLayout}
+              availableLayouts={availableLayouts}
+            />
+          </div>
+        )}
 
       {/* Action buttons */}
       <div className="flex items-center gap-0.5">
@@ -269,16 +254,23 @@ interface IconButtonProps {
   isMobile?: boolean;
 }
 
-function IconButton({ icon, onClick, tooltip, variant = "default", isMobile }: IconButtonProps) {
+function IconButton({
+  icon,
+  onClick,
+  tooltip,
+  variant = "default",
+  isMobile,
+}: IconButtonProps) {
   return (
     <button
       onClick={onClick}
       className={clsx(
         "flex items-center justify-center rounded transition-all duration-150",
-        isMobile ? "w-8 h-8" : "w-6 h-6"
+        isMobile ? "w-8 h-8" : "w-6 h-6",
       )}
       style={{
-        color: variant === "danger" ? "var(--term-error)" : "var(--term-text-muted)",
+        color:
+          variant === "danger" ? "var(--term-error)" : "var(--term-text-muted)",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
@@ -288,7 +280,8 @@ function IconButton({ icon, onClick, tooltip, variant = "default", isMobile }: I
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.backgroundColor = "transparent";
-        e.currentTarget.style.color = variant === "danger" ? "var(--term-error)" : "var(--term-text-muted)";
+        e.currentTarget.style.color =
+          variant === "danger" ? "var(--term-error)" : "var(--term-text-muted)";
       }}
       title={tooltip}
     >

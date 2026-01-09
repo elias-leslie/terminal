@@ -38,8 +38,10 @@ export interface SplitPaneProps {
   onClose?: (slot: TerminalSlot) => void;
   onUpload?: () => void;
   onClean?: (slot: TerminalSlot) => void;
-  onNewShell?: (slot: TerminalSlot) => void;
-  onNewClaude?: (slot: TerminalSlot) => void;
+  /** Opens terminal manager modal */
+  onOpenModal?: () => void;
+  /** Whether new panes can be added (at limit = false) */
+  canAddPane?: boolean;
   isMobile?: boolean;
 }
 
@@ -68,8 +70,8 @@ export function SplitPane({
   onClose,
   onUpload,
   onClean,
-  onNewShell,
-  onNewClaude,
+  onOpenModal,
+  canAddPane,
   isMobile,
 }: SplitPaneProps) {
   const defaultSize = 100 / paneCount;
@@ -104,8 +106,8 @@ export function SplitPane({
           onClose={onClose ? () => onClose(slot) : undefined}
           onUpload={onUpload}
           onClean={onClean ? () => onClean(slot) : undefined}
-          onNewShell={onNewShell ? () => onNewShell(slot) : undefined}
-          onNewClaude={onNewClaude ? () => onNewClaude(slot) : undefined}
+          onOpenModal={onOpenModal}
+          canAddPane={canAddPane}
           isMobile={isMobile}
         />
         <div className="flex-1 min-h-0 overflow-hidden relative">

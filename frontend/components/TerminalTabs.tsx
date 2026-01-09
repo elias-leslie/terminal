@@ -51,6 +51,7 @@ export function TerminalTabs({
     terminalSlots,
     orderedIds,
     reorder,
+    canAddPane,
 
     // Terminal refs and statuses
     terminalRefs,
@@ -309,8 +310,7 @@ export function TerminalTabs({
           onSlotReset={handleSlotReset}
           onSlotClose={handleSlotClose}
           onSlotClean={handleSlotClean}
-          onSlotNewShell={handleSlotNewShell}
-          onSlotNewClaude={handleSlotNewClaude}
+          canAddPane={canAddPane()}
           onShowSettings={handleOpenSettings}
           onShowTerminalManager={handleOpenTerminalManager}
           onUploadClick={handleUploadClick}

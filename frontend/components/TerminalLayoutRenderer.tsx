@@ -49,8 +49,9 @@ interface TerminalLayoutRendererProps {
   onSlotReset: (slot: TerminalSlot) => void;
   onSlotClose: (slot: TerminalSlot) => void;
   onSlotClean: (slot: TerminalSlot) => void;
-  onSlotNewShell: (slot: TerminalSlot) => void;
-  onSlotNewClaude: (slot: TerminalSlot) => void;
+
+  // Pane limits
+  canAddPane: boolean;
 
   // UI callbacks
   onShowSettings: () => void;
@@ -85,8 +86,7 @@ export function TerminalLayoutRenderer({
   onSlotReset,
   onSlotClose,
   onSlotClean,
-  onSlotNewShell,
-  onSlotNewClaude,
+  canAddPane,
   onShowSettings,
   onShowTerminalManager,
   onUploadClick,
@@ -147,8 +147,8 @@ export function TerminalLayoutRenderer({
         onClose={onSlotClose}
         onUpload={onUploadClick}
         onClean={onSlotClean}
-        onNewShell={onSlotNewShell}
-        onNewClaude={onSlotNewClaude}
+        onOpenModal={onShowTerminalManager}
+        canAddPane={canAddPane}
         onEmptyClick={onShowTerminalManager}
         isMobile={isMobile}
       />
@@ -184,8 +184,8 @@ export function TerminalLayoutRenderer({
           onClose={onSlotClose}
           onUpload={onUploadClick}
           onClean={onSlotClean}
-          onNewShell={onSlotNewShell}
-          onNewClaude={onSlotNewClaude}
+          onOpenModal={onShowTerminalManager}
+          canAddPane={canAddPane}
           isMobile={isMobile}
         />
       ))}
