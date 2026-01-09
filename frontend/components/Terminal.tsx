@@ -207,9 +207,17 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
             textarea.readOnly = true;
           }
 
-          // Prevent pull-to-refresh via CSS
+          // Prevent pull-to-refresh but allow vertical scrolling via xterm viewport
           containerRef.current.style.overscrollBehavior = "none";
+          // touchAction: 'none' on container prevents pull-to-refresh
           containerRef.current.style.touchAction = "none";
+
+          // Enable touch scrolling on the xterm viewport (scrollable area)
+          const viewport =
+            containerRef.current.querySelector<HTMLElement>(".xterm-viewport");
+          if (viewport) {
+            viewport.style.touchAction = "pan-y";
+          }
         }
 
         // Initial fit (ResizeObserver handles subsequent resizes)
