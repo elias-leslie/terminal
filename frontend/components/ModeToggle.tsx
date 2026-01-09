@@ -16,7 +16,7 @@ interface ModeToggleProps {
 
 /**
  * Single-click toggle for switching between Shell and Claude modes.
- * Replaces TabModeDropdown with a simpler one-click interaction.
+ * Industrial control panel aesthetic with glowing Claude state.
  */
 export function ModeToggle({
   value,
@@ -26,20 +26,18 @@ export function ModeToggle({
   isLoading = false,
 }: ModeToggleProps) {
   const [internalLoading, setInternalLoading] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Combined loading state - either external or internal
   const isCurrentlyLoading = isLoading || internalLoading;
-
-  // Combined disabled state
   const isDisabled = disabled || isCurrentlyLoading;
+  const isClaudeMode = value === "claude";
 
   const handleClick = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
-
       if (isDisabled) return;
 
-      const oppositeMode: TerminalMode = value === "shell" ? "claude" : "shell";
+      const oppositeMode: TerminalMode = isClaudeMode ? "shell" : "claude";
 
       setInternalLoading(true);
       try {
@@ -50,68 +48,169 @@ export function ModeToggle({
         setInternalLoading(false);
       }
     },
-    [value, onChange, isDisabled],
+    [isClaudeMode, onChange, isDisabled],
   );
-
-  // Touch target sizing
-  const touchTargetClass = isMobile ? "min-h-[44px] min-w-[44px]" : "";
 
   const tooltipText = isCurrentlyLoading
     ? "Switching mode..."
-    : value === "shell"
-      ? "Shell mode - click to switch to Claude"
-      : "Claude mode - click to switch to Shell";
+    : isClaudeMode
+      ? "Claude mode — click for Shell"
+      : "Shell mode — click for Claude";
+
+  const size = isMobile ? 32 : 26;
+  const iconSize = isMobile ? 16 : 14;
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={isDisabled}
-      className={`
-        flex items-center justify-center rounded transition-all duration-150
-        ${isMobile ? "p-2" : "p-1.5"}
-        ${touchTargetClass}
-      `}
-      style={{
-        backgroundColor: "transparent",
-        color: isDisabled
-          ? "var(--term-text-muted)"
-          : "var(--term-text-primary)",
-        border: "1px solid transparent",
-        opacity: isDisabled ? 0.5 : 1,
-        cursor: isDisabled ? "not-allowed" : "pointer",
-      }}
-      onMouseEnter={(e) => {
-        if (!isDisabled) {
-          e.currentTarget.style.backgroundColor = "var(--term-bg-deep)";
-          e.currentTarget.style.borderColor = "var(--term-border)";
+    <>
+      <button
+        onClick={handleClick}
+        disabled={isDisabled}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="mode-toggle-btn"
+        style={{
+          // Base button styles
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: size,
+          height: size,
+          borderRadius: 6,
+          border: "1px solid",
+          cursor: isDisabled ? "not-allowed" : "pointer",
+          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+          // Mode-specific styling
+          backgroundColor: isClaudeMode
+            ? "rgba(0, 255, 159, 0.08)"
+            : isHovered && !isDisabled
+              ? "var(--term-bg-elevated)"
+              : "var(--term-bg-surface)",
+          borderColor: isClaudeMode
+            ? "var(--term-accent-muted)"
+            : isHovered && !isDisabled
+              ? "var(--term-border-active)"
+              : "var(--term-border)",
+          boxShadow: isClaudeMode
+            ? "0 0 8px var(--term-accent-glow), inset 0 0 12px var(--term-accent-glow)"
+            : "none",
+          opacity: isDisabled ? 0.5 : 1,
+        }}
+        title={tooltipText}
+        aria-label={tooltipText}
+        aria-busy={isCurrentlyLoading}
+      >
+        {/* Glow ring for Claude mode */}
+        {isClaudeMode && !isCurrentlyLoading && (
+          <span
+            className="mode-toggle-glow"
+            style={{
+              position: "absolute",
+              inset: -2,
+              borderRadius: 8,
+              border: "1px solid var(--term-accent)",
+              opacity: 0.3,
+              animation: "mode-toggle-pulse 2s ease-in-out infinite",
+            }}
+          />
+        )}
+
+        {/* Icon container with transition */}
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "transform 0.2s ease, color 0.2s ease",
+            transform:
+              isHovered && !isDisabled && !isCurrentlyLoading
+                ? "scale(1.1)"
+                : "scale(1)",
+          }}
+        >
+          {isCurrentlyLoading ? (
+            <Loader2
+              width={iconSize}
+              height={iconSize}
+              style={{
+                color: "var(--term-accent)",
+                animation: "mode-toggle-spin 0.8s linear infinite",
+              }}
+            />
+          ) : isClaudeMode ? (
+            <Sparkles
+              width={iconSize}
+              height={iconSize}
+              style={{
+                color: "var(--term-accent)",
+                filter: "drop-shadow(0 0 3px var(--term-accent-glow))",
+              }}
+            />
+          ) : (
+            <Terminal
+              width={iconSize}
+              height={iconSize}
+              style={{
+                color:
+                  isHovered && !isDisabled
+                    ? "var(--term-text-primary)"
+                    : "var(--term-text-muted)",
+              }}
+            />
+          )}
+        </span>
+
+        {/* Active state indicator dot */}
+        <span
+          style={{
+            position: "absolute",
+            bottom: 2,
+            right: 2,
+            width: 4,
+            height: 4,
+            borderRadius: "50%",
+            backgroundColor: isClaudeMode
+              ? "var(--term-accent)"
+              : "var(--term-text-muted)",
+            opacity: isClaudeMode ? 1 : 0.4,
+            transition: "all 0.2s ease",
+            boxShadow: isClaudeMode ? "0 0 4px var(--term-accent)" : "none",
+          }}
+        />
+      </button>
+
+      {/* Scoped keyframe animations */}
+      <style jsx>{`
+        @keyframes mode-toggle-pulse {
+          0%,
+          100% {
+            opacity: 0.2;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.4;
+            transform: scale(1.02);
+          }
         }
-      }}
-      onMouseLeave={(e) => {
-        if (!isDisabled) {
-          e.currentTarget.style.backgroundColor = "transparent";
-          e.currentTarget.style.borderColor = "transparent";
+
+        @keyframes mode-toggle-spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
-      }}
-      title={tooltipText}
-      aria-label={tooltipText}
-      aria-busy={isCurrentlyLoading}
-    >
-      {isCurrentlyLoading ? (
-        <Loader2
-          className={isMobile ? "w-5 h-5" : "w-4 h-4"}
-          style={{ color: "var(--term-accent)" }}
-        />
-      ) : value === "claude" ? (
-        <Sparkles
-          className={isMobile ? "w-5 h-5" : "w-4 h-4"}
-          style={{ color: "var(--term-accent)" }}
-        />
-      ) : (
-        <Terminal
-          className={isMobile ? "w-5 h-5" : "w-4 h-4"}
-          style={{ color: "var(--term-text-muted)" }}
-        />
-      )}
-    </button>
+
+        .mode-toggle-btn:focus-visible {
+          outline: 2px solid var(--term-accent);
+          outline-offset: 2px;
+        }
+
+        .mode-toggle-btn:active:not(:disabled) {
+          transform: scale(0.95);
+        }
+      `}</style>
+    </>
   );
 }

@@ -7,8 +7,8 @@ import { GridLayoutMode, GRID_MIN_WIDTHS } from "@/lib/constants/terminal";
 /** Base layout modes always available */
 const BASE_LAYOUTS: LayoutMode[] = ["single", "horizontal", "vertical"];
 
-/** Grid layout modes in order of increasing size */
-const GRID_LAYOUTS: GridLayoutMode[] = ["grid-2x2", "grid-3x3", "grid-4x4"];
+/** Grid layout modes (only 2x2 supported - max 4 panes) */
+const GRID_LAYOUTS: GridLayoutMode[] = ["grid-2x2"];
 
 /**
  * SSR-safe hook that returns available layout modes based on viewport width.

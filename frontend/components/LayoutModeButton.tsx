@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { Square, Rows2, Columns2, ChevronDown, LucideIcon, Grid2x2, Grid3x3, LayoutGrid } from "lucide-react";
+import {
+  Square,
+  Rows2,
+  Columns2,
+  ChevronDown,
+  LucideIcon,
+  Grid2x2,
+} from "lucide-react";
 import { GridLayoutMode, GRID_MIN_WIDTHS } from "@/lib/constants/terminal";
 import { useClickOutside } from "@/lib/hooks/useClickOutside";
 
@@ -19,9 +26,12 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
   { mode: "single", icon: Square, title: "Single pane" },
   { mode: "horizontal", icon: Rows2, title: "Horizontal split" },
   { mode: "vertical", icon: Columns2, title: "Vertical split" },
-  { mode: "grid-2x2", icon: Grid2x2, title: "2×2 Grid", minWidth: GRID_MIN_WIDTHS["grid-2x2"] },
-  { mode: "grid-3x3", icon: Grid3x3, title: "3×3 Grid", minWidth: GRID_MIN_WIDTHS["grid-3x3"] },
-  { mode: "grid-4x4", icon: LayoutGrid, title: "4×4 Grid", minWidth: GRID_MIN_WIDTHS["grid-4x4"] },
+  {
+    mode: "grid-2x2",
+    icon: Grid2x2,
+    title: "2×2 Grid",
+    minWidth: GRID_MIN_WIDTHS["grid-2x2"],
+  },
 ];
 
 interface LayoutModeButtonsProps {
@@ -30,7 +40,11 @@ interface LayoutModeButtonsProps {
   availableLayouts?: LayoutMode[];
 }
 
-export function LayoutModeButtons({ layoutMode, onLayoutChange, availableLayouts }: LayoutModeButtonsProps) {
+export function LayoutModeButtons({
+  layoutMode,
+  onLayoutChange,
+  availableLayouts,
+}: LayoutModeButtonsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -70,7 +84,8 @@ export function LayoutModeButtons({ layoutMode, onLayoutChange, availableLayouts
   };
 
   // Get current layout info
-  const currentLayout = LAYOUT_OPTIONS.find((opt) => opt.mode === layoutMode) || LAYOUT_OPTIONS[0];
+  const currentLayout =
+    LAYOUT_OPTIONS.find((opt) => opt.mode === layoutMode) || LAYOUT_OPTIONS[0];
   const CurrentIcon = currentLayout.icon;
 
   return (
@@ -138,12 +153,15 @@ export function LayoutModeButtons({ layoutMode, onLayoutChange, availableLayouts
                   onClick={() => handleSelect(mode)}
                   className="flex items-center gap-2 w-full text-left px-2.5 py-2 text-xs transition-colors"
                   style={{
-                    color: isSelected ? "var(--term-accent)" : "var(--term-text-primary)",
+                    color: isSelected
+                      ? "var(--term-accent)"
+                      : "var(--term-text-primary)",
                     backgroundColor: "transparent",
                     fontFamily: "var(--font-mono)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
+                    e.currentTarget.style.backgroundColor =
+                      "var(--term-bg-surface)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = "transparent";
@@ -151,11 +169,20 @@ export function LayoutModeButtons({ layoutMode, onLayoutChange, availableLayouts
                 >
                   <Icon
                     className="w-3.5 h-3.5"
-                    style={{ color: isSelected ? "var(--term-accent)" : "var(--term-text-muted)" }}
+                    style={{
+                      color: isSelected
+                        ? "var(--term-accent)"
+                        : "var(--term-text-muted)",
+                    }}
                   />
                   <span>{title}</span>
                   {isSelected && (
-                    <span className="ml-auto" style={{ color: "var(--term-accent)" }}>✓</span>
+                    <span
+                      className="ml-auto"
+                      style={{ color: "var(--term-accent)" }}
+                    >
+                      ✓
+                    </span>
                   )}
                 </button>
               );

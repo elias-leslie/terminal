@@ -13,7 +13,7 @@ interface TerminalManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateGenericTerminal: () => void;
-  onCreateProjectTerminal: (projectId: string) => void;
+  onCreateProjectTerminal: (projectId: string, rootPath: string | null) => void;
   sessions: TerminalSession[];
 }
 
@@ -34,7 +34,7 @@ function ProjectButton({ project, sessionCount, onClick }: ProjectButtonProps) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md transition-colors text-left"
+      className="flex items-center gap-3 w-full px-3 py-3 min-h-[44px] rounded-md transition-colors text-left"
       style={{
         ...hoverStyle.style,
         fontFamily: "var(--font-mono)",
@@ -85,7 +85,7 @@ function GenericTerminalButton({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md transition-colors"
+      className="flex items-center gap-3 w-full px-3 py-3 min-h-[44px] rounded-md transition-colors"
       style={{
         ...hoverStyle.style,
         fontFamily: "var(--font-mono)",
@@ -156,7 +156,7 @@ export function TerminalManagerModal({
 
   // Handle clicking a project - create new terminal for it
   const handleProjectClick = (project: ProjectSetting) => {
-    onCreateProjectTerminal(project.id);
+    onCreateProjectTerminal(project.id, project.root_path);
     onClose();
   };
 
@@ -205,7 +205,7 @@ export function TerminalManagerModal({
           </h2>
           <button
             onClick={onClose}
-            className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+            className="flex items-center justify-center w-11 h-11 rounded transition-colors"
             onMouseEnter={closeButtonHover.onMouseEnter}
             onMouseLeave={closeButtonHover.onMouseLeave}
             style={closeButtonHover.style}

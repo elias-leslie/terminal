@@ -15,6 +15,7 @@ import {
   getSlotPanelId,
   getSlotWorkingDir,
 } from "@/lib/utils/slot";
+import { TerminalMode } from "./ModeToggle";
 
 export interface SplitPaneProps {
   slot: TerminalSlot;
@@ -42,6 +43,13 @@ export interface SplitPaneProps {
   onOpenModal?: () => void;
   /** Whether new panes can be added (at limit = false) */
   canAddPane?: boolean;
+  /** Mode switch handler for project slots */
+  onModeSwitch?: (
+    slot: TerminalSlot,
+    mode: TerminalMode,
+  ) => void | Promise<void>;
+  /** Whether mode switch is in progress */
+  isModeSwitching?: boolean;
   isMobile?: boolean;
 }
 
@@ -72,6 +80,8 @@ export function SplitPane({
   onClean,
   onOpenModal,
   canAddPane,
+  onModeSwitch,
+  isModeSwitching,
   isMobile,
 }: SplitPaneProps) {
   const defaultSize = 100 / paneCount;
@@ -108,6 +118,10 @@ export function SplitPane({
           onClean={onClean ? () => onClean(slot) : undefined}
           onOpenModal={onOpenModal}
           canAddPane={canAddPane}
+          onModeSwitch={
+            onModeSwitch ? (mode) => onModeSwitch(slot, mode) : undefined
+          }
+          isModeSwitching={isModeSwitching}
           isMobile={isMobile}
         />
         <div className="flex-1 min-h-0 overflow-hidden relative">

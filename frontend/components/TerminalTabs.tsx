@@ -94,6 +94,7 @@ export function TerminalTabs({
     handleAddTab,
     handleNewTerminalForProject,
     handleProjectTabClick,
+    handleProjectModeChange,
     handleCloseAll,
 
     // Project operations
@@ -148,6 +149,8 @@ export function TerminalTabs({
     handleSlotClean,
     handleSlotNewShell,
     handleSlotNewClaude,
+    handleSlotModeSwitch,
+    isModeSwitching,
   } = useTerminalSlotHandlers({
     terminalRefs,
     switchToSession,
@@ -158,7 +161,19 @@ export function TerminalTabs({
     handleNewTerminalForProject,
     setShowCleaner,
     setCleanerRawPrompt,
+    sessions,
+    handleProjectModeChange,
   });
+
+  // Handler for mode switch in single mode (uses activeSlot)
+  const handleSingleModeModeSwitch = useCallback(
+    async (mode: "shell" | "claude") => {
+      if (activeSlot) {
+        await handleSlotModeSwitch(activeSlot, mode);
+      }
+    },
+    [activeSlot, handleSlotModeSwitch],
+  );
 
   // Keyboard shortcuts
   const { showHelp: showKeyboardHelp, closeHelp: closeKeyboardHelp } =
@@ -310,6 +325,9 @@ export function TerminalTabs({
           setThemeId={setThemeId}
           setShowSettings={setShowSettings}
           setKeyboardSize={handleKeyboardSizeChange}
+          onModeSwitch={handleSingleModeModeSwitch}
+          isModeSwitching={isModeSwitching}
+          onOpenTerminalManager={handleOpenTerminalManager}
         />
       )}
 
@@ -389,6 +407,8 @@ export function TerminalTabs({
           onShowSettings={handleOpenSettings}
           onShowTerminalManager={handleOpenTerminalManager}
           onUploadClick={handleUploadClick}
+          onModeSwitch={handleSlotModeSwitch}
+          isModeSwitching={isModeSwitching}
           isMobile={isMobile}
         />
       </FileUploadDropzone>
@@ -410,8 +430,8 @@ export function TerminalTabs({
         isOpen={showTerminalManager}
         onClose={handleCloseTerminalManager}
         onCreateGenericTerminal={handleAddTab}
-        onCreateProjectTerminal={(projectId) =>
-          handleNewTerminalForProject(projectId, "shell")
+        onCreateProjectTerminal={(projectId, rootPath) =>
+          handleNewTerminalForProject(projectId, "shell", rootPath)
         }
         sessions={sessions}
       />

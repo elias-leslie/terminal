@@ -2,12 +2,23 @@
 
 import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { TerminalHandle, ConnectionStatus } from "@/components/Terminal";
-import { TerminalSession, useTerminalSessions } from "@/lib/hooks/use-terminal-sessions";
-import { useProjectTerminals, ProjectTerminal } from "@/lib/hooks/use-project-terminals";
+import {
+  TerminalSession,
+  useTerminalSessions,
+} from "@/lib/hooks/use-terminal-sessions";
+import {
+  useProjectTerminals,
+  ProjectTerminal,
+} from "@/lib/hooks/use-project-terminals";
 import { useClaudePolling } from "@/lib/hooks/use-claude-polling";
 import { useProjectModeSwitch } from "@/lib/hooks/use-project-mode-switch";
-import { createProjectSession, getNextTerminalName, getProjectSessionId } from "@/lib/utils/session";
+import {
+  createProjectSession,
+  getNextTerminalName,
+  getProjectSessionId,
+} from "@/lib/utils/session";
 import { LayoutMode } from "@/components/LayoutModeButton";
 import { KeyboardSizePreset } from "@/components/SettingsDropdown";
 
@@ -23,7 +34,9 @@ interface UseTerminalHandlersProps {
   activeSessionId: string | null;
   terminalRefs: React.MutableRefObject<Map<string, TerminalHandle>>;
   projectTabRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
-  setTerminalStatuses: React.Dispatch<React.SetStateAction<Map<string, ConnectionStatus>>>;
+  setTerminalStatuses: React.Dispatch<
+    React.SetStateAction<Map<string, ConnectionStatus>>
+  >;
   setLayoutMode: (mode: LayoutMode) => void;
   setKeyboardSize: (size: KeyboardSizePreset) => void;
 }
@@ -35,13 +48,17 @@ interface UseTerminalHandlersReturn {
   handleReconnect: () => void;
   handleLayoutModeChange: (mode: LayoutMode) => Promise<void>;
   handleAddTab: () => Promise<void>;
-  handleNewTerminalForProject: (projectId: string, mode: "shell" | "claude") => Promise<void>;
+  handleNewTerminalForProject: (
+    projectId: string,
+    mode: "shell" | "claude",
+    rootPath?: string | null,
+  ) => Promise<void>;
   handleProjectTabClick: (pt: ProjectTerminal) => Promise<void>;
   handleProjectModeChange: (
     projectId: string,
     newMode: "shell" | "claude",
     projectSessions: TerminalSession[],
-    rootPath: string | null
+    rootPath: string | null,
   ) => Promise<void>;
   handleCloseAll: () => Promise<void>;
   setTerminalRef: (sessionId: string, handle: TerminalHandle | null) => void;
@@ -75,6 +92,7 @@ export function useTerminalHandlers({
 }: UseTerminalHandlersProps): UseTerminalHandlersReturn {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
 
   // Session mutations
   const {
@@ -105,26 +123,35 @@ export function useTerminalHandlers({
   });
 
   // Keyboard size handler
-  const handleKeyboardSizeChange = useCallback((size: KeyboardSizePreset) => {
-    setKeyboardSize(size);
-  }, [setKeyboardSize]);
+  const handleKeyboardSizeChange = useCallback(
+    (size: KeyboardSizePreset) => {
+      setKeyboardSize(size);
+    },
+    [setKeyboardSize],
+  );
 
   // Status change handler
-  const handleStatusChange = useCallback((sessionId: string, status: ConnectionStatus) => {
-    setTerminalStatuses((prev) => {
-      const next = new Map(prev);
-      next.set(sessionId, status);
-      return next;
-    });
-  }, [setTerminalStatuses]);
+  const handleStatusChange = useCallback(
+    (sessionId: string, status: ConnectionStatus) => {
+      setTerminalStatuses((prev) => {
+        const next = new Map(prev);
+        next.set(sessionId, status);
+        return next;
+      });
+    },
+    [setTerminalStatuses],
+  );
 
   // Keyboard input handler
-  const handleKeyboardInput = useCallback((data: string) => {
-    if (activeSessionId) {
-      const terminalRef = terminalRefs.current.get(activeSessionId);
-      terminalRef?.sendInput(data);
-    }
-  }, [activeSessionId, terminalRefs]);
+  const handleKeyboardInput = useCallback(
+    (data: string) => {
+      if (activeSessionId) {
+        const terminalRef = terminalRefs.current.get(activeSessionId);
+        terminalRef?.sendInput(data);
+      }
+    },
+    [activeSessionId, terminalRefs],
+  );
 
   // Reconnect handler
   const handleReconnect = useCallback(() => {
@@ -135,13 +162,16 @@ export function useTerminalHandlers({
   }, [activeSessionId, terminalRefs]);
 
   // Layout mode change handler
-  const handleLayoutModeChange = useCallback(async (mode: LayoutMode) => {
-    if (mode !== "single" && sessions.length === 1) {
-      const name = getNextTerminalName(sessions);
-      await create(name, projectPath);
-    }
-    setLayoutMode(mode);
-  }, [sessions, create, projectPath, setLayoutMode]);
+  const handleLayoutModeChange = useCallback(
+    async (mode: LayoutMode) => {
+      if (mode !== "single" && sessions.length === 1) {
+        const name = getNextTerminalName(sessions);
+        await create(name, projectPath);
+      }
+      setLayoutMode(mode);
+    },
+    [sessions, create, projectPath, setLayoutMode],
+  );
 
   // Add new terminal (ad-hoc)
   const handleAddTab = useCallback(async () => {
@@ -150,62 +180,93 @@ export function useTerminalHandlers({
   }, [sessions, create]);
 
   // Navigate to session via URL
-  const navigateToSession = useCallback((sessionId: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("session", sessionId);
-    router.push(`?${params.toString()}`, { scroll: false });
-  }, [searchParams, router]);
+  const navigateToSession = useCallback(
+    (sessionId: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("session", sessionId);
+      router.push(`?${params.toString()}`, { scroll: false });
+    },
+    [searchParams, router],
+  );
 
   // Add new terminal for a specific project
-  const handleNewTerminalForProject = useCallback(async (
-    targetProjectId: string,
-    mode: "shell" | "claude"
-  ) => {
-    const project = projectTerminals.find((p) => p.projectId === targetProjectId);
-    if (!project) return;
-
-    try {
-      const newSession = await createProjectSession({
-        projectId: targetProjectId,
-        mode,
-        workingDir: project.rootPath,
-      });
-
-      navigateToSession(newSession.id);
-
-      if (mode === "claude") {
-        await new Promise(resolve => setTimeout(resolve, TMUX_INIT_DELAY_MS));
-        await startClaude(newSession.id);
+  const handleNewTerminalForProject = useCallback(
+    async (
+      targetProjectId: string,
+      mode: "shell" | "claude",
+      rootPath?: string | null,
+    ) => {
+      // Use provided rootPath, or look up from projectTerminals
+      let workingDir = rootPath;
+      if (workingDir === undefined) {
+        const project = projectTerminals.find(
+          (p) => p.projectId === targetProjectId,
+        );
+        if (!project) return;
+        workingDir = project.rootPath;
       }
-    } catch {
-      // Error already logged by createProjectSession
-    }
-  }, [projectTerminals, navigateToSession, startClaude]);
 
-  // Project tab click handler
-  const handleProjectTabClick = useCallback(async (pt: ProjectTerminal) => {
-    const currentSessionId = getProjectSessionId(pt);
-    if (currentSessionId) {
-      navigateToSession(currentSessionId);
-    } else {
       try {
         const newSession = await createProjectSession({
-          projectId: pt.projectId,
-          mode: pt.activeMode,
-          workingDir: pt.rootPath,
+          projectId: targetProjectId,
+          mode,
+          workingDir,
+        });
+
+        // Invalidate the sessions cache so the new session is recognized
+        await queryClient.invalidateQueries({
+          queryKey: ["terminal-sessions"],
         });
 
         navigateToSession(newSession.id);
 
-        if (pt.activeMode === "claude") {
-          await new Promise(resolve => setTimeout(resolve, TMUX_INIT_DELAY_MS));
+        if (mode === "claude") {
+          await new Promise((resolve) =>
+            setTimeout(resolve, TMUX_INIT_DELAY_MS),
+          );
           await startClaude(newSession.id);
         }
       } catch {
         // Error already logged by createProjectSession
       }
-    }
-  }, [navigateToSession, startClaude]);
+    },
+    [projectTerminals, navigateToSession, startClaude, queryClient],
+  );
+
+  // Project tab click handler
+  const handleProjectTabClick = useCallback(
+    async (pt: ProjectTerminal) => {
+      const currentSessionId = getProjectSessionId(pt);
+      if (currentSessionId) {
+        navigateToSession(currentSessionId);
+      } else {
+        try {
+          const newSession = await createProjectSession({
+            projectId: pt.projectId,
+            mode: pt.activeMode,
+            workingDir: pt.rootPath,
+          });
+
+          // Invalidate the sessions cache so the new session is recognized
+          await queryClient.invalidateQueries({
+            queryKey: ["terminal-sessions"],
+          });
+
+          navigateToSession(newSession.id);
+
+          if (pt.activeMode === "claude") {
+            await new Promise((resolve) =>
+              setTimeout(resolve, TMUX_INIT_DELAY_MS),
+            );
+            await startClaude(newSession.id);
+          }
+        } catch {
+          // Error already logged by createProjectSession
+        }
+      }
+    },
+    [navigateToSession, startClaude, queryClient],
+  );
 
   // Project mode change handler
   const handleProjectModeChange = useCallback(
@@ -213,7 +274,7 @@ export function useTerminalHandlers({
       projectIdArg: string,
       newMode: "shell" | "claude",
       projectSessions: TerminalSession[],
-      rootPath: string | null
+      rootPath: string | null,
     ): Promise<void> => {
       await switchProjectMode({
         projectId: projectIdArg,
@@ -222,7 +283,7 @@ export function useTerminalHandlers({
         rootPath,
       });
     },
-    [switchProjectMode]
+    [switchProjectMode],
   );
 
   // Close all terminals handler
@@ -236,13 +297,16 @@ export function useTerminalHandlers({
   }, [adHocSessions, projectTerminals, remove, disableProject]);
 
   // Terminal ref setter
-  const setTerminalRef = useCallback((sessionId: string, handle: TerminalHandle | null) => {
-    if (handle) {
-      terminalRefs.current.set(sessionId, handle);
-    } else {
-      terminalRefs.current.delete(sessionId);
-    }
-  }, [terminalRefs]);
+  const setTerminalRef = useCallback(
+    (sessionId: string, handle: TerminalHandle | null) => {
+      if (handle) {
+        terminalRefs.current.set(sessionId, handle);
+      } else {
+        terminalRefs.current.delete(sessionId);
+      }
+    },
+    [terminalRefs],
+  );
 
   return {
     handleKeyboardSizeChange,

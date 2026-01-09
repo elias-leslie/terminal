@@ -16,15 +16,18 @@ import {
   sortableKeyboardCoordinates,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
+import { clsx } from "clsx";
+import { Plus, Settings, GripVertical } from "lucide-react";
 import { GridCell } from "./GridCell";
 import {
   TerminalComponent,
   TerminalHandle,
   ConnectionStatus,
 } from "./Terminal";
+import { LayoutModeButtons, LayoutMode } from "./LayoutModeButton";
 import { GridLayoutMode, GRID_CELL_COUNTS } from "@/lib/constants/terminal";
-import { LayoutMode } from "./LayoutModeButton";
 import { type TerminalSlot, getSlotPanelId } from "@/lib/utils/slot";
+import { TerminalMode } from "./ModeToggle";
 
 export interface GridLayoutProps {
   layoutMode: GridLayoutMode;
@@ -52,20 +55,21 @@ export interface GridLayoutProps {
   onOpenModal?: () => void;
   /** Whether new panes can be added (at limit = false) */
   canAddPane?: boolean;
+  /** Mode switch handler for project slots */
+  onModeSwitch?: (
+    slot: TerminalSlot,
+    mode: TerminalMode,
+  ) => void | Promise<void>;
+  /** Whether mode switch is in progress */
+  isModeSwitching?: boolean;
   onEmptyClick?: () => void;
   isMobile?: boolean;
 }
 
-/** Get grid dimensions based on layout mode */
+/** Get grid dimensions based on layout mode (only 2x2 supported) */
 function getGridDimensions(layoutMode: GridLayoutMode): number {
-  switch (layoutMode) {
-    case "grid-2x2":
-      return 2;
-    case "grid-3x3":
-      return 3;
-    case "grid-4x4":
-      return 4;
-  }
+  // Only grid-2x2 supported - max 4 panes
+  return 2;
 }
 
 /**
@@ -95,6 +99,8 @@ export function GridLayout({
   onClean,
   onOpenModal,
   canAddPane,
+  onModeSwitch,
+  isModeSwitching,
   onEmptyClick,
   isMobile,
 }: GridLayoutProps) {
@@ -206,41 +212,147 @@ export function GridLayout({
               onClean={onClean}
               onOpenModal={onOpenModal}
               canAddPane={canAddPane}
+              onModeSwitch={onModeSwitch}
+              isModeSwitching={isModeSwitching}
               isMobile={isMobile}
             />
           ))}
 
-          {/* Empty placeholders with improved affordance */}
+          {/* Empty placeholders with header and add button */}
           {Array.from({ length: emptyCount }).map((_, index) => (
             <div
               key={`empty-${index}`}
-              onClick={onEmptyClick}
-              className="group flex flex-col items-center justify-center gap-2 rounded-md cursor-pointer transition-all duration-150 hover:border-[var(--term-accent)]"
+              className="flex flex-col h-full min-h-0 overflow-hidden rounded-md transition-colors"
               style={{
                 backgroundColor: "var(--term-bg-surface)",
                 border: "1px dashed var(--term-border)",
               }}
             >
+              {/* Header for empty cell */}
               <div
-                className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-150 group-hover:scale-110"
+                className={clsx(
+                  "flex-shrink-0 flex items-center gap-1",
+                  isMobile ? "h-9 px-1.5" : "h-8 px-2",
+                )}
                 style={{
-                  backgroundColor: "var(--term-bg-elevated)",
-                  border: "1px solid var(--term-border)",
+                  backgroundColor: "var(--term-bg-surface)",
+                  borderBottom: "1px solid var(--term-border)",
                 }}
               >
+                {/* Placeholder drag handle (inactive) */}
+                <div className="p-0.5 opacity-30">
+                  <GripVertical
+                    className="w-3.5 h-3.5"
+                    style={{ color: "var(--term-text-muted)" }}
+                  />
+                </div>
+
+                {/* Empty slot label */}
                 <span
-                  className="text-lg font-light transition-colors group-hover:text-[var(--term-accent)]"
+                  className="text-xs px-1.5"
                   style={{ color: "var(--term-text-muted)" }}
                 >
-                  +
+                  Empty
+                </span>
+
+                {/* Add terminal button */}
+                {onOpenModal && (
+                  <button
+                    onClick={onOpenModal}
+                    className={clsx(
+                      "flex items-center justify-center rounded ml-1 transition-all duration-150",
+                      isMobile ? "w-7 h-7" : "w-5 h-5",
+                    )}
+                    style={{
+                      backgroundColor: "var(--term-bg-surface)",
+                      border: "1px solid var(--term-border)",
+                      color: "var(--term-text-muted)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        "var(--term-bg-elevated)";
+                      e.currentTarget.style.borderColor = "var(--term-accent)";
+                      e.currentTarget.style.color = "var(--term-accent)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        "var(--term-bg-surface)";
+                      e.currentTarget.style.borderColor = "var(--term-border)";
+                      e.currentTarget.style.color = "var(--term-text-muted)";
+                    }}
+                    title="Open terminal"
+                    aria-label="Open terminal"
+                  >
+                    <Plus className={isMobile ? "w-4 h-4" : "w-3 h-3"} />
+                  </button>
+                )}
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Layout selector */}
+                {!isMobile && availableLayouts && onLayout && (
+                  <div className="flex items-center gap-0.5 mr-1">
+                    <LayoutModeButtons
+                      layoutMode={layoutMode}
+                      onLayoutChange={onLayout}
+                      availableLayouts={availableLayouts}
+                    />
+                  </div>
+                )}
+
+                {/* Settings button */}
+                {onSettings && (
+                  <button
+                    onClick={onSettings}
+                    className={clsx(
+                      "flex items-center justify-center rounded transition-all duration-150",
+                      isMobile ? "w-8 h-8" : "w-6 h-6",
+                    )}
+                    style={{ color: "var(--term-text-muted)" }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        "var(--term-bg-elevated)";
+                      e.currentTarget.style.color = "var(--term-accent)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                      e.currentTarget.style.color = "var(--term-text-muted)";
+                    }}
+                    title="Settings"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Empty content area with click to add */}
+              <div
+                onClick={onEmptyClick}
+                className="flex-1 flex flex-col items-center justify-center gap-2 cursor-pointer group"
+                style={{ backgroundColor: "var(--term-bg-deep)" }}
+              >
+                <div
+                  className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-150 group-hover:scale-110"
+                  style={{
+                    backgroundColor: "var(--term-bg-elevated)",
+                    border: "1px solid var(--term-border)",
+                  }}
+                >
+                  <span
+                    className="text-lg font-light transition-colors group-hover:text-[var(--term-accent)]"
+                    style={{ color: "var(--term-text-muted)" }}
+                  >
+                    +
+                  </span>
+                </div>
+                <span
+                  className="text-xs transition-colors group-hover:text-[var(--term-text-primary)]"
+                  style={{ color: "var(--term-text-muted)" }}
+                >
+                  Add terminal
                 </span>
               </div>
-              <span
-                className="text-xs transition-colors group-hover:text-[var(--term-text-primary)]"
-                style={{ color: "var(--term-text-muted)" }}
-              >
-                Add terminal
-              </span>
             </div>
           ))}
         </div>

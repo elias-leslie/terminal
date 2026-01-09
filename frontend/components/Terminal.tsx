@@ -15,6 +15,7 @@ import {
   PHOSPHOR_THEME,
 } from "../lib/constants/terminal";
 import { useTerminalWebSocket } from "../lib/hooks/use-terminal-websocket";
+import { useTerminalScrolling } from "../lib/hooks/use-terminal-scrolling";
 import { setupTerminalMouseHandling } from "../lib/hooks/use-terminal-mouse-handling";
 import { isMobileDevice } from "../lib/utils/device";
 import type { TerminalProps, TerminalHandle } from "./terminal.types";
@@ -54,6 +55,10 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
     const fitAddonRef = useRef<InstanceType<typeof FitAddon> | null>(null);
     const onDataDisposableRef = useRef<{ dispose: () => void } | null>(null);
     const mouseCleanupRef = useRef<(() => void) | null>(null);
+    const scrollCleanupRef = useRef<{
+      wheelCleanup: () => void;
+      touchCleanup: () => void;
+    } | null>(null);
     const isFocusedRef = useRef(false);
     const focusCleanupRef = useRef<(() => void) | null>(null);
     const isVisibleRef = useRef(isVisible);
@@ -88,6 +93,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
         },
         getDimensions: () => fitAddonRef.current?.proposeDimensions() ?? null,
       });
+
+    // Scrolling management via hook (tmux copy-mode for wheel/touch)
+    const { setupScrolling, resetCopyMode } = useTerminalScrolling({
+      wsRef,
+      isMobile: isMobileDevice(),
+    });
 
     // Expose functions to parent
     useImperativeHandle(
@@ -196,6 +207,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
         terminalRef.current = term;
         fitAddonRef.current = fitAddon;
 
+        // Set up scrolling via hook (handles wheel and touch events for tmux copy-mode)
+        scrollCleanupRef.current = setupScrolling(containerRef.current);
+
         // Mobile-specific setup: suppress native keyboard (we use custom keyboard)
         if (isMobileDevice()) {
           const textarea =
@@ -207,17 +221,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
             textarea.readOnly = true;
           }
 
-          // Prevent pull-to-refresh but allow vertical scrolling via xterm viewport
+          // Prevent pull-to-refresh via CSS
           containerRef.current.style.overscrollBehavior = "none";
-          // touchAction: 'none' on container prevents pull-to-refresh
           containerRef.current.style.touchAction = "none";
-
-          // Enable touch scrolling on the xterm viewport (scrollable area)
-          const viewport =
-            containerRef.current.querySelector<HTMLElement>(".xterm-viewport");
-          if (viewport) {
-            viewport.style.touchAction = "pan-y";
-          }
         }
 
         // Initial fit (ResizeObserver handles subsequent resizes)
@@ -240,12 +246,14 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
           };
         }
 
-        // Set up terminal input handler - forward to WebSocket
+        // Set up terminal input handler - forward to WebSocket and reset copy-mode on typing
         onDataDisposableRef.current = term.onData((data) => {
           // Only send input if this terminal has focus (prevents grid duplication)
           if (!isFocusedRef.current) return;
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(data);
+            // Typing exits tmux copy-mode, reset our tracking
+            resetCopyMode();
           }
         });
 
@@ -272,13 +280,26 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
           mouseCleanupRef.current();
           mouseCleanupRef.current = null;
         }
+        // Clean up scroll listeners
+        if (scrollCleanupRef.current) {
+          scrollCleanupRef.current.wheelCleanup();
+          scrollCleanupRef.current.touchCleanup();
+          scrollCleanupRef.current = null;
+        }
         if (terminalRef.current) {
           terminalRef.current.dispose();
           terminalRef.current = null;
         }
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sessionId, workingDir, handleResize, connect]);
+    }, [
+      sessionId,
+      workingDir,
+      handleResize,
+      connect,
+      setupScrolling,
+      resetCopyMode,
+    ]);
 
     // Handle container resize with debounce
     useEffect(() => {

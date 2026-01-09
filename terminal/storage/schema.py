@@ -49,3 +49,27 @@ CREATE INDEX IF NOT EXISTS idx_tps_enabled
 
 COMMENT ON TABLE terminal_project_settings IS 'Terminal settings per SummitFlow project';
 """
+
+# SQL to create terminal_panes table
+TERMINAL_PANES_TABLE = """
+CREATE TABLE IF NOT EXISTS terminal_panes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pane_type VARCHAR(10) NOT NULL CHECK (pane_type IN ('project', 'adhoc')),
+    project_id VARCHAR(64),
+    pane_order INTEGER NOT NULL DEFAULT 0,
+    pane_name VARCHAR(255) NOT NULL,
+    active_mode VARCHAR(16) NOT NULL DEFAULT 'shell' CHECK (active_mode IN ('shell', 'claude')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT chk_project_pane_id CHECK (
+        (pane_type = 'adhoc' AND project_id IS NULL) OR
+        (pane_type = 'project' AND project_id IS NOT NULL)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_terminal_panes_project_id
+    ON terminal_panes(project_id) WHERE project_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_terminal_panes_order
+    ON terminal_panes(pane_order);
+
+COMMENT ON TABLE terminal_panes IS 'Terminal panes - containers for 1-2 sessions (shell/claude)';
+"""

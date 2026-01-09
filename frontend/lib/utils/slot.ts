@@ -1,6 +1,10 @@
 /**
  * Slot helper utilities for discriminated union access.
  * Used by SplitPane and other components that work with TerminalSlot.
+ *
+ * NOTE: This file is being migrated to pane-based architecture.
+ * The `TerminalSlot` type is being replaced by pane-derived slots.
+ * During migration, both approaches coexist.
  */
 
 import type {
@@ -8,6 +12,7 @@ import type {
   ProjectSession,
 } from "@/lib/hooks/use-project-terminals";
 import type { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
+import type { TerminalPane, PaneSession } from "@/lib/hooks/use-terminal-panes";
 
 // Slot types for split-pane terminals
 export interface ProjectSlot {
@@ -130,4 +135,82 @@ export function findActiveSlot(
   }
 
   return null;
+}
+
+// ============================================================================
+// Pane-based Slot Derivation (NEW - migration in progress)
+// ============================================================================
+
+/**
+ * Extended slot type that includes the pane ID for direct DB operations.
+ * This type wraps the base TerminalSlot with additional pane metadata.
+ */
+export interface PaneBasedSlot extends ProjectSlot {
+  /** Pane ID for DB operations (swap, delete, etc.) */
+  paneId: string;
+}
+
+export interface AdHocPaneSlot extends AdHocSlot {
+  /** Pane ID for DB operations */
+  paneId: string;
+}
+
+export type PaneSlot = PaneBasedSlot | AdHocPaneSlot;
+
+/**
+ * Convert a TerminalPane to a TerminalSlot for UI rendering.
+ * This bridges the new pane API with existing slot-based components.
+ */
+export function paneToSlot(pane: TerminalPane): PaneSlot {
+  if (pane.pane_type === "project") {
+    const activeSession = pane.sessions.find(
+      (s) => s.mode === pane.active_mode,
+    );
+    const claudeSession = pane.sessions.find((s) => s.mode === "claude");
+    return {
+      type: "project",
+      paneId: pane.id,
+      projectId: pane.project_id!,
+      projectName: pane.pane_name,
+      rootPath: activeSession?.working_dir ?? null,
+      activeMode: pane.active_mode,
+      activeSessionId: activeSession?.id ?? null,
+      sessionBadge: null, // Badge is now part of pane_name
+      claudeState: claudeSession
+        ? ("not_started" as const) // TODO: fetch from session
+        : undefined,
+    };
+  }
+
+  // Ad-hoc pane
+  const session = pane.sessions[0];
+  return {
+    type: "adhoc",
+    paneId: pane.id,
+    sessionId: session?.id ?? "",
+    name: pane.pane_name,
+    workingDir: session?.working_dir ?? null,
+  };
+}
+
+/**
+ * Convert array of TerminalPanes to PaneSlots.
+ * Panes are already ordered by pane_order from the API.
+ */
+export function panesToSlots(panes: TerminalPane[]): PaneSlot[] {
+  return panes.map(paneToSlot);
+}
+
+/**
+ * Get the pane ID from a PaneSlot.
+ */
+export function getPaneId(slot: PaneSlot): string {
+  return slot.paneId;
+}
+
+/**
+ * Check if a slot is a PaneSlot (has paneId).
+ */
+export function isPaneSlot(slot: TerminalSlot | PaneSlot): slot is PaneSlot {
+  return "paneId" in slot;
 }

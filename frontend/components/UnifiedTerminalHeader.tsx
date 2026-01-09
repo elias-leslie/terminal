@@ -13,7 +13,7 @@ import {
   Plus,
 } from "lucide-react";
 import { LayoutMode, LayoutModeButtons } from "./LayoutModeButton";
-import { ClaudeIndicator } from "./ClaudeIndicator";
+import { ModeToggle, TerminalMode } from "./ModeToggle";
 import { type TerminalSlot, getSlotName } from "@/lib/utils/slot";
 
 export interface UnifiedTerminalHeaderProps {
@@ -39,6 +39,10 @@ export interface UnifiedTerminalHeaderProps {
   onOpenModal?: () => void;
   /** Whether new panes can be added (at limit = false) */
   canAddPane?: boolean;
+  /** Callback for mode switch (shell <-> claude) - only for project slots */
+  onModeSwitch?: (mode: TerminalMode) => void | Promise<void>;
+  /** Whether mode switch is in progress */
+  isModeSwitching?: boolean;
   isMobile?: boolean;
 }
 
@@ -61,6 +65,8 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
   onClean,
   onOpenModal,
   canAddPane = true,
+  onModeSwitch,
+  isModeSwitching = false,
   isMobile = false,
 }: UnifiedTerminalHeaderProps) {
   const name = getSlotName(slot);
@@ -97,10 +103,14 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
         </button>
       )}
 
-      {/* Mode indicator */}
-      {slot.type === "project" && (
-        <ClaudeIndicator
-          state={slot.activeMode === "claude" ? "idle" : "none"}
+      {/* Mode toggle (shell <-> claude) - only for project slots */}
+      {slot.type === "project" && onModeSwitch && (
+        <ModeToggle
+          value={slot.activeMode}
+          onChange={onModeSwitch}
+          disabled={isModeSwitching}
+          isLoading={isModeSwitching}
+          isMobile={isMobile}
         />
       )}
 

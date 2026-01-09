@@ -87,7 +87,13 @@ export function useTerminalWebSocket({
     onMessageRef.current = onMessage;
     onTerminalMessageRef.current = onTerminalMessage;
     getDimensionsRef.current = getDimensions;
-  }, [onStatusChange, onDisconnect, onMessage, onTerminalMessage, getDimensions]);
+  }, [
+    onStatusChange,
+    onDisconnect,
+    onMessage,
+    onTerminalMessage,
+    getDimensions,
+  ]);
 
   // Notify parent of status changes
   useEffect(() => {
@@ -130,14 +136,18 @@ export function useTerminalWebSocket({
 
         if (!hasRetriedRef.current) {
           hasRetriedRef.current = true;
-          onTerminalMessageRef.current?.("\x1b[33mConnection timeout, retrying...\x1b[0m");
+          onTerminalMessageRef.current?.(
+            "\x1b[33mConnection timeout, retrying...\x1b[0m",
+          );
           setStatus("connecting");
           setTimeout(() => {
             if (mountedRef.current) connectRef.current?.();
           }, RETRY_BACKOFF);
         } else {
           setStatus("timeout");
-          onTerminalMessageRef.current?.("\r\n\x1b[31mConnection timeout\x1b[0m");
+          onTerminalMessageRef.current?.(
+            "\r\n\x1b[31mConnection timeout\x1b[0m",
+          );
           onDisconnectRef.current?.();
         }
       }
@@ -148,13 +158,17 @@ export function useTerminalWebSocket({
       if (!mountedRef.current) return;
 
       setStatus("connected");
-      onTerminalMessageRef.current?.("Connected to terminal session: " + sessionId);
+      onTerminalMessageRef.current?.(
+        "Connected to terminal session: " + sessionId,
+      );
       onTerminalMessageRef.current?.("");
 
       // Send initial size
       const dims = getDimensionsRef.current?.();
       if (dims) {
-        ws.send(JSON.stringify({ resize: { cols: dims.cols, rows: dims.rows } }));
+        ws.send(
+          JSON.stringify({ resize: { cols: dims.cols, rows: dims.rows } }),
+        );
       }
 
       // Trigger terminal redraw after resize settles
@@ -179,13 +193,19 @@ export function useTerminalWebSocket({
         setStatus("session_dead");
         try {
           const reason = JSON.parse(event.reason);
-          onTerminalMessageRef.current?.(`\r\n\x1b[31m${reason.message || "Session not found"}\x1b[0m`);
+          onTerminalMessageRef.current?.(
+            `\r\n\x1b[31m${reason.message || "Session not found"}\x1b[0m`,
+          );
         } catch {
-          onTerminalMessageRef.current?.("\r\n\x1b[31mSession not found or could not be restored\x1b[0m");
+          onTerminalMessageRef.current?.(
+            "\r\n\x1b[31mSession not found or could not be restored\x1b[0m",
+          );
         }
       } else {
         setStatus("disconnected");
-        onTerminalMessageRef.current?.("\r\n\x1b[31mDisconnected from terminal\x1b[0m");
+        onTerminalMessageRef.current?.(
+          "\r\n\x1b[31mDisconnected from terminal\x1b[0m",
+        );
       }
       onDisconnectRef.current?.();
     };

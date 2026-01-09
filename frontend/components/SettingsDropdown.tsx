@@ -123,7 +123,7 @@ export function SettingsDropdown({
           ref={buttonRef}
           onClick={() => setShowSettings(!showSettings)}
           title="Terminal settings"
-          className="p-1.5 rounded-md transition-all duration-150"
+          className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md transition-all duration-150"
           style={{
             backgroundColor: showSettings
               ? "var(--term-bg-elevated)"
@@ -166,7 +166,7 @@ export function SettingsDropdown({
             boxShadow:
               "0 8px 32px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.1)",
           }}
-          className="rounded-lg p-4 min-w-[220px] animate-in fade-in slide-in-from-top-2 duration-150"
+          className="rounded-lg p-4 min-w-[220px] max-h-[80vh] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-150"
         >
           {/* Font family */}
           <div className="mb-4">
@@ -179,7 +179,7 @@ export function SettingsDropdown({
             <select
               value={fontId}
               onChange={(e) => setFontId(e.target.value as TerminalFontId)}
-              className="w-full px-2.5 py-2 text-sm rounded-md transition-colors focus:outline-none"
+              className="w-full px-2.5 py-3 min-h-[44px] text-sm rounded-md transition-colors focus:outline-none"
               style={{
                 backgroundColor: "var(--term-bg-deep)",
                 border: "1px solid var(--term-border)",
@@ -213,7 +213,7 @@ export function SettingsDropdown({
               onChange={(e) =>
                 setFontSize(Number(e.target.value) as TerminalFontSize)
               }
-              className="w-full px-2.5 py-2 text-sm rounded-md transition-colors focus:outline-none"
+              className="w-full px-2.5 py-3 min-h-[44px] text-sm rounded-md transition-colors focus:outline-none"
               style={{
                 backgroundColor: "var(--term-bg-deep)",
                 border: "1px solid var(--term-border)",
@@ -245,7 +245,7 @@ export function SettingsDropdown({
             <select
               value={themeId}
               onChange={(e) => setThemeId(e.target.value as TerminalThemeId)}
-              className="w-full px-2.5 py-2 text-sm rounded-md transition-colors focus:outline-none"
+              className="w-full px-2.5 py-3 min-h-[44px] text-sm rounded-md transition-colors focus:outline-none"
               style={{
                 backgroundColor: "var(--term-bg-deep)",
                 border: "1px solid var(--term-border)",
@@ -282,7 +282,7 @@ export function SettingsDropdown({
                     key={style}
                     type="button"
                     onClick={() => setCursorStyle(style)}
-                    className="flex-1 px-2 py-1.5 text-xs rounded-md transition-all duration-150 capitalize"
+                    className="flex-1 px-2 py-2.5 min-h-[44px] text-xs rounded-md transition-all duration-150 capitalize"
                     style={{
                       backgroundColor: isActive
                         ? "var(--term-accent)"
@@ -305,18 +305,18 @@ export function SettingsDropdown({
 
           {/* Cursor Blink */}
           <div className="mb-4">
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer min-h-[44px] px-2 -mx-2 rounded-md hover:bg-[var(--term-bg-deep)]">
               <input
                 type="checkbox"
                 checked={cursorBlink}
                 onChange={(e) => setCursorBlink(e.target.checked)}
-                className="w-4 h-4 rounded"
+                className="w-5 h-5 rounded"
                 style={{
                   accentColor: "var(--term-accent)",
                 }}
               />
               <span
-                className="text-xs font-medium"
+                className="text-sm font-medium"
                 style={{ color: "var(--term-text-muted)" }}
               >
                 Cursor Blink
@@ -337,7 +337,7 @@ export function SettingsDropdown({
               onChange={(e) =>
                 setScrollback(Number(e.target.value) as TerminalScrollback)
               }
-              className="w-full px-2.5 py-2 text-sm rounded-md transition-colors focus:outline-none"
+              className="w-full px-2.5 py-3 min-h-[44px] text-sm rounded-md transition-colors focus:outline-none"
               style={{
                 backgroundColor: "var(--term-bg-deep)",
                 border: "1px solid var(--term-border)",
@@ -375,7 +375,7 @@ export function SettingsDropdown({
                       key={size}
                       type="button"
                       onClick={() => setKeyboardSize(size)}
-                      className="flex-1 px-2 py-1.5 text-xs rounded-md transition-all duration-150 capitalize"
+                      className="flex-1 px-2 py-2.5 min-h-[44px] text-xs rounded-md transition-all duration-150 capitalize"
                       style={{
                         backgroundColor: isActive
                           ? "var(--term-accent)"

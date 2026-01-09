@@ -1,11 +1,12 @@
 "use client";
 
 import { clsx } from "clsx";
-import { Paperclip, Sparkles } from "lucide-react";
+import { Paperclip, Sparkles, Plus } from "lucide-react";
 import { TerminalSwitcher } from "./TerminalSwitcher";
 import { SettingsDropdown } from "./SettingsDropdown";
 import { GlobalActionMenu } from "./GlobalActionMenu";
 import { LayoutModeButtons } from "./LayoutModeButton";
+import { ModeToggle, TerminalMode } from "./ModeToggle";
 import { type TerminalSlot, getSlotSessionId } from "@/lib/utils/slot";
 import { type LayoutMode } from "./LayoutModeButton";
 import { type ProjectTerminal } from "@/lib/hooks/use-project-terminals";
@@ -51,6 +52,11 @@ interface TerminalHeaderProps {
   setThemeId: (id: TerminalThemeId) => void;
   setShowSettings: (show: boolean) => void;
   setKeyboardSize: (size: KeyboardSizePreset) => void;
+  // Mode switch for project slots
+  onModeSwitch?: (mode: TerminalMode) => void | Promise<void>;
+  isModeSwitching?: boolean;
+  // Open terminal manager modal
+  onOpenTerminalManager?: () => void;
 }
 
 export function TerminalHeader({
@@ -85,6 +91,9 @@ export function TerminalHeader({
   setThemeId,
   setShowSettings,
   setKeyboardSize,
+  onModeSwitch,
+  isModeSwitching = false,
+  onOpenTerminalManager,
 }: TerminalHeaderProps) {
   return (
     <div
@@ -119,6 +128,47 @@ export function TerminalHeader({
         onSelectAdHoc={onSelectAdHoc}
         isMobile={isMobile}
       />
+
+      {/* Add terminal button */}
+      {onOpenTerminalManager && (
+        <button
+          onClick={onOpenTerminalManager}
+          className={clsx(
+            "flex items-center justify-center rounded transition-all duration-150",
+            isMobile ? "w-7 h-7" : "w-5 h-5",
+          )}
+          style={{
+            backgroundColor: "var(--term-bg-surface)",
+            border: "1px solid var(--term-border)",
+            color: "var(--term-text-muted)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
+            e.currentTarget.style.borderColor = "var(--term-accent)";
+            e.currentTarget.style.color = "var(--term-accent)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
+            e.currentTarget.style.borderColor = "var(--term-border)";
+            e.currentTarget.style.color = "var(--term-text-muted)";
+          }}
+          title="Open terminal"
+          aria-label="Open terminal"
+        >
+          <Plus className={isMobile ? "w-4 h-4" : "w-3 h-3"} />
+        </button>
+      )}
+
+      {/* Mode toggle (shell <-> claude) - only for project slots */}
+      {activeSlot?.type === "project" && onModeSwitch && (
+        <ModeToggle
+          value={activeSlot.activeMode}
+          onChange={onModeSwitch}
+          disabled={isModeSwitching}
+          isLoading={isModeSwitching}
+          isMobile={isMobile}
+        />
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />
