@@ -145,7 +145,8 @@ export function useTerminalTabsState({
   }, [projectTerminals, adHocSessions]);
 
   // Slot ordering for grid layout drag-and-drop
-  const { orderedIds, reorder } = useSlotOrdering(terminalSlots);
+  const { orderedIds, reorder, swapPanes, canAddPane } =
+    useSlotOrdering(terminalSlots);
 
   // Helper to check if current layout is a grid mode
   const isGridMode = layoutMode.startsWith("grid-");
@@ -222,6 +223,8 @@ export function useTerminalTabsState({
     terminalSlots,
     orderedIds,
     reorder,
+    swapPanes,
+    canAddPane,
 
     // Terminal refs and statuses
     terminalRefs,
