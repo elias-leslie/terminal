@@ -92,7 +92,7 @@ export function SettingsDropdown({
         position: "fixed",
         right: window.innerWidth - rect.right,
         top,
-        zIndex: 9999,
+        zIndex: 10001,
       });
     } else {
       setDropdownStyle(null);
