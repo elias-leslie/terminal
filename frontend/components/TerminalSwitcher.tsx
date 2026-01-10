@@ -4,36 +4,26 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { clsx } from "clsx";
 import { ChevronDown, Terminal as TerminalIcon, Check } from "lucide-react";
 import { ClaudeIndicator } from "./ClaudeIndicator";
-import type { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
-import type { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
+import { type PaneSlot, getSlotSessionId, getSlotName } from "@/lib/utils/slot";
 
 export interface TerminalSwitcherProps {
-  currentName: string;
-  currentMode?: "shell" | "claude";
-  currentProjectId?: string | null;
-  /** Currently selected session ID (for checkmark indicator) */
-  currentSessionId?: string | null;
-  projectTerminals: ProjectTerminal[];
-  adHocSessions: TerminalSession[];
-  onSelectProject: (projectId: string) => void;
-  onSelectAdHoc: (sessionId: string) => void;
+  /** Currently active slot (for display and selection indicator) */
+  activeSlot: PaneSlot | null;
+  /** All available terminal slots (derived from panes) */
+  slots: PaneSlot[];
+  /** Called when user selects a slot */
+  onSelectSlot: (slot: PaneSlot) => void;
   isMobile?: boolean;
 }
 
 /**
- * Dropdown for switching between terminals.
- * Contains ONLY terminal list for selection - no creation actions.
- * Creation is handled by + icon in pane header.
+ * Dropdown for switching between terminals in single-view mode.
+ * Uses pane-based slots as the source of truth.
  */
 export function TerminalSwitcher({
-  currentName,
-  currentMode,
-  currentProjectId,
-  currentSessionId,
-  projectTerminals,
-  adHocSessions,
-  onSelectProject,
-  onSelectAdHoc,
+  activeSlot,
+  slots,
+  onSelectSlot,
   isMobile = false,
 }: TerminalSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -56,17 +46,30 @@ export function TerminalSwitcher({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  // Sort projects alphabetically by name
-  const sortedProjects = useMemo(() => {
-    return [...projectTerminals].sort((a, b) =>
-      a.projectName.localeCompare(b.projectName),
-    );
-  }, [projectTerminals]);
+  // Separate project slots and ad-hoc slots
+  const projectSlots = useMemo(() => {
+    return slots
+      .filter((s) => s.type === "project")
+      .sort((a, b) => {
+        if (a.type !== "project" || b.type !== "project") return 0;
+        return a.projectName.localeCompare(b.projectName);
+      });
+  }, [slots]);
 
-  // Sort ad-hoc sessions alphabetically by name
-  const sortedSessions = useMemo(() => {
-    return [...adHocSessions].sort((a, b) => a.name.localeCompare(b.name));
-  }, [adHocSessions]);
+  const adHocSlots = useMemo(() => {
+    return slots
+      .filter((s) => s.type === "adhoc")
+      .sort((a, b) => {
+        if (a.type !== "adhoc" || b.type !== "adhoc") return 0;
+        return a.name.localeCompare(b.name);
+      });
+  }, [slots]);
+
+  // Get current display info
+  const currentName = activeSlot ? getSlotName(activeSlot) : "Terminal";
+  const currentMode =
+    activeSlot?.type === "project" ? activeSlot.activeMode : undefined;
+  const activeSessionId = activeSlot ? getSlotSessionId(activeSlot) : null;
 
   return (
     <div ref={dropdownRef} className="relative flex items-center gap-1">
@@ -99,7 +102,7 @@ export function TerminalSwitcher({
         />
       </button>
 
-      {/* Dropdown - terminal list ONLY, no creation actions */}
+      {/* Dropdown - slot list */}
       {isOpen && (
         <div
           className={clsx(
@@ -112,7 +115,7 @@ export function TerminalSwitcher({
           }}
         >
           {/* Projects section */}
-          {sortedProjects.length > 0 && (
+          {projectSlots.length > 0 && (
             <>
               <div
                 className="px-2 py-1 text-[10px] uppercase tracking-wide"
@@ -123,13 +126,15 @@ export function TerminalSwitcher({
               >
                 Projects
               </div>
-              {sortedProjects.map((pt) => {
-                const isSelected = pt.projectId === currentProjectId;
+              {projectSlots.map((slot) => {
+                if (slot.type !== "project") return null;
+                const slotSessionId = getSlotSessionId(slot);
+                const isSelected = slotSessionId === activeSessionId;
                 return (
                   <button
-                    key={pt.projectId}
+                    key={slot.paneId}
                     onClick={() => {
-                      onSelectProject(pt.projectId);
+                      onSelectSlot(slot);
                       setIsOpen(false);
                     }}
                     className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left transition-colors hover:bg-[var(--term-bg-surface)]"
@@ -140,9 +145,9 @@ export function TerminalSwitcher({
                     }}
                   >
                     <ClaudeIndicator
-                      state={pt.activeMode === "claude" ? "idle" : "none"}
+                      state={slot.activeMode === "claude" ? "idle" : "none"}
                     />
-                    <span className="truncate flex-1">{pt.projectName}</span>
+                    <span className="truncate flex-1">{slot.projectName}</span>
                     <span
                       className="text-[10px] px-1 rounded"
                       style={{
@@ -150,7 +155,7 @@ export function TerminalSwitcher({
                         color: "var(--term-text-muted)",
                       }}
                     >
-                      {pt.activeMode}
+                      {slot.activeMode}
                     </span>
                     {isSelected && (
                       <Check
@@ -165,7 +170,7 @@ export function TerminalSwitcher({
           )}
 
           {/* Ad-hoc section */}
-          {sortedSessions.length > 0 && (
+          {adHocSlots.length > 0 && (
             <>
               <div
                 className="px-2 py-1 text-[10px] uppercase tracking-wide"
@@ -176,13 +181,15 @@ export function TerminalSwitcher({
               >
                 Terminals
               </div>
-              {sortedSessions.map((session) => {
-                const isSelected = session.id === currentSessionId;
+              {adHocSlots.map((slot) => {
+                if (slot.type !== "adhoc") return null;
+                const slotSessionId = getSlotSessionId(slot);
+                const isSelected = slotSessionId === activeSessionId;
                 return (
                   <button
-                    key={session.id}
+                    key={slot.paneId}
                     onClick={() => {
-                      onSelectAdHoc(session.id);
+                      onSelectSlot(slot);
                       setIsOpen(false);
                     }}
                     className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left transition-colors hover:bg-[var(--term-bg-surface)]"
@@ -196,7 +203,7 @@ export function TerminalSwitcher({
                       className="w-3 h-3"
                       style={{ color: "var(--term-text-muted)" }}
                     />
-                    <span className="truncate flex-1">{session.name}</span>
+                    <span className="truncate flex-1">{slot.name}</span>
                     {isSelected && (
                       <Check
                         className="w-3 h-3 flex-shrink-0"
@@ -210,7 +217,7 @@ export function TerminalSwitcher({
           )}
 
           {/* Empty state */}
-          {sortedProjects.length === 0 && sortedSessions.length === 0 && (
+          {projectSlots.length === 0 && adHocSlots.length === 0 && (
             <div
               className="px-3 py-4 text-xs text-center"
               style={{ color: "var(--term-text-muted)" }}

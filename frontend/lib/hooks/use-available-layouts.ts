@@ -4,8 +4,8 @@ import { useLayoutEffect, useMemo, useState } from "react";
 import { LayoutMode } from "@/components/LayoutModeButton";
 import { GridLayoutMode, GRID_MIN_WIDTHS } from "@/lib/constants/terminal";
 
-/** Base layout modes always available */
-const BASE_LAYOUTS: LayoutMode[] = ["single", "horizontal", "vertical"];
+/** Base layout modes always available (split views removed) */
+const BASE_LAYOUTS: LayoutMode[] = ["single"];
 
 /** Grid layout modes (only 2x2 supported - max 4 panes) */
 const GRID_LAYOUTS: GridLayoutMode[] = ["grid-2x2"];

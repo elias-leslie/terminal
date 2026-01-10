@@ -7,10 +7,8 @@ import { SettingsDropdown } from "./SettingsDropdown";
 import { GlobalActionMenu } from "./GlobalActionMenu";
 import { LayoutModeButtons } from "./LayoutModeButton";
 import { ModeToggle, TerminalMode } from "./ModeToggle";
-import { type TerminalSlot, getSlotSessionId } from "@/lib/utils/slot";
+import { type PaneSlot } from "@/lib/utils/slot";
 import { type LayoutMode } from "./LayoutModeButton";
-import { type ProjectTerminal } from "@/lib/hooks/use-project-terminals";
-import { type TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 import {
   type TerminalFontId,
   type TerminalFontSize,
@@ -21,9 +19,9 @@ import {
 import { type KeyboardSizePreset } from "./keyboard/types";
 
 interface TerminalHeaderProps {
-  activeSlot: TerminalSlot | null;
-  projectTerminals: ProjectTerminal[];
-  adHocSessions: TerminalSession[];
+  activeSlot: PaneSlot | null;
+  /** All terminal slots (derived from panes) */
+  terminalSlots: PaneSlot[];
   layoutMode: LayoutMode;
   availableLayouts: LayoutMode[];
   isMobile: boolean;
@@ -37,8 +35,8 @@ interface TerminalHeaderProps {
   themeId: TerminalThemeId;
   showSettings: boolean;
   keyboardSize: KeyboardSizePreset;
-  onSelectProject: (projectId: string) => void;
-  onSelectAdHoc: (sessionId: string) => void;
+  /** Called when user selects a slot from the dropdown */
+  onSelectSlot: (slot: PaneSlot) => void;
   onLayoutChange: (mode: LayoutMode) => void;
   onCleanClick: () => void;
   onUploadClick: () => void;
@@ -61,8 +59,7 @@ interface TerminalHeaderProps {
 
 export function TerminalHeader({
   activeSlot,
-  projectTerminals,
-  adHocSessions,
+  terminalSlots,
   layoutMode,
   availableLayouts,
   isMobile,
@@ -76,8 +73,7 @@ export function TerminalHeader({
   themeId,
   showSettings,
   keyboardSize,
-  onSelectProject,
-  onSelectAdHoc,
+  onSelectSlot,
   onLayoutChange,
   onCleanClick,
   onUploadClick,
@@ -108,24 +104,9 @@ export function TerminalHeader({
     >
       {/* Terminal switcher dropdown */}
       <TerminalSwitcher
-        currentName={
-          activeSlot
-            ? activeSlot.type === "project"
-              ? activeSlot.projectName
-              : activeSlot.name
-            : "Terminal"
-        }
-        currentMode={
-          activeSlot?.type === "project" ? activeSlot.activeMode : undefined
-        }
-        currentProjectId={
-          activeSlot?.type === "project" ? activeSlot.projectId : null
-        }
-        currentSessionId={activeSlot ? getSlotSessionId(activeSlot) : null}
-        projectTerminals={projectTerminals}
-        adHocSessions={adHocSessions}
-        onSelectProject={onSelectProject}
-        onSelectAdHoc={onSelectAdHoc}
+        activeSlot={activeSlot}
+        slots={terminalSlots}
+        onSelectSlot={onSelectSlot}
         isMobile={isMobile}
       />
 

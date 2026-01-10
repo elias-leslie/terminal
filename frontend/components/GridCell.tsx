@@ -51,6 +51,10 @@ export interface GridCellProps {
   /** Whether mode switch is in progress */
   isModeSwitching?: boolean;
   isMobile?: boolean;
+  /** All slots for swap dropdown */
+  allSlots?: TerminalSlot[];
+  /** Callback for swap dropdown selection */
+  onSwapWith?: (otherSlotId: string) => void;
 }
 
 /**
@@ -83,6 +87,8 @@ export function GridCell({
   onModeSwitch,
   isModeSwitching,
   isMobile,
+  allSlots,
+  onSwapWith,
 }: GridCellProps) {
   const panelId = getSlotPanelId(slot);
   const sessionId = getSlotSessionId(slot);
@@ -145,6 +151,8 @@ export function GridCell({
         }
         isModeSwitching={isModeSwitching}
         isMobile={isMobile}
+        allSlots={allSlots}
+        onSwapWith={onSwapWith}
       />
 
       {/* Terminal content */}

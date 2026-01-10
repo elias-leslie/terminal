@@ -121,28 +121,17 @@ async def list_sessions() -> TerminalSessionListResponse:
 async def create_session(request: CreateSessionRequest) -> TerminalSessionResponse:
     """Create a new terminal session.
 
-    The session ID is generated server-side to prevent client collisions.
-    Creates both the database record and the tmux session atomically.
+    DEPRECATED: Direct session creation is blocked.
+    Use POST /api/terminal/panes to create panes (which atomically create sessions).
+    This ensures proper pane limit enforcement (max 4 panes).
     """
-    try:
-        session_id = lifecycle.create_session(
-            name=request.name,
-            project_id=request.project_id,
-            working_dir=request.working_dir,
-            mode=request.mode,
-        )
-    except lifecycle.TmuxError as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create terminal session: {e}"
-        ) from None
-
-    session = terminal_store.get_session(session_id)
-    if not session:
-        raise HTTPException(
-            status_code=500, detail="Session created but not found"
-        ) from None
-
-    return _session_to_response(session)
+    # Block direct session creation - must go through pane API
+    # This prevents orphaned sessions and enforces the 4-pane limit
+    raise HTTPException(
+        status_code=400,
+        detail="Direct session creation is disabled. Use POST /api/terminal/panes instead. "
+        "Sessions are now managed through panes (max 4 panes allowed).",
+    )
 
 
 @router.get(

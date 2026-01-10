@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { LayoutMode, LayoutModeButtons } from "./LayoutModeButton";
 import { ModeToggle, TerminalMode } from "./ModeToggle";
+import { PaneSwapDropdown } from "./PaneSwapDropdown";
 import { type TerminalSlot, getSlotName } from "@/lib/utils/slot";
 
 export interface UnifiedTerminalHeaderProps {
@@ -44,6 +45,10 @@ export interface UnifiedTerminalHeaderProps {
   /** Whether mode switch is in progress */
   isModeSwitching?: boolean;
   isMobile?: boolean;
+  /** All slots for swap dropdown (split/grid mode) - shows dropdown when provided */
+  allSlots?: TerminalSlot[];
+  /** Callback when user selects another slot to swap positions with */
+  onSwapWith?: (otherSlotId: string) => void;
 }
 
 export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
@@ -68,6 +73,8 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
   onModeSwitch,
   isModeSwitching = false,
   isMobile = false,
+  allSlots,
+  onSwapWith,
 }: UnifiedTerminalHeaderProps) {
   const name = getSlotName(slot);
   const isClaudeMode = slot.type === "project" && slot.activeMode === "claude";
@@ -114,8 +121,15 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
         />
       )}
 
-      {/* Terminal name/switcher */}
-      {onSwitch ? (
+      {/* Terminal name/switcher - swap dropdown in split/grid mode */}
+      {allSlots && onSwapWith ? (
+        <PaneSwapDropdown
+          currentSlot={slot}
+          allSlots={allSlots}
+          onSwapWith={onSwapWith}
+          isMobile={isMobile}
+        />
+      ) : onSwitch ? (
         <button
           onClick={onSwitch}
           className={clsx(
@@ -173,8 +187,16 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
             e.currentTarget.style.borderColor = "var(--term-border)";
             e.currentTarget.style.color = "var(--term-text-muted)";
           }}
-          title={canAddPane ? "Open terminal" : "Maximum 4 terminals"}
-          aria-label={canAddPane ? "Open terminal" : "Maximum 4 terminals"}
+          title={
+            canAddPane
+              ? "Open terminal"
+              : "Maximum 4 terminals. Close one to add more."
+          }
+          aria-label={
+            canAddPane
+              ? "Open terminal"
+              : "Maximum 4 terminals. Close one to add more."
+          }
         >
           <Plus className={isMobile ? "w-4 h-4" : "w-3 h-3"} />
         </button>

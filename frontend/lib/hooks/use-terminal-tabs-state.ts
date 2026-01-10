@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { TerminalHandle, ConnectionStatus } from "@/components/Terminal";
 import { LayoutMode } from "@/components/LayoutModeButton";
 import { useActiveSession } from "@/lib/hooks/use-active-session";
@@ -10,12 +10,14 @@ import { useTabEditing } from "@/lib/hooks/use-tab-editing";
 import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
 import { useTerminalHandlers } from "@/lib/hooks/use-terminal-handlers";
 import { KeyboardSizePreset } from "@/components/SettingsDropdown";
-import { type TerminalSlot } from "@/lib/utils/slot";
+import {
+  type TerminalSlot,
+  type PaneSlot,
+  panesToSlots,
+  getSlotPanelId,
+} from "@/lib/utils/slot";
 import { useAvailableLayouts } from "@/lib/hooks/use-available-layouts";
-import { useSlotOrdering } from "@/lib/hooks/use-slot-ordering";
-
-// Maximum number of split panes
-const MAX_SPLIT_PANES = 4;
+import { useTerminalPanes } from "@/lib/hooks/use-terminal-panes";
 
 interface UseTerminalTabsStateProps {
   projectId?: string;
@@ -35,6 +37,19 @@ export function useTerminalTabsState({
     adHocSessions,
     isLoading: activeSessionLoading,
   } = useActiveSession();
+
+  // Pane-based data (new architecture: panes are the top-level container)
+  const {
+    panes,
+    atLimit: panesAtLimit,
+    isLoading: panesLoading,
+    swapPanePositions,
+    removePane,
+    setActiveMode,
+    createAdHocPane,
+    createProjectPane,
+    isCreating: isPaneCreating,
+  } = useTerminalPanes();
 
   // Layout state
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("single");
@@ -114,53 +129,63 @@ export function useTerminalTabsState({
     setTerminalStatuses,
     setLayoutMode,
     setKeyboardSize,
+    // Pane operations
+    panes,
+    panesAtLimit,
+    createProjectPane,
+    createAdHocPane,
+    setActiveMode,
+    removePane,
   });
 
   // Combined loading state
-  const isLoading = activeSessionLoading || sessionsLoading || projectsLoading;
+  const isLoading =
+    activeSessionLoading || sessionsLoading || projectsLoading || panesLoading;
 
   // Available layouts based on viewport width
   const availableLayouts = useAvailableLayouts();
 
-  // Unified slots array for split-pane terminals
-  const terminalSlots: TerminalSlot[] = useMemo(() => {
-    const slots: TerminalSlot[] = [];
+  // Unified slots array derived from panes (new architecture)
+  // Panes are already ordered by pane_order from the API
+  const terminalSlots: PaneSlot[] = useMemo(() => {
+    return panesToSlots(panes);
+  }, [panes]);
 
-    for (const pt of projectTerminals) {
-      const claudeState = pt.activeSession?.claude_state;
-      slots.push({
-        type: "project",
-        projectId: pt.projectId,
-        projectName: pt.projectName,
-        rootPath: pt.rootPath,
-        activeMode: pt.activeMode,
-        activeSessionId: pt.activeSessionId,
-        sessionBadge: pt.sessionBadge,
-        claudeState,
-      });
-    }
+  // Derive ordered IDs from panes (already ordered by pane_order)
+  const orderedIds = useMemo(() => {
+    return terminalSlots.map((slot) => getSlotPanelId(slot));
+  }, [terminalSlots]);
 
-    for (const session of adHocSessions) {
-      slots.push({
-        type: "adhoc",
-        sessionId: session.id,
-        name: session.name,
-        workingDir: session.working_dir,
-      });
-    }
+  // Reorder callback (currently no-op, ordering is DB-driven)
+  const reorder = useCallback((newOrder: string[]) => {
+    // TODO: Implement bulk reorder via API if needed
+    console.log("reorder requested:", newOrder);
+  }, []);
 
-    return slots;
-  }, [projectTerminals, adHocSessions]);
+  // Swap panes via DB-backed API
+  const swapPanes = useCallback(
+    async (slotIdA: string, slotIdB: string) => {
+      // Find pane IDs from slot IDs
+      const slotA = terminalSlots.find((s) => getSlotPanelId(s) === slotIdA);
+      const slotB = terminalSlots.find((s) => getSlotPanelId(s) === slotIdB);
 
-  // Slot ordering for grid layout drag-and-drop
-  const { orderedIds, reorder, swapPanes, canAddPane } =
-    useSlotOrdering(terminalSlots);
+      if (!slotA || !slotB) {
+        console.warn("swapPanes: slot not found", { slotIdA, slotIdB });
+        return;
+      }
+
+      await swapPanePositions(slotA.paneId, slotB.paneId);
+    },
+    [terminalSlots, swapPanePositions],
+  );
+
+  // Check if at maximum pane limit
+  const canAddPane = useCallback(() => {
+    return !panesAtLimit;
+  }, [panesAtLimit]);
 
   // Helper to check if current layout is a grid mode
   const isGridMode = layoutMode.startsWith("grid-");
-
-  // Number of panes to show in split mode
-  const splitPaneCount = Math.min(terminalSlots.length, MAX_SPLIT_PANES);
 
   // Get active terminal status
   const activeStatus = activeSessionId
@@ -178,30 +203,82 @@ export function useTerminalTabsState({
     }
   }, [availableLayouts, layoutMode, setLayoutMode]);
 
-  // Auto-create ad-hoc terminal when no sessions exist (initial load or after closing all)
+  // Helper to get correct pane name with badge
+  const getAdHocPaneName = useCallback((existingPanes: typeof panes) => {
+    const adHocCount = existingPanes.filter(
+      (p) => p.pane_type === "adhoc",
+    ).length;
+    if (adHocCount === 0) return "Ad-Hoc Terminal";
+    return `Ad-Hoc Terminal [${adHocCount + 1}]`;
+  }, []);
+
+  const getProjectPaneName = useCallback(
+    (existingPanes: typeof panes, projId: string) => {
+      const projectPanes = existingPanes.filter((p) => p.project_id === projId);
+      const baseName = projId.charAt(0).toUpperCase() + projId.slice(1);
+      if (projectPanes.length === 0) return baseName;
+      return `${baseName} [${projectPanes.length + 1}]`;
+    },
+    [],
+  );
+
+  // Track whether initial load has completed - auto-create only runs during initial load
+  // Once initial load is done, user has full control (no more auto-creation)
+  const hasCompletedInitialLoad = useRef(false);
+  const initialLoadProcessed = useRef(false);
+
+  // Auto-create panes ONLY on initial mount (first load)
+  // After this, user controls pane creation via "+" button or modal
   useEffect(() => {
-    if (isLoading || isCreating) return;
+    // Skip if still loading or already processed initial load
+    if (isLoading || isPaneCreating || initialLoadProcessed.current) return;
 
-    // Always auto-create when sessions become empty (prevents empty terminal state)
-    if (sessions.length === 0) {
-      // Create ad-hoc terminal with home directory as working dir
-      create("Terminal 1", undefined, undefined, true);
+    // Mark as processed to prevent re-runs
+    initialLoadProcessed.current = true;
+
+    // If no panes exist on initial load, create default ad-hoc pane
+    if (panes.length === 0) {
+      // Double-check server state before creating
+      fetch("/api/terminal/panes/count")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.count === 0) {
+            return createAdHocPane(getAdHocPaneName(panes));
+          }
+        })
+        .finally(() => {
+          hasCompletedInitialLoad.current = true;
+        });
+    } else {
+      // Panes already exist - check if we need to create project pane
+      hasCompletedInitialLoad.current = true;
+
+      // If ?project=X in URL but no pane for that project, create one
+      if (projectId) {
+        const hasProjectPane = panes.some((p) => p.project_id === projectId);
+        if (!hasProjectPane) {
+          fetch("/api/terminal/panes/count")
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.count < data.max_panes) {
+                const paneName = getProjectPaneName(panes, projectId);
+                return createProjectPane(paneName, projectId, projectPath);
+              }
+            });
+        }
+      }
     }
-  }, [isLoading, sessions.length, isCreating, create]);
-
-  // Auto-create session for project when ?project=X is in URL but no session exists
-  useEffect(() => {
-    if (isLoading || isCreating || !projectId) return;
-
-    // Check if any session exists for this project
-    const hasProjectSession = sessions.some((s) => s.project_id === projectId);
-    if (!hasProjectSession) {
-      // Create a new session for this project
-      const sessionName =
-        projectId.charAt(0).toUpperCase() + projectId.slice(1);
-      create(sessionName, projectPath, undefined, false);
-    }
-  }, [isLoading, sessions, isCreating, create, projectId, projectPath]);
+  }, [
+    isLoading,
+    panes,
+    isPaneCreating,
+    createAdHocPane,
+    createProjectPane,
+    getAdHocPaneName,
+    getProjectPaneName,
+    projectId,
+    projectPath,
+  ]);
 
   // Tab editing hook
   const tabEditingProps = useTabEditing({
@@ -225,14 +302,21 @@ export function useTerminalTabsState({
     setLayoutMode,
     availableLayouts,
     isGridMode,
-    splitPaneCount,
 
-    // Terminal slots
+    // Terminal slots (pane-based)
     terminalSlots,
     orderedIds,
     reorder,
     swapPanes,
     canAddPane,
+    // Pane operations
+    panes,
+    panesAtLimit,
+    removePane,
+    setActiveMode,
+    createAdHocPane,
+    createProjectPane,
+    isPaneCreating,
 
     // Terminal refs and statuses
     terminalRefs,

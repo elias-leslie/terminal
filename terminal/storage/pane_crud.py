@@ -111,11 +111,12 @@ def get_pane_with_sessions(pane_id: PaneId) -> dict[str, Any] | None:
         return None
 
     with get_connection() as conn, conn.cursor() as cur:
+        # Include all sessions (dead sessions can be restarted)
         cur.execute(
             """
             SELECT id, name, mode, session_number, is_alive, working_dir
             FROM terminal_sessions
-            WHERE pane_id = %s AND is_alive = true
+            WHERE pane_id = %s
             ORDER BY mode
             """,
             (_pane_id_to_str(pane_id),),
@@ -145,13 +146,13 @@ def list_panes_with_sessions() -> list[dict[str, Any]]:
     if not panes:
         return []
 
-    # Fetch all sessions at once for efficiency
+    # Fetch all sessions at once for efficiency (include dead sessions - they can be restarted)
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
             """
             SELECT pane_id, id, name, mode, session_number, is_alive, working_dir
             FROM terminal_sessions
-            WHERE pane_id IS NOT NULL AND is_alive = true
+            WHERE pane_id IS NOT NULL
             ORDER BY pane_id, mode
             """
         )

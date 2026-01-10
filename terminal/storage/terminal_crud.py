@@ -18,7 +18,7 @@ from .terminal_utils import SessionId, _to_str
 # Keep in sync with _row_to_dict() field order
 TERMINAL_SESSION_FIELDS = """id, name, user_id, project_id, working_dir, display_order,
                mode, session_number, is_alive, created_at, last_accessed_at,
-               last_claude_session, claude_state"""
+               last_claude_session, claude_state, pane_id"""
 
 
 @overload
@@ -74,6 +74,7 @@ def _row_to_dict(row: tuple) -> dict[str, Any]:
         "last_accessed_at": row[10],
         "last_claude_session": row[11] if len(row) > 11 else None,
         "claude_state": row[12] if len(row) > 12 else "not_started",
+        "pane_id": str(row[13]) if len(row) > 13 and row[13] else None,
     }
 
 
@@ -125,6 +126,7 @@ def create_session(
     working_dir: str | None = None,
     user_id: str | None = None,
     mode: str = "shell",
+    pane_id: str | None = None,
 ) -> str:
     """Create a new terminal session.
 
@@ -138,6 +140,7 @@ def create_session(
         working_dir: Initial working directory (default: user home)
         user_id: Optional user ID (for future auth support)
         mode: Session mode - 'shell' or 'claude' (default: 'shell')
+        pane_id: Pane this session belongs to (required for pane architecture)
 
     Returns:
         Server-generated session UUID as string
@@ -161,11 +164,11 @@ def create_session(
         cur.execute(
             """
             INSERT INTO terminal_sessions
-                (name, user_id, project_id, working_dir, mode, session_number)
-            VALUES (%s, %s, %s, %s, %s, %s)
+                (name, user_id, project_id, working_dir, mode, session_number, pane_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (name, user_id, project_id, working_dir, mode, session_number),
+            (name, user_id, project_id, working_dir, mode, session_number, pane_id),
         )
         row = cur.fetchone()
         conn.commit()

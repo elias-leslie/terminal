@@ -14,11 +14,8 @@ import {
 } from "@/lib/hooks/use-project-terminals";
 import { useClaudePolling } from "@/lib/hooks/use-claude-polling";
 import { useProjectModeSwitch } from "@/lib/hooks/use-project-mode-switch";
-import {
-  createProjectSession,
-  getNextTerminalName,
-  getProjectSessionId,
-} from "@/lib/utils/session";
+import { getNextTerminalName, getProjectSessionId } from "@/lib/utils/session";
+import { TerminalPane } from "@/lib/hooks/use-terminal-panes";
 import { LayoutMode } from "@/components/LayoutModeButton";
 import { KeyboardSizePreset } from "@/components/SettingsDropdown";
 
@@ -39,6 +36,23 @@ interface UseTerminalHandlersProps {
   >;
   setLayoutMode: (mode: LayoutMode) => void;
   setKeyboardSize: (size: KeyboardSizePreset) => void;
+  // Pane operations (new architecture)
+  panes: TerminalPane[];
+  panesAtLimit: boolean;
+  createProjectPane: (
+    paneName: string,
+    projectId: string,
+    workingDir?: string,
+  ) => Promise<TerminalPane>;
+  createAdHocPane: (
+    paneName: string,
+    workingDir?: string,
+  ) => Promise<TerminalPane>;
+  setActiveMode: (
+    paneId: string,
+    mode: "shell" | "claude",
+  ) => Promise<TerminalPane>;
+  removePane: (paneId: string) => Promise<void>;
 }
 
 interface UseTerminalHandlersReturn {
@@ -59,6 +73,7 @@ interface UseTerminalHandlersReturn {
     newMode: "shell" | "claude",
     projectSessions: TerminalSession[],
     rootPath: string | null,
+    paneId?: string,
   ) => Promise<void>;
   handleCloseAll: () => Promise<void>;
   setTerminalRef: (sessionId: string, handle: TerminalHandle | null) => void;
@@ -89,6 +104,13 @@ export function useTerminalHandlers({
   setTerminalStatuses,
   setLayoutMode,
   setKeyboardSize,
+  // Pane operations
+  panes,
+  panesAtLimit,
+  createProjectPane,
+  createAdHocPane,
+  setActiveMode,
+  removePane,
 }: UseTerminalHandlersProps): UseTerminalHandlersReturn {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -120,6 +142,8 @@ export function useTerminalHandlers({
   const { switchProjectMode } = useProjectModeSwitch({
     switchMode,
     projectTabRefs,
+    panes,
+    setActiveMode,
   });
 
   // Keyboard size handler
@@ -173,12 +197,6 @@ export function useTerminalHandlers({
     [sessions, create, projectPath, setLayoutMode],
   );
 
-  // Add new terminal (ad-hoc)
-  const handleAddTab = useCallback(async () => {
-    const name = getNextTerminalName(sessions);
-    await create(name, undefined, undefined, true);
-  }, [sessions, create]);
-
   // Navigate to session via URL
   const navigateToSession = useCallback(
     (sessionId: string) => {
@@ -189,13 +207,65 @@ export function useTerminalHandlers({
     [searchParams, router],
   );
 
-  // Add new terminal for a specific project
+  // Add new terminal (ad-hoc) - uses pane API
+  const handleAddTab = useCallback(async () => {
+    if (panesAtLimit) {
+      console.warn("Cannot add pane: at maximum limit");
+      return;
+    }
+
+    // Generate proper badge name based on existing ad-hoc panes
+    const adHocCount = panes.filter((p) => p.pane_type === "adhoc").length;
+    const paneName =
+      adHocCount === 0
+        ? "Ad-Hoc Terminal"
+        : `Ad-Hoc Terminal [${adHocCount + 1}]`;
+
+    try {
+      const newPane = await createAdHocPane(paneName);
+      // Navigate to the new session
+      const shellSession = newPane.sessions.find((s) => s.mode === "shell");
+      if (shellSession) {
+        navigateToSession(shellSession.id);
+      }
+    } catch (error) {
+      console.error("Failed to create ad-hoc pane:", error);
+    }
+  }, [panes, panesAtLimit, createAdHocPane, navigateToSession]);
+
+  // Add new terminal for a specific project (navigates to existing pane or creates new)
   const handleNewTerminalForProject = useCallback(
     async (
       targetProjectId: string,
       mode: "shell" | "claude",
       rootPath?: string | null,
     ) => {
+      // Check if a pane for this project already exists - navigate to it instead of creating duplicate
+      const existingPane = panes.find((p) => p.project_id === targetProjectId);
+      if (existingPane) {
+        // Find session for the requested mode in existing pane
+        const targetSession = existingPane.sessions.find(
+          (s) => s.mode === mode,
+        );
+        if (targetSession) {
+          navigateToSession(targetSession.id);
+          // Start Claude if needed
+          if (mode === "claude") {
+            await new Promise((resolve) =>
+              setTimeout(resolve, TMUX_INIT_DELAY_MS),
+            );
+            await startClaude(targetSession.id);
+          }
+          return;
+        }
+      }
+
+      // Check pane limit
+      if (panesAtLimit) {
+        console.warn("Cannot add pane: at maximum limit");
+        return;
+      }
+
       // Use provided rootPath, or look up from projectTerminals
       let workingDir = rootPath;
       if (workingDir === undefined) {
@@ -207,65 +277,128 @@ export function useTerminalHandlers({
       }
 
       try {
-        const newSession = await createProjectSession({
-          projectId: targetProjectId,
-          mode,
-          workingDir,
-        });
+        // Generate pane name with badge if another pane for this project exists
+        const existingPanesForProject = panes.filter(
+          (p) => p.project_id === targetProjectId,
+        );
+        const projectName =
+          targetProjectId.charAt(0).toUpperCase() + targetProjectId.slice(1);
+        const paneName =
+          existingPanesForProject.length === 0
+            ? projectName
+            : `${projectName} [${existingPanesForProject.length + 1}]`;
 
-        // Invalidate the sessions cache so the new session is recognized
-        await queryClient.invalidateQueries({
-          queryKey: ["terminal-sessions"],
-        });
+        // Create new pane (automatically creates shell + claude sessions)
+        const newPane = await createProjectPane(
+          paneName,
+          targetProjectId,
+          workingDir ?? undefined,
+        );
 
-        navigateToSession(newSession.id);
+        // Find the session for the requested mode
+        const targetSession = newPane.sessions.find((s) => s.mode === mode);
+        if (!targetSession) {
+          console.error("New pane missing session for mode:", mode);
+          return;
+        }
 
+        // Navigate to the new session
+        navigateToSession(targetSession.id);
+
+        // If switching to claude mode, start Claude
         if (mode === "claude") {
           await new Promise((resolve) =>
             setTimeout(resolve, TMUX_INIT_DELAY_MS),
           );
-          await startClaude(newSession.id);
+          await startClaude(targetSession.id);
         }
-      } catch {
-        // Error already logged by createProjectSession
+      } catch (error) {
+        console.error("Failed to create project pane:", error);
       }
     },
-    [projectTerminals, navigateToSession, startClaude, queryClient],
+    [
+      projectTerminals,
+      panes,
+      panesAtLimit,
+      createProjectPane,
+      navigateToSession,
+      startClaude,
+    ],
   );
 
-  // Project tab click handler
+  // Project tab click handler (navigates to existing pane's session)
   const handleProjectTabClick = useCallback(
     async (pt: ProjectTerminal) => {
-      const currentSessionId = getProjectSessionId(pt);
-      if (currentSessionId) {
-        navigateToSession(currentSessionId);
-      } else {
-        try {
-          const newSession = await createProjectSession({
-            projectId: pt.projectId,
-            mode: pt.activeMode,
-            workingDir: pt.rootPath,
-          });
+      // First try the legacy path (for backwards compatibility)
+      const legacySessionId = getProjectSessionId(pt);
+      if (legacySessionId) {
+        navigateToSession(legacySessionId);
+        return;
+      }
 
-          // Invalidate the sessions cache so the new session is recognized
-          await queryClient.invalidateQueries({
-            queryKey: ["terminal-sessions"],
-          });
+      // Find pane for this project
+      const pane = panes.find((p) => p.project_id === pt.projectId);
+      if (pane) {
+        // Find session for the active mode
+        const targetSession = pane.sessions.find(
+          (s) => s.mode === pane.active_mode,
+        );
+        if (targetSession) {
+          navigateToSession(targetSession.id);
 
-          navigateToSession(newSession.id);
-
-          if (pt.activeMode === "claude") {
+          // Start Claude if needed
+          if (
+            pane.active_mode === "claude" &&
+            targetSession.is_alive &&
+            !sessions.find(
+              (s) => s.id === targetSession.id && s.claude_state === "running",
+            )
+          ) {
             await new Promise((resolve) =>
               setTimeout(resolve, TMUX_INIT_DELAY_MS),
             );
-            await startClaude(newSession.id);
+            await startClaude(targetSession.id);
           }
-        } catch {
-          // Error already logged by createProjectSession
+        }
+      } else {
+        // No pane exists - create one (should rarely happen as auto-create handles this)
+        if (panesAtLimit) {
+          console.warn("Cannot create pane: at maximum limit");
+          return;
+        }
+        const projectName =
+          pt.projectId.charAt(0).toUpperCase() + pt.projectId.slice(1);
+        try {
+          const newPane = await createProjectPane(
+            projectName,
+            pt.projectId,
+            pt.rootPath ?? undefined,
+          );
+          const targetSession = newPane.sessions.find(
+            (s) => s.mode === pt.activeMode,
+          );
+          if (targetSession) {
+            navigateToSession(targetSession.id);
+            if (pt.activeMode === "claude") {
+              await new Promise((resolve) =>
+                setTimeout(resolve, TMUX_INIT_DELAY_MS),
+              );
+              await startClaude(targetSession.id);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to create project pane:", error);
         }
       }
     },
-    [navigateToSession, startClaude, queryClient],
+    [
+      panes,
+      panesAtLimit,
+      sessions,
+      createProjectPane,
+      navigateToSession,
+      startClaude,
+    ],
   );
 
   // Project mode change handler
@@ -275,26 +408,37 @@ export function useTerminalHandlers({
       newMode: "shell" | "claude",
       projectSessions: TerminalSession[],
       rootPath: string | null,
+      paneId?: string,
     ): Promise<void> => {
       await switchProjectMode({
         projectId: projectIdArg,
         mode: newMode,
         projectSessions,
         rootPath,
+        paneId,
       });
     },
     [switchProjectMode],
   );
 
-  // Close all terminals handler
+  // Close all terminals handler (deletes all panes, which cascade-deletes sessions)
   const handleCloseAll = useCallback(async () => {
-    for (const session of adHocSessions) {
-      await remove(session.id);
+    // Delete all panes - sessions are cascade-deleted via FK constraint
+    for (const pane of panes) {
+      await removePane(pane.id);
     }
-    for (const pt of projectTerminals) {
-      await disableProject(pt.projectId);
+
+    // Auto-create a new ad-hoc terminal so user isn't left with empty state
+    try {
+      const newPane = await createAdHocPane("Ad-Hoc Terminal");
+      const shellSession = newPane.sessions.find((s) => s.mode === "shell");
+      if (shellSession) {
+        navigateToSession(shellSession.id);
+      }
+    } catch (error) {
+      console.error("Failed to create ad-hoc pane after close all:", error);
     }
-  }, [adHocSessions, projectTerminals, remove, disableProject]);
+  }, [panes, removePane, createAdHocPane, navigateToSession]);
 
   // Terminal ref setter
   const setTerminalRef = useCallback(

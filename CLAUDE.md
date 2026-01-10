@@ -76,6 +76,18 @@ systemctl --user restart summitflow-terminal-frontend
 
 ---
 
+## Environment & Database
+
+**Environment file:** `~/.env.local` (global, not project-specific)
+- Contains `DATABASE_URL` and other shared config
+- Loaded by systemd services via `EnvironmentFile=-%h/.env.local`
+
+**Database:** PostgreSQL `summitflow` (shared across projects)
+- Connection: `postgresql://summitflow_app:<password>@localhost:5432/summitflow`
+- Direct query: `source ~/.env.local && psql $DATABASE_URL`
+
+---
+
 ## Development
 
 ### Backend

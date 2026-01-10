@@ -20,7 +20,7 @@ import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
 import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
 import { useTerminalSlotHandlers } from "@/lib/hooks/use-terminal-slot-handlers";
 import { useTerminalActionHandlers } from "@/lib/hooks/use-terminal-action-handlers";
-import { findActiveSlot } from "@/lib/utils/slot";
+import { getSlotSessionId, type PaneSlot } from "@/lib/utils/slot";
 
 interface TerminalTabsProps {
   projectId?: string;
@@ -46,12 +46,12 @@ export function TerminalTabs({
     layoutMode,
     availableLayouts,
     isGridMode,
-    splitPaneCount,
 
     // Terminal slots
     terminalSlots,
     orderedIds,
     reorder,
+    swapPanes,
     canAddPane,
 
     // Terminal refs and statuses
@@ -103,14 +103,20 @@ export function TerminalTabs({
     disableProject,
     reset,
     remove,
+    // Pane operations (new architecture)
+    panes,
+    removePane,
   } = useTerminalTabsState({ projectId, projectPath });
 
-  // Compute active slot for unified header in single mode
-  const activeSlot = findActiveSlot(
-    activeSessionId,
-    projectTerminals,
-    adHocSessions,
-  );
+  // Compute active slot for unified header in single mode (using pane-based slots)
+  const activeSlot: PaneSlot | null = (() => {
+    if (!activeSessionId) return terminalSlots[0] ?? null;
+    // Find slot containing the active session
+    const found = terminalSlots.find(
+      (slot) => getSlotSessionId(slot) === activeSessionId,
+    );
+    return found ?? terminalSlots[0] ?? null;
+  })();
 
   // Handler for project selection from switcher
   const handleSelectProject = useCallback(
@@ -158,6 +164,7 @@ export function TerminalTabs({
     reset,
     disableProject,
     remove,
+    removePane,
     handleNewTerminalForProject,
     setShowCleaner,
     setCleanerRawPrompt,
@@ -295,8 +302,7 @@ export function TerminalTabs({
       {layoutMode === "single" && (
         <TerminalHeader
           activeSlot={activeSlot}
-          projectTerminals={projectTerminals}
-          adHocSessions={adHocSessions}
+          terminalSlots={terminalSlots}
           layoutMode={layoutMode}
           availableLayouts={availableLayouts}
           isMobile={isMobile}
@@ -310,8 +316,7 @@ export function TerminalTabs({
           themeId={themeId}
           showSettings={showSettings}
           keyboardSize={keyboardSize}
-          onSelectProject={handleSelectProject}
-          onSelectAdHoc={switchToSession}
+          onSelectSlot={handleSlotSwitch}
           onLayoutChange={handleLayoutModeChange}
           onCleanClick={handleCleanClick}
           onUploadClick={handleUploadClick}
@@ -386,7 +391,6 @@ export function TerminalTabs({
           layoutMode={layoutMode}
           availableLayouts={availableLayouts}
           isGridMode={isGridMode}
-          splitPaneCount={splitPaneCount}
           terminalSlots={terminalSlots}
           orderedSlotIds={orderedIds}
           onReorder={reorder}
@@ -410,6 +414,7 @@ export function TerminalTabs({
           onModeSwitch={handleSlotModeSwitch}
           isModeSwitching={isModeSwitching}
           isMobile={isMobile}
+          onSwapPanes={swapPanes}
         />
       </FileUploadDropzone>
 
@@ -433,7 +438,7 @@ export function TerminalTabs({
         onCreateProjectTerminal={(projectId, rootPath) =>
           handleNewTerminalForProject(projectId, "shell", rootPath)
         }
-        sessions={sessions}
+        panes={panes}
       />
 
       {/* Prompt Cleaner Panel */}

@@ -64,6 +64,8 @@ export interface GridLayoutProps {
   isModeSwitching?: boolean;
   onEmptyClick?: () => void;
   isMobile?: boolean;
+  /** Swap two panes' positions (for dropdown swap) */
+  onSwapPanes?: (slotIdA: string, slotIdB: string) => void;
 }
 
 /** Get grid dimensions based on layout mode (only 2x2 supported) */
@@ -103,6 +105,7 @@ export function GridLayout({
   isModeSwitching,
   onEmptyClick,
   isMobile,
+  onSwapPanes,
 }: GridLayoutProps) {
   const gridSize = getGridDimensions(layoutMode);
   const maxCells = GRID_CELL_COUNTS[layoutMode];
@@ -215,6 +218,13 @@ export function GridLayout({
               onModeSwitch={onModeSwitch}
               isModeSwitching={isModeSwitching}
               isMobile={isMobile}
+              allSlots={displaySlots}
+              onSwapWith={
+                onSwapPanes
+                  ? (otherSlotId) =>
+                      onSwapPanes(getSlotPanelId(slot), otherSlotId)
+                  : undefined
+              }
             />
           ))}
 
@@ -259,9 +269,11 @@ export function GridLayout({
                 {onOpenModal && (
                   <button
                     onClick={onOpenModal}
+                    disabled={!canAddPane}
                     className={clsx(
                       "flex items-center justify-center rounded ml-1 transition-all duration-150",
                       isMobile ? "w-7 h-7" : "w-5 h-5",
+                      !canAddPane && "opacity-50 cursor-not-allowed",
                     )}
                     style={{
                       backgroundColor: "var(--term-bg-surface)",
@@ -269,10 +281,13 @@ export function GridLayout({
                       color: "var(--term-text-muted)",
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor =
-                        "var(--term-bg-elevated)";
-                      e.currentTarget.style.borderColor = "var(--term-accent)";
-                      e.currentTarget.style.color = "var(--term-accent)";
+                      if (canAddPane) {
+                        e.currentTarget.style.backgroundColor =
+                          "var(--term-bg-elevated)";
+                        e.currentTarget.style.borderColor =
+                          "var(--term-accent)";
+                        e.currentTarget.style.color = "var(--term-accent)";
+                      }
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.backgroundColor =
@@ -280,8 +295,16 @@ export function GridLayout({
                       e.currentTarget.style.borderColor = "var(--term-border)";
                       e.currentTarget.style.color = "var(--term-text-muted)";
                     }}
-                    title="Open terminal"
-                    aria-label="Open terminal"
+                    title={
+                      canAddPane
+                        ? "Open terminal"
+                        : "Maximum 4 terminals. Close one to add more."
+                    }
+                    aria-label={
+                      canAddPane
+                        ? "Open terminal"
+                        : "Maximum 4 terminals. Close one to add more."
+                    }
                   >
                     <Plus className={isMobile ? "w-4 h-4" : "w-3 h-3"} />
                   </button>

@@ -49,36 +49,18 @@ export function getNextTerminalName(sessions: Array<{ name: string }>): string {
 }
 
 /**
- * Create a new project-associated terminal session
- * @param params - Session creation parameters
- * @returns Created session object
- * @throws Error if session creation fails
+ * @deprecated Direct session creation is blocked. Use pane API instead:
+ * - createProjectPane() from useTerminalPanes hook for project terminals
+ * - createAdHocPane() from useTerminalPanes hook for ad-hoc terminals
+ *
+ * Sessions are now created automatically when panes are created:
+ * - Project panes: shell + claude sessions (toggle via setActiveMode)
+ * - Ad-hoc panes: shell session only
  */
 export async function createProjectSession(
-  params: CreateProjectSessionParams
-): Promise<TerminalSession> {
-  const { projectId, mode, workingDir } = params;
-
-  try {
-    const res = await fetch("/api/terminal/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: `Project: ${projectId}`,
-        project_id: projectId,
-        working_dir: workingDir,
-        mode,
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Failed to create session: ${res.statusText}`);
-    }
-
-    const session: TerminalSession = await res.json();
-    return session;
-  } catch (error) {
-    console.error("Failed to create project session:", error);
-    throw error;
-  }
+  _params: CreateProjectSessionParams,
+): Promise<never> {
+  throw new Error(
+    "Direct session creation is blocked. Use createProjectPane() or createAdHocPane() from useTerminalPanes hook instead.",
+  );
 }

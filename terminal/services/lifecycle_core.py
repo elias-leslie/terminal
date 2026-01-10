@@ -124,6 +124,7 @@ def create_session(
     working_dir: str | None = None,
     user_id: str | None = None,
     mode: str = "shell",
+    pane_id: str | None = None,
 ) -> str:
     """Create a new terminal session atomically.
 
@@ -143,6 +144,7 @@ def create_session(
         working_dir: Initial working directory
         user_id: Optional user ID (for future auth)
         mode: Session mode - 'shell' or 'claude' (default: 'shell')
+        pane_id: Pane this session belongs to (required for pane architecture)
 
     Returns:
         Server-generated session UUID
@@ -163,6 +165,7 @@ def create_session(
         working_dir=working_dir,
         user_id=user_id,
         mode=mode,
+        pane_id=pane_id,
     )
 
     # Step 2: Create tmux session

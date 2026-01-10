@@ -2,9 +2,17 @@
 
 import { useCallback, MutableRefObject } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useClaudePolling } from "./use-claude-polling";
-import { createProjectSession } from "@/lib/utils/session";
 import { TerminalSession } from "./use-terminal-sessions";
+import { TerminalPane } from "./use-terminal-panes";
+
+/** Pane list response type for query cache access */
+interface PaneListResponse {
+  items: TerminalPane[];
+  total: number;
+  max_panes: number;
+}
 
 /** Delay for tmux session initialization */
 const TMUX_INIT_DELAY_MS = 300;
@@ -18,6 +26,8 @@ interface SwitchProjectModeParams {
   /** All sessions for this project */
   projectSessions: TerminalSession[];
   rootPath: string | null;
+  /** Pane ID if available (for direct pane mode switching) */
+  paneId?: string;
 }
 
 interface UseProjectModeSwitchOptions {
@@ -25,6 +35,13 @@ interface UseProjectModeSwitchOptions {
   switchMode: (projectId: string, mode: "shell" | "claude") => Promise<void>;
   /** Refs to project tabs for scroll-into-view */
   projectTabRefs: MutableRefObject<Map<string, HTMLDivElement>>;
+  /** Panes array (new architecture) */
+  panes: TerminalPane[];
+  /** Function to set active mode on a pane */
+  setActiveMode: (
+    paneId: string,
+    mode: "shell" | "claude",
+  ) => Promise<TerminalPane>;
 }
 
 interface UseProjectModeSwitchReturn {
@@ -64,9 +81,12 @@ interface UseProjectModeSwitchReturn {
 export function useProjectModeSwitch({
   switchMode,
   projectTabRefs,
+  panes,
+  setActiveMode,
 }: UseProjectModeSwitchOptions): UseProjectModeSwitchReturn {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
 
   // Claude polling hook for starting Claude and polling for state changes
   const { startClaude, isPolling } = useClaudePolling();
@@ -78,7 +98,7 @@ export function useProjectModeSwitch({
       params.set("session", sessionId);
       router.push(`?${params.toString()}`, { scroll: false });
     },
-    [searchParams, router]
+    [searchParams, router],
   );
 
   // Helper to start Claude in a session and wait for confirmation
@@ -86,55 +106,72 @@ export function useProjectModeSwitch({
     async (sessionId: string): Promise<boolean> => {
       return startClaude(sessionId);
     },
-    [startClaude]
+    [startClaude],
   );
 
   // Main orchestration function
   const switchProjectMode = useCallback(
     async (params: SwitchProjectModeParams): Promise<void> => {
-      const { projectId, mode, projectSessions, rootPath } = params;
+      const { projectId, mode, projectSessions, paneId } = params;
 
-      // 1. Update mode in backend (optimistic update happens in switchMode)
-      await switchMode(projectId, mode);
+      // Get fresh pane data from query cache to avoid stale closure issues
+      // This is critical after operations like Close All where the panes array
+      // in the closure may be outdated
+      const freshPanesData = queryClient.getQueryData<PaneListResponse>([
+        "terminal-panes",
+      ]);
+      const freshPanes = freshPanesData?.items ?? panes;
 
-      // 2. Find first session matching the target mode
-      const matchingSession = projectSessions.find((s) => s.mode === mode);
-      let targetSessionId = matchingSession?.id ?? null;
-      let needsClaudeStart = false;
-      let isNewSession = false;
+      // 1. Find pane - prefer by paneId (exact match), fallback to projectId
+      const pane = paneId
+        ? freshPanes.find((p) => p.id === paneId)
+        : freshPanes.find((p) => p.project_id === projectId);
 
-      // 3. Create session if it doesn't exist
-      if (!targetSessionId) {
-        const newSession = await createProjectSession({
-          projectId,
-          mode,
-          workingDir: rootPath,
-        });
-        targetSessionId = newSession.id;
-        isNewSession = true;
-        // New claude session always needs Claude started
+      if (pane) {
+        // New pane-based path: sessions already exist in the pane
+        // 2. Update pane's active_mode and get the UPDATED pane back
+        const updatedPane = await setActiveMode(pane.id, mode);
+
+        // 3. Find the target session in the UPDATED pane (not the stale one)
+        const targetSession = updatedPane.sessions.find((s) => s.mode === mode);
+        if (!targetSession) {
+          console.error("Pane missing session for mode:", mode, updatedPane);
+          return;
+        }
+
+        // 4. Start Claude if needed
         if (mode === "claude") {
-          needsClaudeStart = true;
-        }
-      } else if (mode === "claude") {
-        // Existing claude session - check if Claude is already running
-        const claudeState = matchingSession?.claude_state;
-        // Only start Claude if NOT already running or starting
-        needsClaudeStart = claudeState !== "running" && claudeState !== "starting";
-      }
+          // Check if Claude is already running
+          const claudeState = projectSessions.find(
+            (s) => s.id === targetSession.id,
+          )?.claude_state;
+          const needsClaudeStart =
+            claudeState !== "running" && claudeState !== "starting";
 
-      // 4. If switching to Claude mode AND Claude needs to be started
-      if (mode === "claude" && targetSessionId && needsClaudeStart) {
-        // Delay for new sessions to let tmux initialize
-        if (isNewSession) {
-          await new Promise((resolve) => setTimeout(resolve, TMUX_INIT_DELAY_MS));
+          if (needsClaudeStart) {
+            await startClaudeInSession(targetSession.id);
+          }
         }
-        await startClaudeInSession(targetSessionId);
-      }
 
-      // 5. Switch to the session via URL
-      if (targetSessionId) {
-        navigateToSession(targetSessionId);
+        // 5. Navigate to the session
+        navigateToSession(targetSession.id);
+      } else {
+        // Legacy path: fallback to old behavior for backwards compatibility
+        // (This shouldn't happen with the new architecture, but kept for safety)
+        await switchMode(projectId, mode);
+
+        const matchingSession = projectSessions.find((s) => s.mode === mode);
+        if (matchingSession) {
+          if (mode === "claude") {
+            const claudeState = matchingSession.claude_state;
+            const needsClaudeStart =
+              claudeState !== "running" && claudeState !== "starting";
+            if (needsClaudeStart) {
+              await startClaudeInSession(matchingSession.id);
+            }
+          }
+          navigateToSession(matchingSession.id);
+        }
       }
 
       // 6. Scroll tab into view after mode switch
@@ -146,7 +183,15 @@ export function useProjectModeSwitch({
         });
       }, TAB_SCROLL_DELAY_MS);
     },
-    [switchMode, startClaudeInSession, navigateToSession, projectTabRefs]
+    [
+      queryClient,
+      panes,
+      setActiveMode,
+      switchMode,
+      startClaudeInSession,
+      navigateToSession,
+      projectTabRefs,
+    ],
   );
 
   return {

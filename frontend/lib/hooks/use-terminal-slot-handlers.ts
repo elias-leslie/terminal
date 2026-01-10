@@ -1,5 +1,10 @@
 import { useCallback, useState, MutableRefObject } from "react";
-import { type TerminalSlot, getSlotSessionId } from "@/lib/utils/slot";
+import {
+  type TerminalSlot,
+  type PaneSlot,
+  getSlotSessionId,
+  isPaneSlot,
+} from "@/lib/utils/slot";
 import { type TerminalHandle } from "@/components/Terminal";
 import { type TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 import { type TerminalMode } from "@/components/ModeToggle";
@@ -11,6 +16,8 @@ interface UseTerminalSlotHandlersParams {
   reset: (sessionId: string) => Promise<unknown>;
   disableProject: (projectId: string) => Promise<void>;
   remove: (sessionId: string) => Promise<void>;
+  // Pane-based operations (new architecture)
+  removePane?: (paneId: string) => Promise<void>;
   handleNewTerminalForProject: (
     projectId: string,
     mode: "shell" | "claude",
@@ -24,6 +31,7 @@ interface UseTerminalSlotHandlersParams {
     newMode: "shell" | "claude",
     projectSessions: TerminalSession[],
     rootPath: string | null,
+    paneId?: string,
   ) => Promise<void>;
 }
 
@@ -34,6 +42,7 @@ export function useTerminalSlotHandlers({
   reset,
   disableProject,
   remove,
+  removePane,
   handleNewTerminalForProject,
   setShowCleaner,
   setCleanerRawPrompt,
@@ -48,33 +57,48 @@ export function useTerminalSlotHandlers({
       const sessionId = getSlotSessionId(slot);
       if (sessionId) {
         switchToSession(sessionId);
+      } else {
+        // Session ID not found - this shouldn't happen but log it for debugging
+        console.warn("handleSlotSwitch: No session ID for slot", slot);
       }
     },
     [switchToSession],
   );
 
   // Handler for resetting a slot's terminal
+  // Resets ONLY the visible session (shell OR claude, not both)
   const handleSlotReset = useCallback(
     async (slot: TerminalSlot) => {
       if (slot.type === "project") {
-        await resetProject(slot.projectId);
+        // Reset only the currently visible session (determined by activeMode)
+        if (slot.activeSessionId) {
+          await reset(slot.activeSessionId);
+        }
       } else {
         await reset(slot.sessionId);
       }
     },
-    [resetProject, reset],
+    [reset],
   );
 
   // Handler for closing a slot's terminal
+  // Uses pane-based deletion when available (new architecture), falls back to session-based
   const handleSlotClose = useCallback(
-    async (slot: TerminalSlot) => {
+    async (slot: TerminalSlot | PaneSlot) => {
+      // New pane architecture: use removePane if available and slot has paneId
+      if (removePane && isPaneSlot(slot)) {
+        await removePane(slot.paneId);
+        return;
+      }
+
+      // Legacy: session-based deletion
       if (slot.type === "project") {
         await disableProject(slot.projectId);
       } else {
         await remove(slot.sessionId);
       }
     },
-    [disableProject, remove],
+    [removePane, disableProject, remove],
   );
 
   // Handler for opening prompt cleaner for a slot
@@ -114,7 +138,7 @@ export function useTerminalSlotHandlers({
 
   // Handler for switching mode (shell <-> claude) on a slot
   const handleSlotModeSwitch = useCallback(
-    async (slot: TerminalSlot, mode: TerminalMode) => {
+    async (slot: TerminalSlot | PaneSlot, mode: TerminalMode) => {
       if (slot.type !== "project") return;
 
       setIsModeSwitching(true);
@@ -123,11 +147,14 @@ export function useTerminalSlotHandlers({
         const projectSessions = sessions.filter(
           (s) => s.project_id === slot.projectId,
         );
+        // Pass paneId if available (for direct pane mode switching)
+        const paneId = isPaneSlot(slot) ? slot.paneId : undefined;
         await handleProjectModeChange(
           slot.projectId,
           mode,
           projectSessions,
           slot.rootPath,
+          paneId,
         );
       } finally {
         setIsModeSwitching(false);

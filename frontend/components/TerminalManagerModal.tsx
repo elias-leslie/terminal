@@ -7,23 +7,23 @@ import {
   ProjectSetting,
 } from "@/lib/hooks/use-project-settings";
 import { useHoverStyle } from "@/lib/hooks/use-hover-style";
-import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
+import { TerminalPane } from "@/lib/hooks/use-terminal-panes";
 
 interface TerminalManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateGenericTerminal: () => void;
   onCreateProjectTerminal: (projectId: string, rootPath: string | null) => void;
-  sessions: TerminalSession[];
+  panes: TerminalPane[];
 }
 
 interface ProjectButtonProps {
   project: ProjectSetting;
-  sessionCount: number;
+  paneCount: number;
   onClick: () => void;
 }
 
-function ProjectButton({ project, sessionCount, onClick }: ProjectButtonProps) {
+function ProjectButton({ project, paneCount, onClick }: ProjectButtonProps) {
   const hoverStyle = useHoverStyle({
     hoverBg: "var(--term-bg-surface)",
     defaultBg: "transparent",
@@ -47,7 +47,7 @@ function ProjectButton({ project, sessionCount, onClick }: ProjectButtonProps) {
         style={{ color: "var(--term-accent)", flexShrink: 0 }}
       />
       <span className="flex-1 text-sm truncate">{project.name}</span>
-      {sessionCount > 0 && (
+      {paneCount > 0 && (
         <span
           className="text-xs px-1.5 py-0.5 rounded"
           style={{
@@ -55,7 +55,7 @@ function ProjectButton({ project, sessionCount, onClick }: ProjectButtonProps) {
             color: "var(--term-text-muted)",
           }}
         >
-          {sessionCount} open
+          {paneCount} open
         </span>
       )}
       <Plus
@@ -67,12 +67,12 @@ function ProjectButton({ project, sessionCount, onClick }: ProjectButtonProps) {
 }
 
 interface GenericTerminalButtonProps {
-  sessionCount: number;
+  paneCount: number;
   onClick: () => void;
 }
 
 function GenericTerminalButton({
-  sessionCount,
+  paneCount,
   onClick,
 }: GenericTerminalButtonProps) {
   const hoverStyle = useHoverStyle({
@@ -97,8 +97,8 @@ function GenericTerminalButton({
         size={16}
         style={{ color: "var(--term-accent)", flexShrink: 0 }}
       />
-      <span className="flex-1 text-sm text-left">New Terminal</span>
-      {sessionCount > 0 && (
+      <span className="flex-1 text-sm text-left">New Ad-Hoc Terminal</span>
+      {paneCount > 0 && (
         <span
           className="text-xs px-1.5 py-0.5 rounded"
           style={{
@@ -106,7 +106,7 @@ function GenericTerminalButton({
             color: "var(--term-text-muted)",
           }}
         >
-          {sessionCount} open
+          {paneCount} open
         </span>
       )}
       <Plus
@@ -126,25 +126,25 @@ export function TerminalManagerModal({
   onClose,
   onCreateGenericTerminal,
   onCreateProjectTerminal,
-  sessions,
+  panes,
 }: TerminalManagerModalProps) {
   const { projects } = useProjectSettings();
 
-  // Count sessions per project
-  const sessionCountByProject = useMemo(() => {
+  // Count panes per project (only project panes, not ad-hoc)
+  const paneCountByProject = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const session of sessions) {
-      if (session.project_id) {
-        counts[session.project_id] = (counts[session.project_id] || 0) + 1;
+    for (const pane of panes) {
+      if (pane.pane_type === "project" && pane.project_id) {
+        counts[pane.project_id] = (counts[pane.project_id] || 0) + 1;
       }
     }
     return counts;
-  }, [sessions]);
+  }, [panes]);
 
-  // Count generic sessions (no project_id)
-  const genericSessionCount = useMemo(() => {
-    return sessions.filter((s) => !s.project_id).length;
-  }, [sessions]);
+  // Count ad-hoc panes (for "New Terminal" button)
+  const adHocPaneCount = useMemo(() => {
+    return panes.filter((p) => p.pane_type === "adhoc").length;
+  }, [panes]);
 
   // Hover styles for close button
   const closeButtonHover = useHoverStyle({
@@ -233,7 +233,7 @@ export function TerminalManagerModal({
                   <ProjectButton
                     key={project.id}
                     project={project}
-                    sessionCount={sessionCountByProject[project.id] || 0}
+                    paneCount={paneCountByProject[project.id] || 0}
                     onClick={() => handleProjectClick(project)}
                   />
                 ))}
@@ -256,7 +256,7 @@ export function TerminalManagerModal({
             style={{ borderTop: "1px solid var(--term-border)" }}
           >
             <GenericTerminalButton
-              sessionCount={genericSessionCount}
+              paneCount={adHocPaneCount}
               onClick={handleCreateGeneric}
             />
           </div>

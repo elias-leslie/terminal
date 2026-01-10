@@ -22,7 +22,7 @@ def reset_session(session_id: str) -> str | None:
     """Reset a terminal session - delete and recreate with same parameters.
 
     Gets session details, deletes the session, then creates a new one
-    with the same name, project, working directory, and mode.
+    with the same name, project, working directory, mode, and pane.
 
     Args:
         session_id: Session UUID to reset
@@ -36,23 +36,25 @@ def reset_session(session_id: str) -> str | None:
         logger.warning("reset_session_not_found", session_id=session_id)
         return None
 
-    # Extract parameters for recreation
+    # Extract parameters for recreation (including pane_id for pane architecture)
     name = session["name"]
     project_id = session.get("project_id")
     working_dir = session.get("working_dir")
     user_id = session.get("user_id")
     mode = session.get("mode", "shell")
+    pane_id = session.get("pane_id")
 
     # Delete old session
     delete_session(session_id)
 
-    # Create new session with same parameters
+    # Create new session with same parameters (preserves pane association)
     new_session_id = create_session(
         name=name,
         project_id=project_id,
         working_dir=working_dir,
         user_id=user_id,
         mode=mode,
+        pane_id=pane_id,
     )
 
     logger.info(
@@ -61,6 +63,7 @@ def reset_session(session_id: str) -> str | None:
         new_session_id=new_session_id,
         project_id=project_id,
         mode=mode,
+        pane_id=pane_id,
     )
 
     return new_session_id
