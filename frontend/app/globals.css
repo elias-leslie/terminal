@@ -128,3 +128,44 @@ body {
   color: var(--term-text-primary);
   box-shadow: 0 0 8px rgba(0, 255, 159, 0.08);
 }
+
+/* Resizable pane dividers (react-resizable-panels) */
+.resizable-handle-horizontal,
+.resizable-handle-vertical {
+  flex-shrink: 0;
+  position: relative;
+  outline: none;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Horizontal handle (vertical divider between side-by-side panes) */
+.resizable-handle-horizontal {
+  width: 1px;
+  background-color: var(--term-border);
+  cursor: col-resize;
+  margin: 0 2px;
+}
+
+.resizable-handle-horizontal:hover,
+.resizable-handle-horizontal[data-resize-handle-active] {
+  width: 4px;
+  margin: 0;
+  background-color: var(--term-accent);
+  box-shadow: 0 0 8px var(--term-accent-glow);
+}
+
+/* Vertical handle (horizontal divider between stacked panes) */
+.resizable-handle-vertical {
+  height: 1px;
+  background-color: var(--term-border);
+  cursor: row-resize;
+  margin: 2px 0;
+}
+
+.resizable-handle-vertical:hover,
+.resizable-handle-vertical[data-resize-handle-active] {
+  height: 4px;
+  margin: 0;
+  background-color: var(--term-accent);
+  box-shadow: 0 0 8px var(--term-accent-glow);
+}

@@ -11,8 +11,9 @@ import {
   GripVertical,
   ChevronDown,
   Plus,
+  MoreHorizontal,
 } from "lucide-react";
-import { LayoutMode, LayoutModeButtons } from "./LayoutModeButton";
+import { PaneOverflowMenu } from "./PaneOverflowMenu";
 import { ModeToggle, TerminalMode } from "./ModeToggle";
 import { PaneSwapDropdown } from "./PaneSwapDropdown";
 import { type TerminalSlot, getSlotName } from "@/lib/utils/slot";
@@ -20,17 +21,13 @@ import { type TerminalSlot, getSlotName } from "@/lib/utils/slot";
 export interface UnifiedTerminalHeaderProps {
   slot: TerminalSlot;
   isActive?: boolean;
-  layoutMode?: LayoutMode;
-  availableLayouts?: LayoutMode[];
   showCleanButton?: boolean;
-  showLayoutSelector?: boolean;
   isDraggable?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dragAttributes?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dragListeners?: any;
   onSwitch?: () => void;
-  onLayout?: (mode: LayoutMode) => void;
   onSettings?: () => void;
   onReset?: () => void;
   onClose?: () => void;
@@ -49,20 +46,20 @@ export interface UnifiedTerminalHeaderProps {
   allSlots?: TerminalSlot[];
   /** Callback when user selects another slot to swap positions with */
   onSwapWith?: (otherSlotId: string) => void;
+  /** Callback to reset all panes (overflow menu) */
+  onResetAll?: () => void;
+  /** Callback to close all panes (overflow menu) */
+  onCloseAll?: () => void;
 }
 
 export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
   slot,
   isActive = false,
-  layoutMode,
-  availableLayouts,
   showCleanButton = false,
-  showLayoutSelector = false,
   isDraggable = false,
   dragAttributes,
   dragListeners,
   onSwitch,
-  onLayout,
   onSettings,
   onReset,
   onClose,
@@ -75,6 +72,8 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
   isMobile = false,
   allSlots,
   onSwapWith,
+  onResetAll,
+  onCloseAll,
 }: UnifiedTerminalHeaderProps) {
   const name = getSlotName(slot);
   const isClaudeMode = slot.type === "project" && slot.activeMode === "claude";
@@ -205,21 +204,6 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Layout selector (single mode only) */}
-      {showLayoutSelector &&
-        layoutMode &&
-        availableLayouts &&
-        onLayout &&
-        !isMobile && (
-          <div className="flex items-center gap-0.5 mr-1">
-            <LayoutModeButtons
-              layoutMode={layoutMode}
-              onLayoutChange={onLayout}
-              availableLayouts={availableLayouts}
-            />
-          </div>
-        )}
-
       {/* Action buttons */}
       <div className="flex items-center gap-0.5">
         {/* Prompt cleaner (claude mode only) */}
@@ -269,6 +253,15 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
             onClick={onClose}
             tooltip="Close terminal"
             variant="danger"
+            isMobile={isMobile}
+          />
+        )}
+
+        {/* Overflow menu (Reset All, Close All) */}
+        {(onResetAll || onCloseAll) && (
+          <PaneOverflowMenu
+            onResetAll={onResetAll}
+            onCloseAll={onCloseAll}
             isMobile={isMobile}
           />
         )}

@@ -104,7 +104,7 @@ export function GridCell({
       className="flex flex-col h-full min-h-0 overflow-hidden rounded-md hover:border-[var(--term-border-active)] transition-colors"
       data-cell-index={cellIndex}
     >
-      {/* Per-cell header with full controls including layout selector */}
+      {/* Per-cell header with full controls */}
       <UnifiedTerminalHeader
         slot={slot}
         isDraggable={false}
@@ -113,10 +113,6 @@ export function GridCell({
         showCleanButton={
           slot.type === "project" && slot.activeMode === "claude"
         }
-        showLayoutSelector={!isMobile && !!availableLayouts && !!onLayout}
-        layoutMode={layoutMode}
-        availableLayouts={availableLayouts}
-        onLayout={onLayout}
         onSwitch={onSwitch ? () => onSwitch(slot) : undefined}
         onSettings={onSettings}
         onReset={onReset ? () => onReset(slot) : undefined}
