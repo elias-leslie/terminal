@@ -4,10 +4,8 @@ import { useLayoutEffect, useMemo, useState } from "react";
 import { LayoutMode } from "@/components/LayoutModeButton";
 import { GridLayoutMode, GRID_MIN_WIDTHS } from "@/lib/constants/terminal";
 
-/** Base layout modes always available (split views removed) */
-const BASE_LAYOUTS: LayoutMode[] = ["single"];
-
 /** Grid layout modes (only 2x2 supported - max 4 panes) */
+/** Single mode has been removed - grid is the only layout now */
 const GRID_LAYOUTS: GridLayoutMode[] = ["grid-2x2"];
 
 /**
@@ -41,14 +39,19 @@ export function useAvailableLayouts(): LayoutMode[] {
   }, []);
 
   return useMemo(() => {
-    // Start with base layouts
-    const available: LayoutMode[] = [...BASE_LAYOUTS];
+    // Grid layouts only - single mode has been removed
+    const available: LayoutMode[] = [];
 
     // Add grid layouts if viewport is wide enough
     for (const grid of GRID_LAYOUTS) {
       if (viewportWidth >= GRID_MIN_WIDTHS[grid]) {
         available.push(grid);
       }
+    }
+
+    // Always have at least grid-2x2 as fallback
+    if (available.length === 0) {
+      available.push("grid-2x2");
     }
 
     return available;

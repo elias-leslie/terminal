@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { Square, ChevronDown, LucideIcon, Grid2x2 } from "lucide-react";
+import { ChevronDown, LucideIcon, Grid2x2 } from "lucide-react";
 import { GridLayoutMode, GRID_MIN_WIDTHS } from "@/lib/constants/terminal";
 import { useClickOutside } from "@/lib/hooks/useClickOutside";
 
 // Define LayoutMode locally for standalone terminal app
-// Only single and grid modes supported (split views removed)
-export type LayoutMode = "single" | GridLayoutMode;
+// Only grid mode supported (single mode removed)
+export type LayoutMode = GridLayoutMode;
 
 interface LayoutOption {
   mode: LayoutMode;
@@ -17,7 +17,6 @@ interface LayoutOption {
 }
 
 const LAYOUT_OPTIONS: LayoutOption[] = [
-  { mode: "single", icon: Square, title: "Single pane" },
   {
     mode: "grid-2x2",
     icon: Grid2x2,

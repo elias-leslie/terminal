@@ -185,16 +185,12 @@ export function useTerminalHandlers({
     }
   }, [activeSessionId, terminalRefs]);
 
-  // Layout mode change handler
+  // Layout mode change handler (single mode removed - always grid)
   const handleLayoutModeChange = useCallback(
     async (mode: LayoutMode) => {
-      if (mode !== "single" && sessions.length === 1) {
-        const name = getNextTerminalName(sessions);
-        await create(name, projectPath);
-      }
       setLayoutMode(mode);
     },
-    [sessions, create, projectPath, setLayoutMode],
+    [setLayoutMode],
   );
 
   // Navigate to session via URL

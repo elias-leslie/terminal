@@ -1,7 +1,5 @@
 "use client";
 
-import { Plus } from "lucide-react";
-import { SingleModeTerminals } from "./SingleModeTerminals";
 import { GridLayout } from "./GridLayout";
 import { TerminalComponent, type TerminalHandle } from "./Terminal";
 import { type LayoutMode } from "./LayoutModeButton";
@@ -102,36 +100,7 @@ export function TerminalLayoutRenderer({
   isMobile,
   onSwapPanes,
 }: TerminalLayoutRendererProps) {
-  // Single mode - show empty state if no sessions
-  if (layoutMode === "single") {
-    if (sessions.length === 0) {
-      return (
-        <div
-          className="flex items-center justify-center h-full text-sm"
-          style={{ color: "var(--term-text-muted)" }}
-        >
-          Click <Plus className="w-4 h-4 mx-1 inline" /> to start a terminal
-        </div>
-      );
-    }
-    return (
-      <SingleModeTerminals
-        sessions={sessions}
-        activeSessionId={activeSessionId}
-        projectPath={projectPath}
-        fontFamily={fontFamily}
-        fontSize={fontSize}
-        scrollback={scrollback}
-        cursorStyle={cursorStyle}
-        cursorBlink={cursorBlink}
-        theme={theme}
-        onTerminalRef={onTerminalRef}
-        onStatusChange={onStatusChange}
-      />
-    );
-  }
-
-  // Grid mode (only non-single option now)
+  // Grid mode is the only layout mode now
   return (
     <GridLayout
       layoutMode={layoutMode as GridLayoutMode}

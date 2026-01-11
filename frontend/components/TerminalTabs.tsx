@@ -5,7 +5,6 @@ import { clsx } from "clsx";
 import { UploadProgressToast, UploadErrorToast } from "./UploadStatusToast";
 import { FileUploadDropzone } from "./FileUploadDropzone";
 import { PromptCleaner } from "./PromptCleaner";
-import { TerminalHeader } from "./TerminalHeader";
 import { MobileKeyboard } from "./keyboard/MobileKeyboard";
 import { TerminalManagerModal } from "./TerminalManagerModal";
 import { SettingsDropdown } from "./SettingsDropdown";
@@ -20,7 +19,7 @@ import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
 import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
 import { useTerminalSlotHandlers } from "@/lib/hooks/use-terminal-slot-handlers";
 import { useTerminalActionHandlers } from "@/lib/hooks/use-terminal-action-handlers";
-import { getSlotSessionId, type PaneSlot } from "@/lib/utils/slot";
+import { getSlotSessionId } from "@/lib/utils/slot";
 
 interface TerminalTabsProps {
   projectId?: string;
@@ -108,15 +107,7 @@ export function TerminalTabs({
     removePane,
   } = useTerminalTabsState({ projectId, projectPath });
 
-  // Compute active slot for unified header in single mode (using pane-based slots)
-  const activeSlot: PaneSlot | null = (() => {
-    if (!activeSessionId) return terminalSlots[0] ?? null;
-    // Find slot containing the active session
-    const found = terminalSlots.find(
-      (slot) => getSlotSessionId(slot) === activeSessionId,
-    );
-    return found ?? terminalSlots[0] ?? null;
-  })();
+  // Note: single mode header removed - all controls now in pane headers
 
   // Handler for project selection from switcher
   const handleSelectProject = useCallback(
@@ -171,16 +162,6 @@ export function TerminalTabs({
     sessions,
     handleProjectModeChange,
   });
-
-  // Handler for mode switch in single mode (uses activeSlot)
-  const handleSingleModeModeSwitch = useCallback(
-    async (mode: "shell" | "claude") => {
-      if (activeSlot) {
-        await handleSlotModeSwitch(activeSlot, mode);
-      }
-    },
-    [activeSlot, handleSlotModeSwitch],
-  );
 
   // Keyboard shortcuts
   const { showHelp: showKeyboardHelp, closeHelp: closeKeyboardHelp } =
@@ -298,67 +279,27 @@ export function TerminalTabs({
         className,
       )}
     >
-      {/* Single mode: Unified header with switcher, layout, and actions */}
-      {layoutMode === "single" && (
-        <TerminalHeader
-          activeSlot={activeSlot}
-          terminalSlots={terminalSlots}
-          layoutMode={layoutMode}
-          availableLayouts={availableLayouts}
-          isMobile={isMobile}
-          isCleanerLoading={isCleanerLoading}
-          isUploading={isUploading}
-          fontId={fontId}
-          fontSize={fontSize}
-          scrollback={scrollback}
-          cursorStyle={cursorStyle}
-          cursorBlink={cursorBlink}
-          themeId={themeId}
-          showSettings={showSettings}
-          keyboardSize={keyboardSize}
-          onSelectSlot={handleSlotSwitch}
-          onLayoutChange={handleLayoutModeChange}
-          onCleanClick={handleCleanClick}
-          onUploadClick={handleUploadClick}
-          onResetAll={resetAll}
-          onCloseAll={handleCloseAll}
-          setFontId={setFontId}
-          setFontSize={setFontSize}
-          setScrollback={setScrollback}
-          setCursorStyle={setCursorStyle}
-          setCursorBlink={setCursorBlink}
-          setThemeId={setThemeId}
-          setShowSettings={setShowSettings}
-          setKeyboardSize={handleKeyboardSizeChange}
-          onModeSwitch={handleSingleModeModeSwitch}
-          isModeSwitching={isModeSwitching}
-          onOpenTerminalManager={handleOpenTerminalManager}
-        />
-      )}
-
-      {/* Settings dropdown for grid/split modes (single mode has it in TerminalHeader) */}
-      {layoutMode !== "single" && (
-        <SettingsDropdown
-          fontId={fontId}
-          fontSize={fontSize}
-          scrollback={scrollback}
-          cursorStyle={cursorStyle}
-          cursorBlink={cursorBlink}
-          themeId={themeId}
-          setFontId={setFontId}
-          setFontSize={setFontSize}
-          setScrollback={setScrollback}
-          setCursorStyle={setCursorStyle}
-          setCursorBlink={setCursorBlink}
-          setThemeId={setThemeId}
-          showSettings={showSettings}
-          setShowSettings={setShowSettings}
-          keyboardSize={keyboardSize}
-          setKeyboardSize={handleKeyboardSizeChange}
-          isMobile={isMobile}
-          renderTrigger={false}
-        />
-      )}
+      {/* Settings dropdown - all settings controls */}
+      <SettingsDropdown
+        fontId={fontId}
+        fontSize={fontSize}
+        scrollback={scrollback}
+        cursorStyle={cursorStyle}
+        cursorBlink={cursorBlink}
+        themeId={themeId}
+        setFontId={setFontId}
+        setFontSize={setFontSize}
+        setScrollback={setScrollback}
+        setCursorStyle={setCursorStyle}
+        setCursorBlink={setCursorBlink}
+        setThemeId={setThemeId}
+        showSettings={showSettings}
+        setShowSettings={setShowSettings}
+        keyboardSize={keyboardSize}
+        setKeyboardSize={handleKeyboardSizeChange}
+        isMobile={isMobile}
+        renderTrigger={false}
+      />
 
       {/* SessionTabBar removed - all terminal selection via TerminalSwitcher dropdown in pane header */}
 

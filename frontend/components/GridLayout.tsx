@@ -1,21 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-} from "@dnd-kit/sortable";
+import { useMemo } from "react";
 import { clsx } from "clsx";
 import { Plus, Settings, GripVertical } from "lucide-react";
 import { GridCell } from "./GridCell";
@@ -110,18 +95,6 @@ export function GridLayout({
   const gridSize = getGridDimensions(layoutMode);
   const maxCells = GRID_CELL_COUNTS[layoutMode];
 
-  // Configure dnd-kit sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // Minimum drag distance before activating
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
   // Sort slots by orderedSlotIds, fill with unordered, cap at max
   const displaySlots = useMemo(() => {
     const slotMap = new Map(slots.map((s) => [getSlotPanelId(s), s]));
@@ -145,241 +118,210 @@ export function GridLayout({
     return ordered.slice(0, maxCells);
   }, [slots, orderedSlotIds, maxCells]);
 
-  // Get IDs for sortable context
-  const sortableIds = useMemo(
-    () => displaySlots.map(getSlotPanelId),
-    [displaySlots],
-  );
-
-  // Handle drag end
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-
-      if (over && active.id !== over.id) {
-        const oldIndex = sortableIds.indexOf(active.id as string);
-        const newIndex = sortableIds.indexOf(over.id as string);
-
-        if (oldIndex !== -1 && newIndex !== -1) {
-          const newOrder = arrayMove(sortableIds, oldIndex, newIndex);
-          onReorder(newOrder);
-        }
-      }
-    },
-    [sortableIds, onReorder],
-  );
-
   // Calculate empty placeholder count
   const emptyCount = Math.max(0, maxCells - displaySlots.length);
 
+  // Note: Drag-and-drop via dnd-kit has been removed.
+  // This component will be replaced by ResizablePaneLayout in subtask 2.3.
+
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
+    <div
+      className="w-full h-full p-1 transition-all duration-200"
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
+        gridTemplateRows: `repeat(${gridSize}, 1fr)`,
+        gap: "6px",
+        backgroundColor: "var(--term-bg-deep)",
+      }}
     >
-      <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
+      {/* Render grid cells */}
+      {displaySlots.map((slot, index) => (
+        <GridCell
+          key={getSlotPanelId(slot)}
+          slot={slot}
+          cellIndex={index}
+          layoutMode={layoutMode}
+          availableLayouts={availableLayouts}
+          onLayout={onLayout}
+          fontFamily={fontFamily}
+          fontSize={fontSize}
+          scrollback={scrollback}
+          cursorStyle={cursorStyle}
+          cursorBlink={cursorBlink}
+          theme={theme}
+          isDraggable={displaySlots.length > 1}
+          onTerminalRef={onTerminalRef}
+          onStatusChange={onStatusChange}
+          onSwitch={onSwitch}
+          onSettings={onSettings}
+          onReset={onReset}
+          onClose={onClose}
+          onUpload={onUpload}
+          onClean={onClean}
+          onOpenModal={onOpenModal}
+          canAddPane={canAddPane}
+          onModeSwitch={onModeSwitch}
+          isModeSwitching={isModeSwitching}
+          isMobile={isMobile}
+          allSlots={displaySlots}
+          onSwapWith={
+            onSwapPanes
+              ? (otherSlotId) => onSwapPanes(getSlotPanelId(slot), otherSlotId)
+              : undefined
+          }
+        />
+      ))}
+
+      {/* Empty placeholders with header and add button */}
+      {Array.from({ length: emptyCount }).map((_, index) => (
         <div
-          className="w-full h-full p-1 transition-all duration-200"
+          key={`empty-${index}`}
+          className="flex flex-col h-full min-h-0 overflow-hidden rounded-md transition-colors"
           style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
-            gridTemplateRows: `repeat(${gridSize}, 1fr)`,
-            gap: "6px",
-            backgroundColor: "var(--term-bg-deep)",
+            backgroundColor: "var(--term-bg-surface)",
+            border: "1px dashed var(--term-border)",
           }}
         >
-          {/* Render grid cells */}
-          {displaySlots.map((slot, index) => (
-            <GridCell
-              key={getSlotPanelId(slot)}
-              slot={slot}
-              cellIndex={index}
-              layoutMode={layoutMode}
-              availableLayouts={availableLayouts}
-              onLayout={onLayout}
-              fontFamily={fontFamily}
-              fontSize={fontSize}
-              scrollback={scrollback}
-              cursorStyle={cursorStyle}
-              cursorBlink={cursorBlink}
-              theme={theme}
-              isDraggable={displaySlots.length > 1}
-              onTerminalRef={onTerminalRef}
-              onStatusChange={onStatusChange}
-              onSwitch={onSwitch}
-              onSettings={onSettings}
-              onReset={onReset}
-              onClose={onClose}
-              onUpload={onUpload}
-              onClean={onClean}
-              onOpenModal={onOpenModal}
-              canAddPane={canAddPane}
-              onModeSwitch={onModeSwitch}
-              isModeSwitching={isModeSwitching}
-              isMobile={isMobile}
-              allSlots={displaySlots}
-              onSwapWith={
-                onSwapPanes
-                  ? (otherSlotId) =>
-                      onSwapPanes(getSlotPanelId(slot), otherSlotId)
-                  : undefined
-              }
-            />
-          ))}
+          {/* Header for empty cell */}
+          <div
+            className={clsx(
+              "flex-shrink-0 flex items-center gap-1",
+              isMobile ? "h-9 px-1.5" : "h-8 px-2",
+            )}
+            style={{
+              backgroundColor: "var(--term-bg-surface)",
+              borderBottom: "1px solid var(--term-border)",
+            }}
+          >
+            {/* Placeholder drag handle (inactive) */}
+            <div className="p-0.5 opacity-30">
+              <GripVertical
+                className="w-3.5 h-3.5"
+                style={{ color: "var(--term-text-muted)" }}
+              />
+            </div>
 
-          {/* Empty placeholders with header and add button */}
-          {Array.from({ length: emptyCount }).map((_, index) => (
-            <div
-              key={`empty-${index}`}
-              className="flex flex-col h-full min-h-0 overflow-hidden rounded-md transition-colors"
-              style={{
-                backgroundColor: "var(--term-bg-surface)",
-                border: "1px dashed var(--term-border)",
-              }}
+            {/* Empty slot label */}
+            <span
+              className="text-xs px-1.5"
+              style={{ color: "var(--term-text-muted)" }}
             >
-              {/* Header for empty cell */}
-              <div
+              Empty
+            </span>
+
+            {/* Add terminal button */}
+            {onOpenModal && (
+              <button
+                onClick={onOpenModal}
+                disabled={!canAddPane}
                 className={clsx(
-                  "flex-shrink-0 flex items-center gap-1",
-                  isMobile ? "h-9 px-1.5" : "h-8 px-2",
+                  "flex items-center justify-center rounded ml-1 transition-all duration-150",
+                  isMobile ? "w-7 h-7" : "w-5 h-5",
+                  !canAddPane && "opacity-50 cursor-not-allowed",
                 )}
                 style={{
                   backgroundColor: "var(--term-bg-surface)",
-                  borderBottom: "1px solid var(--term-border)",
+                  border: "1px solid var(--term-border)",
+                  color: "var(--term-text-muted)",
                 }}
+                onMouseEnter={(e) => {
+                  if (canAddPane) {
+                    e.currentTarget.style.backgroundColor =
+                      "var(--term-bg-elevated)";
+                    e.currentTarget.style.borderColor = "var(--term-accent)";
+                    e.currentTarget.style.color = "var(--term-accent)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor =
+                    "var(--term-bg-surface)";
+                  e.currentTarget.style.borderColor = "var(--term-border)";
+                  e.currentTarget.style.color = "var(--term-text-muted)";
+                }}
+                title={
+                  canAddPane
+                    ? "Open terminal"
+                    : "Maximum 4 terminals. Close one to add more."
+                }
+                aria-label={
+                  canAddPane
+                    ? "Open terminal"
+                    : "Maximum 4 terminals. Close one to add more."
+                }
               >
-                {/* Placeholder drag handle (inactive) */}
-                <div className="p-0.5 opacity-30">
-                  <GripVertical
-                    className="w-3.5 h-3.5"
-                    style={{ color: "var(--term-text-muted)" }}
-                  />
-                </div>
+                <Plus className={isMobile ? "w-4 h-4" : "w-3 h-3"} />
+              </button>
+            )}
 
-                {/* Empty slot label */}
-                <span
-                  className="text-xs px-1.5"
-                  style={{ color: "var(--term-text-muted)" }}
-                >
-                  Empty
-                </span>
+            {/* Spacer */}
+            <div className="flex-1" />
 
-                {/* Add terminal button */}
-                {onOpenModal && (
-                  <button
-                    onClick={onOpenModal}
-                    disabled={!canAddPane}
-                    className={clsx(
-                      "flex items-center justify-center rounded ml-1 transition-all duration-150",
-                      isMobile ? "w-7 h-7" : "w-5 h-5",
-                      !canAddPane && "opacity-50 cursor-not-allowed",
-                    )}
-                    style={{
-                      backgroundColor: "var(--term-bg-surface)",
-                      border: "1px solid var(--term-border)",
-                      color: "var(--term-text-muted)",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (canAddPane) {
-                        e.currentTarget.style.backgroundColor =
-                          "var(--term-bg-elevated)";
-                        e.currentTarget.style.borderColor =
-                          "var(--term-accent)";
-                        e.currentTarget.style.color = "var(--term-accent)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor =
-                        "var(--term-bg-surface)";
-                      e.currentTarget.style.borderColor = "var(--term-border)";
-                      e.currentTarget.style.color = "var(--term-text-muted)";
-                    }}
-                    title={
-                      canAddPane
-                        ? "Open terminal"
-                        : "Maximum 4 terminals. Close one to add more."
-                    }
-                    aria-label={
-                      canAddPane
-                        ? "Open terminal"
-                        : "Maximum 4 terminals. Close one to add more."
-                    }
-                  >
-                    <Plus className={isMobile ? "w-4 h-4" : "w-3 h-3"} />
-                  </button>
-                )}
-
-                {/* Spacer */}
-                <div className="flex-1" />
-
-                {/* Layout selector */}
-                {!isMobile && availableLayouts && onLayout && (
-                  <div className="flex items-center gap-0.5 mr-1">
-                    <LayoutModeButtons
-                      layoutMode={layoutMode}
-                      onLayoutChange={onLayout}
-                      availableLayouts={availableLayouts}
-                    />
-                  </div>
-                )}
-
-                {/* Settings button */}
-                {onSettings && (
-                  <button
-                    onClick={onSettings}
-                    className={clsx(
-                      "flex items-center justify-center rounded transition-all duration-150",
-                      isMobile ? "w-8 h-8" : "w-6 h-6",
-                    )}
-                    style={{ color: "var(--term-text-muted)" }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor =
-                        "var(--term-bg-elevated)";
-                      e.currentTarget.style.color = "var(--term-accent)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                      e.currentTarget.style.color = "var(--term-text-muted)";
-                    }}
-                    title="Settings"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                  </button>
-                )}
+            {/* Layout selector */}
+            {!isMobile && availableLayouts && onLayout && (
+              <div className="flex items-center gap-0.5 mr-1">
+                <LayoutModeButtons
+                  layoutMode={layoutMode}
+                  onLayoutChange={onLayout}
+                  availableLayouts={availableLayouts}
+                />
               </div>
+            )}
 
-              {/* Empty content area with click to add */}
-              <div
-                onClick={onEmptyClick}
-                className="flex-1 flex flex-col items-center justify-center gap-2 cursor-pointer group"
-                style={{ backgroundColor: "var(--term-bg-deep)" }}
+            {/* Settings button */}
+            {onSettings && (
+              <button
+                onClick={onSettings}
+                className={clsx(
+                  "flex items-center justify-center rounded transition-all duration-150",
+                  isMobile ? "w-8 h-8" : "w-6 h-6",
+                )}
+                style={{ color: "var(--term-text-muted)" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor =
+                    "var(--term-bg-elevated)";
+                  e.currentTarget.style.color = "var(--term-accent)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "var(--term-text-muted)";
+                }}
+                title="Settings"
               >
-                <div
-                  className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-150 group-hover:scale-110"
-                  style={{
-                    backgroundColor: "var(--term-bg-elevated)",
-                    border: "1px solid var(--term-border)",
-                  }}
-                >
-                  <span
-                    className="text-lg font-light transition-colors group-hover:text-[var(--term-accent)]"
-                    style={{ color: "var(--term-text-muted)" }}
-                  >
-                    +
-                  </span>
-                </div>
-                <span
-                  className="text-xs transition-colors group-hover:text-[var(--term-text-primary)]"
-                  style={{ color: "var(--term-text-muted)" }}
-                >
-                  Add terminal
-                </span>
-              </div>
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Empty content area with click to add */}
+          <div
+            onClick={onEmptyClick}
+            className="flex-1 flex flex-col items-center justify-center gap-2 cursor-pointer group"
+            style={{ backgroundColor: "var(--term-bg-deep)" }}
+          >
+            <div
+              className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-150 group-hover:scale-110"
+              style={{
+                backgroundColor: "var(--term-bg-elevated)",
+                border: "1px solid var(--term-border)",
+              }}
+            >
+              <span
+                className="text-lg font-light transition-colors group-hover:text-[var(--term-accent)]"
+                style={{ color: "var(--term-text-muted)" }}
+              >
+                +
+              </span>
             </div>
-          ))}
+            <span
+              className="text-xs transition-colors group-hover:text-[var(--term-text-primary)]"
+              style={{ color: "var(--term-text-muted)" }}
+            >
+              Add terminal
+            </span>
+          </div>
         </div>
-      </SortableContext>
-    </DndContext>
+      ))}
+    </div>
   );
 }

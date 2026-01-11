@@ -1,7 +1,5 @@
 "use client";
 
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
   TerminalComponent,
   TerminalHandle,
@@ -90,37 +88,18 @@ export function GridCell({
   allSlots,
   onSwapWith,
 }: GridCellProps) {
-  const panelId = getSlotPanelId(slot);
   const sessionId = getSlotSessionId(slot);
   const workingDir = getSlotWorkingDir(slot);
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: panelId,
-    disabled: !isDraggable,
-  });
+  // Note: Drag-and-drop via dnd-kit has been removed.
+  // This component will be replaced by ResizablePaneLayout in subtask 2.3.
 
   const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition:
-      transition ||
-      "transform 150ms ease, opacity 150ms ease, box-shadow 150ms ease",
-    opacity: isDragging ? 0.6 : 1,
-    boxShadow: isDragging
-      ? "0 0 0 2px var(--term-accent), 0 8px 24px rgba(0, 0, 0, 0.4)"
-      : "none",
     border: "1px solid var(--term-border)",
   };
 
   return (
     <div
-      ref={setNodeRef}
       style={style}
       className="flex flex-col h-full min-h-0 overflow-hidden rounded-md hover:border-[var(--term-border-active)] transition-colors"
       data-cell-index={cellIndex}
@@ -128,9 +107,9 @@ export function GridCell({
       {/* Per-cell header with full controls including layout selector */}
       <UnifiedTerminalHeader
         slot={slot}
-        isDraggable={isDraggable}
-        dragAttributes={attributes}
-        dragListeners={listeners}
+        isDraggable={false}
+        dragAttributes={{}}
+        dragListeners={{}}
         showCleanButton={
           slot.type === "project" && slot.activeMode === "claude"
         }

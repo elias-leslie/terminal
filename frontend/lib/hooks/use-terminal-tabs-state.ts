@@ -51,8 +51,8 @@ export function useTerminalTabsState({
     isCreating: isPaneCreating,
   } = useTerminalPanes();
 
-  // Layout state
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>("single");
+  // Layout state (single mode removed - always grid)
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("grid-2x2");
 
   // Get the active session's project_id for per-project settings
   const activeSessionProjectId = useMemo(() => {
