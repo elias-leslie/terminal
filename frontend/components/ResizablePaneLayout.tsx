@@ -21,6 +21,8 @@ import {
   getSlotSessionId,
   getSlotPanelId,
   getSlotWorkingDir,
+  isPaneSlot,
+  getPaneId,
 } from "@/lib/utils/slot";
 import { TerminalMode } from "./ModeToggle";
 import { MAX_PANES } from "@/lib/constants/terminal";
@@ -465,10 +467,14 @@ export function ResizablePaneLayout({
       if (!onLayoutChange) return;
 
       // Build layout info from the layout map
+      // Use getPaneId for persistence (database pane UUID) when available
+      // Use getSlotPanelId for panel identification within react-resizable-panels
       const layouts: PaneLayout[] = displaySlots.map((slot, index) => {
         const panelId = getSlotPanelId(slot);
+        // Use actual pane ID for persistence if available (PaneSlot has paneId)
+        const persistenceId = isPaneSlot(slot) ? getPaneId(slot) : panelId;
         return {
-          slotId: panelId,
+          slotId: persistenceId,
           widthPercent: layout[panelId] ?? 100 / paneCount,
           heightPercent: 100, // TODO: compute for nested groups
           row: 0,
