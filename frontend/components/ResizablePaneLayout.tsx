@@ -23,6 +23,7 @@ import {
   getSlotWorkingDir,
 } from "@/lib/utils/slot";
 import { TerminalMode } from "./ModeToggle";
+import { DraggablePane } from "./DraggablePane";
 import { MAX_PANES } from "@/lib/constants/terminal";
 
 // Minimum pane size in pixels (400x300 requirement)
@@ -481,6 +482,14 @@ export function ResizablePaneLayout({
     [displaySlots, onLayoutChange, paneCount],
   );
 
+  // Handle swap from drag-drop
+  const handleDragSwap = useCallback(
+    (sourceId: string, targetId: string) => {
+      onSwapPanes?.(sourceId, targetId);
+    },
+    [onSwapPanes],
+  );
+
   // Render a single pane (terminal with header)
   const renderPane = useCallback(
     (slot: TerminalSlot | PaneSlot, index: number) => {
@@ -488,9 +497,8 @@ export function ResizablePaneLayout({
       const workingDir = getSlotWorkingDir(slot);
       const panelId = getSlotPanelId(slot);
 
-      return (
+      const paneContent = (
         <div
-          key={panelId}
           className="flex flex-col h-full min-h-0 overflow-hidden rounded-md"
           style={{
             backgroundColor: "var(--term-bg-surface)",
@@ -555,6 +563,21 @@ export function ResizablePaneLayout({
           </div>
         </div>
       );
+
+      // Wrap with DraggablePane when there are multiple panes
+      if (paneCount > 1 && onSwapPanes) {
+        return (
+          <DraggablePane
+            key={panelId}
+            panelId={panelId}
+            onSwap={handleDragSwap}
+          >
+            {paneContent}
+          </DraggablePane>
+        );
+      }
+
+      return paneContent;
     },
     [
       onSwitch,
@@ -571,6 +594,7 @@ export function ResizablePaneLayout({
       displaySlots,
       paneCount,
       onSwapPanes,
+      handleDragSwap,
       onTerminalRef,
       fontFamily,
       fontSize,

@@ -16,6 +16,7 @@ import {
 import { PaneOverflowMenu } from "./PaneOverflowMenu";
 import { ModeToggle, TerminalMode } from "./ModeToggle";
 import { PaneSwapDropdown } from "./PaneSwapDropdown";
+import { useDragHandle } from "./DraggablePane";
 import { type TerminalSlot, getSlotName } from "@/lib/utils/slot";
 
 export interface UnifiedTerminalHeaderProps {
@@ -81,6 +82,10 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
   // Show clean button for claude mode
   const shouldShowClean = showCleanButton && isClaudeMode;
 
+  // Get drag handle props from DraggablePane context (if wrapped)
+  const dragHandle = useDragHandle();
+  const showDragHandle = isDraggable || !!dragHandle;
+
   return (
     <div
       className={clsx(
@@ -94,12 +99,14 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
         borderBottom: "1px solid var(--term-border)",
       }}
     >
-      {/* Drag handle (for grid/split modes) */}
-      {isDraggable && (
+      {/* Drag handle (for grid/split modes) - uses context from DraggablePane or explicit props */}
+      {showDragHandle && (
         <button
           className="p-0.5 cursor-grab active:cursor-grabbing rounded opacity-50 hover:opacity-100 hover:bg-[var(--term-bg-elevated)] transition-all duration-150"
-          {...dragAttributes}
-          {...dragListeners}
+          draggable={dragHandle?.draggable ?? false}
+          onDragStart={dragHandle?.onDragStart}
+          onDragEnd={dragHandle?.onDragEnd}
+          {...(isDraggable ? { ...dragAttributes, ...dragListeners } : {})}
           aria-label="Drag to reorder"
         >
           <GripVertical
