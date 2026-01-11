@@ -1,0 +1,18 @@
+{
+  "task_name": "resizable-terminal-panes",
+  "complexity": "COMPLEX",
+  "step": "interview",
+  "interview": [
+    {
+      "q": "When a pane is deleted and adjacent panes expand, should the user control which direction the adjacent pane expands, or should it be automatic based on position?",
+      "a": "Automatic based on position but we should be able to drag panes and have it intelligently adjust the layout accordingly",
+      "ts": "2026-01-11T15:48:00Z"
+    },
+    {
+      "q": "For resizing panes, what should happen when a user drags the divider between two panes?",
+      "a": "Proportional resize within row/column (Recommended)",
+      "ts": "2026-01-11T15:49:00Z"
+    }
+  ],
+  "last_updated": "2026-01-11T15:49:00Z"
+}
