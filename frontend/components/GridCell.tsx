@@ -107,9 +107,6 @@ export function GridCell({
       {/* Per-cell header with full controls */}
       <UnifiedTerminalHeader
         slot={slot}
-        isDraggable={false}
-        dragAttributes={{}}
-        dragListeners={{}}
         showCleanButton={
           slot.type === "project" && slot.activeMode === "claude"
         }

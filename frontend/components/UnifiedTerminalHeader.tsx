@@ -8,26 +8,18 @@ import {
   X,
   Paperclip,
   Sparkles,
-  GripVertical,
   ChevronDown,
   Plus,
-  MoreHorizontal,
 } from "lucide-react";
 import { PaneOverflowMenu } from "./PaneOverflowMenu";
 import { ModeToggle, TerminalMode } from "./ModeToggle";
 import { PaneSwapDropdown } from "./PaneSwapDropdown";
-import { useDragHandle } from "./DraggablePane";
 import { type TerminalSlot, getSlotName } from "@/lib/utils/slot";
 
 export interface UnifiedTerminalHeaderProps {
   slot: TerminalSlot;
   isActive?: boolean;
   showCleanButton?: boolean;
-  isDraggable?: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dragAttributes?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dragListeners?: any;
   onSwitch?: () => void;
   onSettings?: () => void;
   onReset?: () => void;
@@ -57,9 +49,6 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
   slot,
   isActive = false,
   showCleanButton = false,
-  isDraggable = false,
-  dragAttributes,
-  dragListeners,
   onSwitch,
   onSettings,
   onReset,
@@ -82,10 +71,6 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
   // Show clean button for claude mode
   const shouldShowClean = showCleanButton && isClaudeMode;
 
-  // Get drag handle props from DraggablePane context (if wrapped)
-  const dragHandle = useDragHandle();
-  const showDragHandle = isDraggable || !!dragHandle;
-
   return (
     <div
       className={clsx(
@@ -99,23 +84,6 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
         borderBottom: "1px solid var(--term-border)",
       }}
     >
-      {/* Drag handle (for grid/split modes) - uses context from DraggablePane or explicit props */}
-      {showDragHandle && (
-        <button
-          className="p-0.5 cursor-grab active:cursor-grabbing rounded opacity-50 hover:opacity-100 hover:bg-[var(--term-bg-elevated)] transition-all duration-150"
-          draggable={dragHandle?.draggable ?? false}
-          onDragStart={dragHandle?.onDragStart}
-          onDragEnd={dragHandle?.onDragEnd}
-          {...(isDraggable ? { ...dragAttributes, ...dragListeners } : {})}
-          aria-label="Drag to reorder"
-        >
-          <GripVertical
-            className="w-3.5 h-3.5"
-            style={{ color: "var(--term-text-muted)" }}
-          />
-        </button>
-      )}
-
       {/* Mode toggle (shell <-> claude) - only for project slots */}
       {slot.type === "project" && onModeSwitch && (
         <ModeToggle

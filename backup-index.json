@@ -4,6 +4,109 @@
   "destination": "//192.168.8.128/davion-gem/project-backups/terminal",
   "backups": [
     {
+      "name": "terminal-20260111-133208.tar.gz",
+      "timestamp": "2026-01-11T13:32:48-05:00",
+      "size_bytes": 245837033,
+      "db_size_bytes": 229094087,
+      "status": "ok",
+      "verification": {
+        "verified": true,
+        "verified_at": "2026-01-11T13:32:45-05:00",
+        "errors": [],
+        "tree": {
+          "api": {
+            "count": 7
+          },
+          "scripts": {
+            "count": 8
+          },
+          "storage": {
+            "count": 14
+          },
+          "references": {
+            "count": 3
+          },
+          "frontend": {
+            "count": 91
+          },
+          "utils": {
+            "count": 2
+          },
+          ".claude": {
+            "count": 2
+          },
+          "tasks": {
+            "count": 26
+          },
+          "spec": {
+            "count": 5
+          },
+          "services": {
+            "count": 7
+          },
+          ".venv": {
+            "count": 1334
+          },
+          "config.py": {
+            "count": 1
+          },
+          ".mcp.json": {
+            "count": 1
+          },
+          "logging_config.py": {
+            "count": 1
+          },
+          "TOUCH_SCROLLING_DEBUG.md": {
+            "count": 1
+          },
+          "__main__.py": {
+            "count": 1
+          },
+          "constants.py": {
+            "count": 1
+          },
+          "database.sql.gz": {
+            "count": 1
+          },
+          "README.md": {
+            "count": 1
+          },
+          "ARCHITECTURE_REDESIGN.md": {
+            "count": 1
+          },
+          ".pre-commit-config.yaml": {
+            "count": 1
+          },
+          "__init__.py": {
+            "count": 1
+          },
+          "NEXT_SESSION_FIX.md": {
+            "count": 1
+          },
+          "main.py": {
+            "count": 1
+          },
+          "backup-index.json": {
+            "count": 1
+          },
+          "pyproject.toml": {
+            "count": 1
+          },
+          ".gitignore": {
+            "count": 1
+          },
+          "CLAUDE.md": {
+            "count": 1
+          },
+          "=0.27.0": {
+            "count": 1
+          }
+        },
+        "total_files": 1517,
+        "checksum": "sha256:ed5aa62ad8fb6ed7a18fd4f3ec2e890dba89557d3e29d9dafaadeb1c0e1ec387"
+      }
+    },
+    {
       "name": "terminal-20260111-115601.tar.gz",
       "timestamp": "2026-01-11T11:56:40-05:00",
       "size_bytes": 245855958,
@@ -2696,5 +2799,5 @@
       }
     }
   ],
-  "last_updated": "2026-01-11T11:56:40-05:00"
+  "last_updated": "2026-01-11T13:32:48-05:00"
 }
