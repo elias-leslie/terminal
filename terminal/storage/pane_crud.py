@@ -17,9 +17,8 @@ from .connection import get_connection
 PaneId = str | UUID
 
 # Standard SELECT field list for terminal_panes queries
-PANE_FIELDS = (
-    """id, pane_type, project_id, pane_order, pane_name, active_mode, created_at"""
-)
+PANE_FIELDS = """id, pane_type, project_id, pane_order, pane_name, active_mode, created_at,
+       width_percent, height_percent, grid_row, grid_col"""
 
 
 def _pane_id_to_str(pane_id: PaneId) -> str:
@@ -63,6 +62,10 @@ def _row_to_pane_dict(row: tuple) -> dict[str, Any]:
         "pane_name": row[4],
         "active_mode": row[5],
         "created_at": row[6],
+        "width_percent": row[7],
+        "height_percent": row[8],
+        "grid_row": row[9],
+        "grid_col": row[10],
     }
 
 
@@ -352,7 +355,7 @@ def create_pane_with_sessions(
 def update_pane(pane_id: PaneId, **fields: Any) -> dict[str, Any] | None:
     """Update pane metadata.
 
-    Allowed fields: pane_name, pane_order, active_mode
+    Allowed fields: pane_name, pane_order, active_mode, width_percent, height_percent, grid_row, grid_col
 
     Args:
         pane_id: Pane UUID
@@ -361,7 +364,15 @@ def update_pane(pane_id: PaneId, **fields: Any) -> dict[str, Any] | None:
     Returns:
         Updated pane dict or None if not found
     """
-    allowed_fields = {"pane_name", "pane_order", "active_mode"}
+    allowed_fields = {
+        "pane_name",
+        "pane_order",
+        "active_mode",
+        "width_percent",
+        "height_percent",
+        "grid_row",
+        "grid_col",
+    }
     update_fields = {k: v for k, v in fields.items() if k in allowed_fields}
 
     if not update_fields:
@@ -505,6 +516,59 @@ def get_next_pane_number(project_id: str | None) -> int:
         return row[0] if row else 1
 
 
+def update_pane_layouts(
+    layouts: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Batch update pane layout positions and sizes.
+
+    Args:
+        layouts: List of dicts with pane_id and layout fields:
+            - pane_id: UUID of the pane
+            - width_percent: Width as percentage (0-100)
+            - height_percent: Height as percentage (0-100)
+            - grid_row: Row position (0-indexed)
+            - grid_col: Column position (0-indexed)
+
+    Returns:
+        List of updated pane dicts
+    """
+    if not layouts:
+        return []
+
+    updated_panes = []
+    with get_connection() as conn, conn.cursor() as cur:
+        for layout in layouts:
+            pane_id = layout.get("pane_id")
+            if not pane_id:
+                continue
+
+            cur.execute(
+                f"""
+                UPDATE terminal_panes
+                SET width_percent = COALESCE(%s, width_percent),
+                    height_percent = COALESCE(%s, height_percent),
+                    grid_row = COALESCE(%s, grid_row),
+                    grid_col = COALESCE(%s, grid_col)
+                WHERE id = %s
+                RETURNING {PANE_FIELDS}
+                """,
+                (
+                    layout.get("width_percent"),
+                    layout.get("height_percent"),
+                    layout.get("grid_row"),
+                    layout.get("grid_col"),
+                    _pane_id_to_str(pane_id),
+                ),
+            )
+            row = cur.fetchone()
+            if row:
+                updated_panes.append(_row_to_pane_dict(row))
+
+        conn.commit()
+
+    return updated_panes
+
+
 __all__ = [
     "PaneId",
     "PANE_FIELDS",
@@ -520,4 +584,5 @@ __all__ = [
     "swap_pane_positions",
     "count_panes",
     "get_next_pane_number",
+    "update_pane_layouts",
 ]

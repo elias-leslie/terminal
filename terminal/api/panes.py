@@ -53,6 +53,11 @@ class PaneResponse(BaseModel):
     active_mode: str  # 'shell' or 'claude'
     created_at: str | None
     sessions: list[SessionInPaneResponse] = []
+    # Layout fields for resizable grid
+    width_percent: float = 100.0
+    height_percent: float = 100.0
+    grid_row: int = 0
+    grid_col: int = 0
 
 
 class PaneListResponse(BaseModel):
@@ -92,6 +97,31 @@ class UpdatePaneOrderRequest(BaseModel):
     pane_orders: list[tuple[str, int]]  # [(pane_id, new_order), ...]
 
 
+class UpdatePaneLayoutRequest(BaseModel):
+    """Request to update a single pane's layout."""
+
+    width_percent: float | None = None
+    height_percent: float | None = None
+    grid_row: int | None = None
+    grid_col: int | None = None
+
+
+class PaneLayoutItem(BaseModel):
+    """Single pane layout for bulk update."""
+
+    pane_id: str
+    width_percent: float | None = None
+    height_percent: float | None = None
+    grid_row: int | None = None
+    grid_col: int | None = None
+
+
+class BulkLayoutUpdateRequest(BaseModel):
+    """Request to update layout for all panes at once."""
+
+    layouts: list[PaneLayoutItem]
+
+
 # ============================================================================
 # Helpers
 # ============================================================================
@@ -121,6 +151,10 @@ def _pane_to_response(pane: dict[str, Any]) -> PaneResponse:
         active_mode=pane.get("active_mode", "shell"),
         created_at=pane["created_at"].isoformat() if pane.get("created_at") else None,
         sessions=[_session_to_response(s) for s in sessions],
+        width_percent=pane.get("width_percent", 100.0),
+        height_percent=pane.get("height_percent", 100.0),
+        grid_row=pane.get("grid_row", 0),
+        grid_col=pane.get("grid_col", 0),
     )
 
 
@@ -290,3 +324,86 @@ async def update_pane_order(request: UpdatePaneOrderRequest) -> dict[str, Any]:
     """
     pane_crud.update_pane_order(request.pane_orders)
     return {"updated": True, "count": len(request.pane_orders)}
+
+
+@router.patch("/api/terminal/panes/{pane_id}/layout", response_model=PaneResponse)
+async def update_pane_layout(
+    pane_id: str, request: UpdatePaneLayoutRequest
+) -> PaneResponse:
+    """Update a single pane's layout (position and size).
+
+    Used when resizing or repositioning a single pane.
+    """
+    existing = pane_crud.get_pane(pane_id)
+    if not existing:
+        raise HTTPException(
+            status_code=404, detail=f"Pane {pane_id} not found"
+        ) from None
+
+    update_fields: dict[str, Any] = {}
+    if request.width_percent is not None:
+        update_fields["width_percent"] = request.width_percent
+    if request.height_percent is not None:
+        update_fields["height_percent"] = request.height_percent
+    if request.grid_row is not None:
+        update_fields["grid_row"] = request.grid_row
+    if request.grid_col is not None:
+        update_fields["grid_col"] = request.grid_col
+
+    if not update_fields:
+        pane = pane_crud.get_pane_with_sessions(pane_id)
+        return _pane_to_response(pane or existing)
+
+    pane = pane_crud.update_pane(pane_id, **update_fields)
+    if not pane:
+        raise HTTPException(
+            status_code=500, detail="Failed to update pane layout"
+        ) from None
+
+    pane_with_sessions = pane_crud.get_pane_with_sessions(pane_id)
+    return _pane_to_response(pane_with_sessions or pane)
+
+
+@router.put("/api/terminal/layout", response_model=list[PaneResponse])
+async def update_all_pane_layouts(
+    request: BulkLayoutUpdateRequest,
+) -> list[PaneResponse]:
+    """Bulk update layout for all panes at once.
+
+    Used after resize operations complete to persist the entire layout.
+    Includes retry logic for database contention.
+    """
+    if not request.layouts:
+        return []
+
+    # Convert request to storage format
+    layouts_data = [
+        {
+            "pane_id": item.pane_id,
+            "width_percent": item.width_percent,
+            "height_percent": item.height_percent,
+            "grid_row": item.grid_row,
+            "grid_col": item.grid_col,
+        }
+        for item in request.layouts
+    ]
+
+    # Simple retry for database contention
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            pane_crud.update_pane_layouts(layouts_data)
+            break
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to update layouts after {max_retries} attempts: {e}",
+                ) from None
+            import asyncio
+
+            await asyncio.sleep(0.1 * (attempt + 1))
+
+    # Fetch all panes with sessions for complete response
+    all_panes = pane_crud.list_panes_with_sessions()
+    return [_pane_to_response(p) for p in all_panes]
