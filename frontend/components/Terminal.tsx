@@ -6,6 +6,7 @@ import {
   useCallback,
   forwardRef,
   useImperativeHandle,
+  useMemo,
 } from "react";
 import { clsx } from "clsx";
 import "@xterm/xterm/css/xterm.css";
@@ -69,7 +70,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
     }, [isVisible]);
 
     // WebSocket connection management via hook
-    const { status, wsRef, reconnect, sendInput, connect } =
+    const { status, wsRef, reconnect, sendInput, connect, disconnect } =
       useTerminalWebSocket({
         sessionId,
         workingDir,
@@ -94,11 +95,23 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
         getDimensions: () => fitAddonRef.current?.proposeDimensions() ?? null,
       });
 
+    // Memoize mobile detection to prevent unnecessary re-renders
+    // Only computed once on mount - window resize doesn't change device type
+    const isMobile = useMemo(() => isMobileDevice(), []);
+
     // Scrolling management via hook (tmux copy-mode for wheel/touch)
     const { setupScrolling, resetCopyMode } = useTerminalScrolling({
       wsRef,
-      isMobile: isMobileDevice(),
+      isMobile,
     });
+
+    // Store scroll functions in refs to avoid re-init on scroll handler changes
+    const setupScrollingRef = useRef(setupScrolling);
+    const resetCopyModeRef = useRef(resetCopyMode);
+    useEffect(() => {
+      setupScrollingRef.current = setupScrolling;
+      resetCopyModeRef.current = resetCopyMode;
+    }, [setupScrolling, resetCopyMode]);
 
     // Expose functions to parent
     useImperativeHandle(
@@ -208,7 +221,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
         fitAddonRef.current = fitAddon;
 
         // Set up scrolling via hook (handles wheel and touch events for tmux copy-mode)
-        scrollCleanupRef.current = setupScrolling(containerRef.current);
+        scrollCleanupRef.current = setupScrollingRef.current(
+          containerRef.current,
+        );
 
         // Mobile-specific setup: suppress native keyboard (we use custom keyboard)
         if (isMobileDevice()) {
@@ -253,7 +268,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(data);
             // Typing exits tmux copy-mode, reset our tracking
-            resetCopyMode();
+            resetCopyModeRef.current();
           }
         });
 
@@ -265,6 +280,8 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
 
       return () => {
         mounted = false;
+        // Disconnect WebSocket first to prevent duplicate connections on re-init
+        disconnect();
         // Dispose onData listener before terminal
         if (onDataDisposableRef.current) {
           onDataDisposableRef.current.dispose();
@@ -291,15 +308,9 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
           terminalRef.current = null;
         }
       };
+      // Dependencies: only session/connection related - scroll refs update independently
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-      sessionId,
-      workingDir,
-      handleResize,
-      connect,
-      setupScrolling,
-      resetCopyMode,
-    ]);
+    }, [sessionId, workingDir, connect, disconnect]);
 
     // Handle container resize with debounce
     useEffect(() => {

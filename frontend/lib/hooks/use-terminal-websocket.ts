@@ -109,6 +109,16 @@ export function useTerminalWebSocket({
   }, []);
 
   const connect = useCallback(() => {
+    // Close existing connection to prevent duplicates
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (timeoutIdRef.current) {
+      clearTimeout(timeoutIdRef.current);
+      timeoutIdRef.current = null;
+    }
+
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     let wsHost: string;
 
