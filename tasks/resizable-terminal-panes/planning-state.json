@@ -1,7 +1,7 @@
 {
   "task_name": "resizable-terminal-panes",
   "complexity": "COMPLEX",
-  "step": "interview",
+  "step": "complete",
   "interview": [
     {
       "q": "When a pane is deleted and adjacent panes expand, should the user control which direction the adjacent pane expands, or should it be automatic based on position?",
@@ -10,9 +10,134 @@
     },
     {
       "q": "For resizing panes, what should happen when a user drags the divider between two panes?",
-      "a": "Proportional resize within row/column (Recommended)",
+      "a": "Proportional resize within row/column",
       "ts": "2026-01-11T15:49:00Z"
+    },
+    {
+      "q": "Should pane sizes be persisted across browser sessions?",
+      "a": "Yes, persist to backend",
+      "ts": "2026-01-11T15:50:00Z"
+    },
+    {
+      "q": "For the default ad-hoc terminal (when all panes are deleted), should it have special behavior or just be a normal pane?",
+      "a": "Normal pane, auto-created",
+      "ts": "2026-01-11T15:51:00Z"
+    },
+    {
+      "q": "What minimum pane size feels right for your ultrawide?",
+      "a": "Current window: 1140x1270. 400x300px minimum is appropriate for future 3x3 grids.",
+      "ts": "2026-01-11T15:52:00Z"
+    },
+    {
+      "q": "When adding a new pane to a partially-filled grid, where should it be placed?",
+      "a": "First empty slot, top-left priority",
+      "ts": "2026-01-11T15:53:00Z"
+    },
+    {
+      "q": "How should the grid layout adapt when panes are added/removed?",
+      "a": "Dynamic: 1 pane = full, 2 panes = vertical split (side by side), 3 panes = 2+1 split (horizontal or vertical based on drag arrangement), 4 panes = 2x2",
+      "ts": "2026-01-11T15:54:00Z"
+    },
+    {
+      "q": "For the 3-pane layout, how should the user indicate horizontal vs vertical arrangement?",
+      "a": "Drop zone indicators - show visual zones when dragging",
+      "ts": "2026-01-11T15:55:00Z"
+    },
+    {
+      "q": "Should we use an existing layout library for the split-pane functionality?",
+      "a": "react-resizable-panels",
+      "ts": "2026-01-11T15:56:00Z"
+    },
+    {
+      "q": "When removing single view mode, what should happen to users who have it selected?",
+      "a": "Existing terminal panes/sessions can be purged - not currently in use",
+      "ts": "2026-01-11T15:57:00Z"
+    },
+    {
+      "q": "For backend persistence, what layout data should be stored per pane?",
+      "a": "Size percentages + position (width_percent, height_percent, row, col)",
+      "ts": "2026-01-11T15:58:00Z"
+    },
+    {
+      "q": "What visual feedback should appear when dragging to rearrange panes?",
+      "a": "Highlighted drop zones + preview of resulting layout",
+      "ts": "2026-01-11T15:59:00Z"
+    },
+    {
+      "q": "Should keyboard shortcuts be added for pane management?",
+      "a": "No shortcuts for now",
+      "ts": "2026-01-11T16:00:00Z"
+    },
+    {
+      "q": "When a pane is resized, should the terminal inside immediately resize (reflow text) or wait until drag ends?",
+      "a": "Resize on drag end",
+      "ts": "2026-01-11T16:01:00Z"
+    },
+    {
+      "q": "For future grid expansion (3x3, 4x4, etc.), should we build the data model to support arbitrary grids now?",
+      "a": "Build flexible model now - use percentage-based sizing that naturally scales",
+      "ts": "2026-01-11T16:02:00Z"
+    },
+    {
+      "q": "How should users add a new pane when the grid isn't full?",
+      "a": "IMPORTANT: No main terminal window top bar. All controls in individual pane header bars only. Minimalistic design, maximize usable terminal space.",
+      "ts": "2026-01-11T16:03:00Z"
+    },
+    {
+      "q": "For the pane header bar, which controls should be included?",
+      "a": "Every single control needed - if only pane header exists and a control is left off, we're stranded. Complete list required.",
+      "ts": "2026-01-11T16:04:00Z"
+    },
+    {
+      "q": "Complete pane header controls audit",
+      "a": "Must include: Drag handle, Mode toggle (project panes), Pane name/swap dropdown, Add terminal (+), Clean prompt (claude mode), Upload file, Settings, Reset terminal, Close terminal, Overflow menu with global actions (Reset All, Close All)",
+      "ts": "2026-01-11T16:05:00Z"
+    },
+    {
+      "q": "With all controls in pane headers, what should be the header height?",
+      "a": "Keep current 32px (8 tailwind units)",
+      "ts": "2026-01-11T16:06:00Z"
+    },
+    {
+      "q": "For the resizable dividers between panes, what visual style should they have?",
+      "a": "Subtle line, visible handle on hover (1px border normally, 4px visible handle with accent color on hover)",
+      "ts": "2026-01-11T16:07:00Z"
+    },
+    {
+      "q": "Should we phase this implementation or deliver all at once?",
+      "a": "All at once - single coherent release",
+      "ts": "2026-01-11T16:08:00Z"
+    },
+    {
+      "q": "How should the system handle browser window resize when panes have custom sizes?",
+      "a": "Maintain proportions - pane sizes as percentages, all panes scale proportionally",
+      "ts": "2026-01-11T16:09:00Z"
+    },
+    {
+      "q": "For backend persistence, should pane layout be stored at the global level or per-project?",
+      "a": "Global only",
+      "ts": "2026-01-11T16:10:00Z"
+    },
+    {
+      "q": "When dragging panes to rearrange, should we keep dnd-kit or switch to react-resizable-panels?",
+      "a": "react-resizable-panels handles both resize AND reorder",
+      "ts": "2026-01-11T16:11:00Z"
+    },
+    {
+      "q": "What testing approach should be used?",
+      "a": "Visual verification and testing of UI/UX using browser-automation. Full click, screenshot, review verification. Do not ask user to check until fully self-verified.",
+      "ts": "2026-01-11T16:12:00Z"
+    },
+    {
+      "q": "When a pane is deleted in a 3-pane layout (2+1 split), what should happen?",
+      "a": "Smart collapse. If deleting solo pane: remaining 2 become VERTICAL split (side by side) for maximum terminal vertical real estate.",
+      "ts": "2026-01-11T16:13:00Z"
+    },
+    {
+      "q": "For the default 2-pane layout, should they be arranged vertically or horizontally?",
+      "a": "Vertical split (side by side) - maximizes vertical space per terminal",
+      "ts": "2026-01-11T16:14:00Z"
     }
   ],
-  "last_updated": "2026-01-11T15:49:00Z"
+  "last_updated": "2026-01-11T16:14:00Z"
 }
