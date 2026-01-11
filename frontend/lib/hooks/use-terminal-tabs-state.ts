@@ -223,62 +223,87 @@ export function useTerminalTabsState({
     [],
   );
 
-  // Track whether initial load has completed - auto-create only runs during initial load
-  // Once initial load is done, user has full control (no more auto-creation)
-  const hasCompletedInitialLoad = useRef(false);
+  // Unified auto-create logic for both:
+  // 1. Initial load with no panes
+  // 2. Closing the last pane (1→0 transition)
+  const isAutoCreatingRef = useRef(false);
   const initialLoadProcessed = useRef(false);
+  const prevPanesLengthRef = useRef<number | null>(null);
 
-  // Auto-create panes ONLY on initial mount (first load)
-  // After this, user controls pane creation via "+" button or modal
   useEffect(() => {
-    // Skip if still loading or already processed initial load
-    if (isLoading || isPaneCreating || initialLoadProcessed.current) return;
+    // Skip if still loading or already creating
+    if (isLoading || isPaneCreating || isAutoCreatingRef.current) return;
 
-    // Mark as processed to prevent re-runs
-    initialLoadProcessed.current = true;
+    const prevLength = prevPanesLengthRef.current;
+    const currLength = panes.length;
 
-    // If no panes exist on initial load, create default ad-hoc pane
-    if (panes.length === 0) {
-      // Double-check server state before creating
-      fetch("/api/terminal/panes/count")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.count === 0) {
-            return createAdHocPane(getAdHocPaneName(panes));
+    // Update prev length for next render
+    prevPanesLengthRef.current = currLength;
+
+    // Case 1: Initial load (first time we see panes data)
+    // Only auto-create if there are NO panes - otherwise just show existing panes
+    if (prevLength === null && !initialLoadProcessed.current) {
+      initialLoadProcessed.current = true;
+
+      if (currLength === 0) {
+        // No panes on initial load - create default ad-hoc
+        isAutoCreatingRef.current = true;
+        fetch("/api/terminal/panes/count")
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.count === 0) {
+              return createAdHocPane(getAdHocPaneName(panes)).then(
+                (newPane) => {
+                  const shellSession = newPane.sessions.find(
+                    (s) => s.mode === "shell",
+                  );
+                  if (shellSession) {
+                    switchToSession(shellSession.id);
+                  }
+                },
+              );
+            }
+          })
+          .catch((error) => {
+            console.error("Failed to auto-create pane on initial load:", error);
+          })
+          .finally(() => {
+            isAutoCreatingRef.current = false;
+          });
+      }
+      // NOTE: Do NOT auto-create project panes based on URL param
+      // Existing panes should persist across page reloads
+      // Use the Terminal Manager modal (+) to explicitly add new project terminals
+      return;
+    }
+
+    // Case 2: Last pane closed (N→0 transition, where N > 0)
+    if (prevLength !== null && prevLength > 0 && currLength === 0) {
+      isAutoCreatingRef.current = true;
+      createAdHocPane(getAdHocPaneName(panes))
+        .then((newPane) => {
+          const shellSession = newPane.sessions.find((s) => s.mode === "shell");
+          if (shellSession) {
+            switchToSession(shellSession.id);
           }
         })
+        .catch((error) => {
+          console.error(
+            "Failed to auto-create pane after closing last:",
+            error,
+          );
+        })
         .finally(() => {
-          hasCompletedInitialLoad.current = true;
+          isAutoCreatingRef.current = false;
         });
-    } else {
-      // Panes already exist - check if we need to create project pane
-      hasCompletedInitialLoad.current = true;
-
-      // If ?project=X in URL but no pane for that project, create one
-      if (projectId) {
-        const hasProjectPane = panes.some((p) => p.project_id === projectId);
-        if (!hasProjectPane) {
-          fetch("/api/terminal/panes/count")
-            .then((res) => res.json())
-            .then((data) => {
-              if (data.count < data.max_panes) {
-                const paneName = getProjectPaneName(panes, projectId);
-                return createProjectPane(paneName, projectId, projectPath);
-              }
-            });
-        }
-      }
     }
   }, [
     isLoading,
     panes,
     isPaneCreating,
     createAdHocPane,
-    createProjectPane,
     getAdHocPaneName,
-    getProjectPaneName,
-    projectId,
-    projectPath,
+    switchToSession,
   ]);
 
   // Tab editing hook

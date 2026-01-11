@@ -103,14 +103,21 @@ export function useTerminalSlotHandlers({
 
   // Handler for opening prompt cleaner for a slot
   const handleSlotClean = useCallback(
-    (slot: TerminalSlot) => {
+    (slot: TerminalSlot | PaneSlot) => {
       const sessionId = getSlotSessionId(slot);
-      if (!sessionId) return;
+      if (!sessionId) {
+        console.warn("handleSlotClean: No session ID for slot", slot);
+        return;
+      }
       const terminalRef = terminalRefs.current.get(sessionId);
-      if (!terminalRef) return;
+      if (!terminalRef) {
+        console.warn("handleSlotClean: No terminal ref for session", sessionId);
+        return;
+      }
       const input = terminalRef.getLastLine();
-      if (!input.trim()) return;
-      setCleanerRawPrompt(input);
+      // Open cleaner even if input is empty - let user see the state
+      // (empty input will show "no prompt to clean" in the cleaner)
+      setCleanerRawPrompt(input || "");
       setShowCleaner(true);
     },
     [terminalRefs, setCleanerRawPrompt, setShowCleaner],

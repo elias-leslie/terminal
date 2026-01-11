@@ -172,28 +172,8 @@ export function TerminalTabs({
     maxRetries: 3,
   });
 
-  // Auto-create ad-hoc pane when all panes are closed (smart collapse: 1->0 case)
-  // Track if we're in the middle of creating a pane to prevent double-creation
-  const isAutoCreatingRef = useRef(false);
-  useEffect(() => {
-    // Only trigger when panes becomes empty and we're not already creating
-    if (panes.length === 0 && !isLoading && !isAutoCreatingRef.current) {
-      isAutoCreatingRef.current = true;
-      createAdHocPane("Ad-Hoc Terminal")
-        .then((newPane) => {
-          const shellSession = newPane.sessions.find((s) => s.mode === "shell");
-          if (shellSession) {
-            switchToSession(shellSession.id);
-          }
-        })
-        .catch((error) => {
-          console.error("Failed to auto-create pane:", error);
-        })
-        .finally(() => {
-          isAutoCreatingRef.current = false;
-        });
-    }
-  }, [panes.length, isLoading, createAdHocPane, switchToSession]);
+  // Auto-create logic is now handled in use-terminal-tabs-state.ts
+  // to prevent race conditions between multiple effects
 
   // Keyboard shortcuts
   const { showHelp: showKeyboardHelp, closeHelp: closeKeyboardHelp } =

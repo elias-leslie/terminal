@@ -229,33 +229,13 @@ export function useTerminalHandlers({
     }
   }, [panes, panesAtLimit, createAdHocPane, navigateToSession]);
 
-  // Add new terminal for a specific project (navigates to existing pane or creates new)
+  // Add new terminal for a specific project (always creates new pane)
   const handleNewTerminalForProject = useCallback(
     async (
       targetProjectId: string,
       mode: "shell" | "claude",
       rootPath?: string | null,
     ) => {
-      // Check if a pane for this project already exists - navigate to it instead of creating duplicate
-      const existingPane = panes.find((p) => p.project_id === targetProjectId);
-      if (existingPane) {
-        // Find session for the requested mode in existing pane
-        const targetSession = existingPane.sessions.find(
-          (s) => s.mode === mode,
-        );
-        if (targetSession) {
-          navigateToSession(targetSession.id);
-          // Start Claude if needed
-          if (mode === "claude") {
-            await new Promise((resolve) =>
-              setTimeout(resolve, TMUX_INIT_DELAY_MS),
-            );
-            await startClaude(targetSession.id);
-          }
-          return;
-        }
-      }
-
       // Check pane limit
       if (panesAtLimit) {
         console.warn("Cannot add pane: at maximum limit");

@@ -25,7 +25,10 @@ from ..services.pty_manager import (
     spawn_pty_for_tmux,
 )
 from ..storage import terminal as terminal_store
-from ..utils.tmux import create_tmux_session, validate_session_name
+from ..utils.tmux import (
+    create_tmux_session,
+    validate_session_name,
+)
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -249,6 +252,19 @@ async def terminal_websocket(
 
         # Start output reader task
         output_task = asyncio.create_task(read_pty_output(websocket, master_fd))
+
+        # Auto-start Claude for claude-mode sessions
+        session_mode = session.get("mode")
+        if session_mode == "claude":
+            # Import here to avoid circular import
+            from ..utils.tmux import is_claude_running_in_session
+
+            # Check if Claude is already running
+            if not is_claude_running_in_session(tmux_session_name):
+                # Wait for shell prompt to appear, then send claude command
+                await asyncio.sleep(0.3)
+                os.write(master_fd, b"claude --dangerously-skip-permissions\n")
+                logger.info("auto_started_claude", session_id=session_id)
 
         # Session tracking is now handled by tmux hooks (see main.py)
         # No polling needed - hooks notify us instantly on session switch

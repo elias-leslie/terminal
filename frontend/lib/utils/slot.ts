@@ -41,8 +41,9 @@ export type TerminalSlot = ProjectSlot | AdHocSlot;
 /**
  * Get the active session ID for a slot.
  * For project slots, returns the active session ID.
+ * Works with both TerminalSlot and PaneSlot.
  */
-export function getSlotSessionId(slot: TerminalSlot): string | null {
+export function getSlotSessionId(slot: TerminalSlot | PaneSlot): string | null {
   if (slot.type === "project") {
     return slot.activeSessionId;
   }

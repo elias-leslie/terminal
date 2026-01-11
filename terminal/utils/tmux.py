@@ -146,7 +146,10 @@ def create_tmux_session(
         run_tmux_command(["set-option", "-t", session_name, "status", "off"])
         return session_name
 
-    # Create new session
+    # Create new session - default to home directory if working_dir not specified
+    import os
+
+    effective_working_dir = working_dir or os.path.expanduser("~")
     args = [
         "new-session",
         "-d",
@@ -156,9 +159,9 @@ def create_tmux_session(
         str(TMUX_DEFAULT_COLS),
         "-y",
         str(TMUX_DEFAULT_ROWS),
+        "-c",
+        effective_working_dir,
     ]
-    if working_dir:
-        args.extend(["-c", working_dir])
 
     success, output = run_tmux_command(args)
 
@@ -177,7 +180,9 @@ def create_tmux_session(
     # Disable tmux status bar - web UI handles session info display
     run_tmux_command(["set-option", "-t", session_name, "status", "off"])
 
-    logger.info("tmux_session_created", session=session_name, working_dir=working_dir)
+    logger.info(
+        "tmux_session_created", session=session_name, working_dir=effective_working_dir
+    )
     return session_name
 
 
@@ -197,3 +202,28 @@ def list_tmux_sessions() -> set[str]:
                 sessions.add(session_id)
 
     return sessions
+
+
+def is_claude_running_in_session(session_name: str) -> bool:
+    """Check if Claude is running in a tmux session.
+
+    Args:
+        session_name: tmux session name
+
+    Returns:
+        True if Claude is running in the session
+    """
+    # Get the current command running in the pane
+    success, output = run_tmux_command(
+        ["list-panes", "-t", session_name, "-F", "#{pane_current_command}"]
+    )
+
+    if not success:
+        return False
+
+    # Check if any pane is running claude
+    for line in output.split("\n"):
+        if "claude" in line.lower():
+            return True
+
+    return False

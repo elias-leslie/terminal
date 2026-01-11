@@ -266,14 +266,15 @@ def create_pane_with_sessions(
             order_row = cur.fetchone()
             pane_order = order_row[0] if order_row else 0
 
-        # Create pane
+        # Create pane - project panes default to claude mode, adhoc to shell
+        default_mode = "claude" if pane_type == "project" else "shell"
         cur.execute(
             f"""
-            INSERT INTO terminal_panes (pane_type, project_id, pane_order, pane_name)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO terminal_panes (pane_type, project_id, pane_order, pane_name, active_mode)
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING {PANE_FIELDS}
             """,
-            (pane_type, project_id, pane_order, pane_name),
+            (pane_type, project_id, pane_order, pane_name, default_mode),
         )
         pane_row = cur.fetchone()
         if not pane_row:
