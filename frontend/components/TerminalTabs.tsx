@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { clsx } from "clsx";
 import { UploadProgressToast, UploadErrorToast } from "./UploadStatusToast";
 import { FileUploadDropzone } from "./FileUploadDropzone";
@@ -19,7 +19,7 @@ import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
 import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
 import { useTerminalSlotHandlers } from "@/lib/hooks/use-terminal-slot-handlers";
 import { useTerminalActionHandlers } from "@/lib/hooks/use-terminal-action-handlers";
-import { getSlotSessionId } from "@/lib/utils/slot";
+import { useLayoutPersistence } from "@/lib/hooks/use-layout-persistence";
 
 interface TerminalTabsProps {
   projectId?: string;
@@ -105,6 +105,8 @@ export function TerminalTabs({
     // Pane operations (new architecture)
     panes,
     removePane,
+    createAdHocPane,
+    saveLayouts,
   } = useTerminalTabsState({ projectId, projectPath });
 
   // Note: single mode header removed - all controls now in pane headers
@@ -162,6 +164,36 @@ export function TerminalTabs({
     sessions,
     handleProjectModeChange,
   });
+
+  // Layout persistence with debouncing
+  const { handleLayoutChange } = useLayoutPersistence({
+    saveLayouts,
+    debounceMs: 500,
+    maxRetries: 3,
+  });
+
+  // Auto-create ad-hoc pane when all panes are closed (smart collapse: 1->0 case)
+  // Track if we're in the middle of creating a pane to prevent double-creation
+  const isAutoCreatingRef = useRef(false);
+  useEffect(() => {
+    // Only trigger when panes becomes empty and we're not already creating
+    if (panes.length === 0 && !isLoading && !isAutoCreatingRef.current) {
+      isAutoCreatingRef.current = true;
+      createAdHocPane("Ad-Hoc Terminal")
+        .then((newPane) => {
+          const shellSession = newPane.sessions.find((s) => s.mode === "shell");
+          if (shellSession) {
+            switchToSession(shellSession.id);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to auto-create pane:", error);
+        })
+        .finally(() => {
+          isAutoCreatingRef.current = false;
+        });
+    }
+  }, [panes.length, isLoading, createAdHocPane, switchToSession]);
 
   // Keyboard shortcuts
   const { showHelp: showKeyboardHelp, closeHelp: closeKeyboardHelp } =
@@ -326,15 +358,7 @@ export function TerminalTabs({
         )}
       >
         <TerminalLayoutRenderer
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          projectPath={projectPath}
-          layoutMode={layoutMode}
-          availableLayouts={availableLayouts}
-          isGridMode={isGridMode}
           terminalSlots={terminalSlots}
-          orderedSlotIds={orderedIds}
-          onReorder={reorder}
           fontFamily={fontFamily}
           fontSize={fontSize}
           scrollback={scrollback}
@@ -343,7 +367,6 @@ export function TerminalTabs({
           theme={theme}
           onTerminalRef={setTerminalRef}
           onStatusChange={handleStatusChange}
-          onLayoutChange={handleLayoutModeChange}
           onSlotSwitch={handleSlotSwitch}
           onSlotReset={handleSlotReset}
           onSlotClose={handleSlotClose}
@@ -356,6 +379,7 @@ export function TerminalTabs({
           isModeSwitching={isModeSwitching}
           isMobile={isMobile}
           onSwapPanes={swapPanes}
+          onLayoutChange={handleLayoutChange}
         />
       </FileUploadDropzone>
 

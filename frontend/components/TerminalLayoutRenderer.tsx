@@ -1,29 +1,14 @@
 "use client";
 
-import { GridLayout } from "./GridLayout";
+import { ResizablePaneLayout, type PaneLayout } from "./ResizablePaneLayout";
 import { TerminalComponent, type TerminalHandle } from "./Terminal";
-import { type LayoutMode } from "./LayoutModeButton";
-import { type GridLayoutMode } from "@/lib/constants/terminal";
-import { type TerminalSlot } from "@/lib/utils/slot";
-import { type TerminalSession } from "@/lib/hooks/use-terminal-sessions";
+import { type TerminalSlot, type PaneSlot } from "@/lib/utils/slot";
 import { type ConnectionStatus } from "./terminal.types";
 import { type TerminalMode } from "./ModeToggle";
 
 interface TerminalLayoutRendererProps {
-  // Session data
-  sessions: TerminalSession[];
-  activeSessionId: string | null;
-  projectPath?: string;
-
-  // Layout mode
-  layoutMode: LayoutMode;
-  availableLayouts: LayoutMode[];
-  isGridMode: boolean;
-
-  // Slots
-  terminalSlots: TerminalSlot[];
-  orderedSlotIds: string[];
-  onReorder: (ids: string[]) => void;
+  // Slots (pane-based architecture)
+  terminalSlots: (TerminalSlot | PaneSlot)[];
 
   // Terminal settings
   fontFamily: string;
@@ -37,14 +22,11 @@ interface TerminalLayoutRendererProps {
   onTerminalRef: (sessionId: string, handle: TerminalHandle | null) => void;
   onStatusChange: (sessionId: string, status: ConnectionStatus) => void;
 
-  // Layout change
-  onLayoutChange: (mode: LayoutMode) => void;
-
   // Slot action handlers
-  onSlotSwitch: (slot: TerminalSlot) => void;
-  onSlotReset: (slot: TerminalSlot) => void;
-  onSlotClose: (slot: TerminalSlot) => void;
-  onSlotClean: (slot: TerminalSlot) => void;
+  onSlotSwitch: (slot: TerminalSlot | PaneSlot) => void;
+  onSlotReset: (slot: TerminalSlot | PaneSlot) => void;
+  onSlotClose: (slot: TerminalSlot | PaneSlot) => void;
+  onSlotClean: (slot: TerminalSlot | PaneSlot) => void;
 
   // Pane limits
   canAddPane: boolean;
@@ -56,7 +38,7 @@ interface TerminalLayoutRendererProps {
 
   // Mode switch handler for project slots
   onModeSwitch?: (
-    slot: TerminalSlot,
+    slot: TerminalSlot | PaneSlot,
     mode: TerminalMode,
   ) => void | Promise<void>;
   isModeSwitching?: boolean;
@@ -64,20 +46,16 @@ interface TerminalLayoutRendererProps {
   // Device
   isMobile: boolean;
 
-  // Pane swap (grid mode)
+  // Pane swap (for dropdown swap)
   onSwapPanes?: (slotIdA: string, slotIdB: string) => void;
+
+  // Layout persistence
+  onLayoutChange?: (layouts: PaneLayout[]) => void;
+  initialLayouts?: PaneLayout[];
 }
 
 export function TerminalLayoutRenderer({
-  sessions,
-  activeSessionId,
-  projectPath,
-  layoutMode,
-  availableLayouts,
-  isGridMode,
   terminalSlots,
-  orderedSlotIds,
-  onReorder,
   fontFamily,
   fontSize,
   scrollback,
@@ -86,7 +64,6 @@ export function TerminalLayoutRenderer({
   theme,
   onTerminalRef,
   onStatusChange,
-  onLayoutChange,
   onSlotSwitch,
   onSlotReset,
   onSlotClose,
@@ -99,16 +76,12 @@ export function TerminalLayoutRenderer({
   isModeSwitching,
   isMobile,
   onSwapPanes,
+  onLayoutChange,
+  initialLayouts,
 }: TerminalLayoutRendererProps) {
-  // Grid mode is the only layout mode now
   return (
-    <GridLayout
-      layoutMode={layoutMode as GridLayoutMode}
-      availableLayouts={availableLayouts}
-      onLayout={onLayoutChange}
+    <ResizablePaneLayout
       slots={terminalSlots}
-      orderedSlotIds={orderedSlotIds}
-      onReorder={onReorder}
       fontFamily={fontFamily}
       fontSize={fontSize}
       scrollback={scrollback}
@@ -127,9 +100,10 @@ export function TerminalLayoutRenderer({
       canAddPane={canAddPane}
       onModeSwitch={onModeSwitch}
       isModeSwitching={isModeSwitching}
-      onEmptyClick={onShowTerminalManager}
       isMobile={isMobile}
       onSwapPanes={onSwapPanes}
+      onLayoutChange={onLayoutChange}
+      initialLayouts={initialLayouts}
     />
   );
 }

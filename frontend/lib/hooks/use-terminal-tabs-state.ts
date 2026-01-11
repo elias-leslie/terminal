@@ -49,6 +49,7 @@ export function useTerminalTabsState({
     createAdHocPane,
     createProjectPane,
     isCreating: isPaneCreating,
+    saveLayouts,
   } = useTerminalPanes();
 
   // Layout state (single mode removed - always grid)
@@ -317,6 +318,7 @@ export function useTerminalTabsState({
     createAdHocPane,
     createProjectPane,
     isPaneCreating,
+    saveLayouts,
 
     // Terminal refs and statuses
     terminalRefs,

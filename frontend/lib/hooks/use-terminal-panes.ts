@@ -25,6 +25,11 @@ export interface TerminalPane {
   active_mode: "shell" | "claude";
   created_at: string | null;
   sessions: PaneSession[];
+  // Layout fields (for persistence)
+  width_percent: number;
+  height_percent: number;
+  grid_row: number;
+  grid_col: number;
 }
 
 interface PaneListResponse {
@@ -54,6 +59,16 @@ interface UpdatePaneRequest {
 interface SwapPanesRequest {
   pane_id_a: string;
   pane_id_b: string;
+}
+
+interface PaneLayoutItem {
+  pane_id: string;
+  width_percent?: number;
+  height_percent?: number;
+}
+
+interface BulkLayoutUpdateRequest {
+  layouts: PaneLayoutItem[];
 }
 
 // ============================================================================
@@ -119,6 +134,18 @@ async function swapPanes(request: SwapPanesRequest): Promise<void> {
     body: JSON.stringify(request),
   });
   if (!res.ok) throw new Error("Failed to swap panes");
+}
+
+async function updateAllLayouts(
+  request: BulkLayoutUpdateRequest,
+): Promise<TerminalPane[]> {
+  const res = await fetch("/api/terminal/layout", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) throw new Error("Failed to update layouts");
+  return res.json();
 }
 
 // ============================================================================
@@ -254,6 +281,13 @@ export function useTerminalPanes() {
     },
   });
 
+  // Mutation: update layouts (bulk)
+  const layoutMutation = useMutation({
+    mutationFn: updateAllLayouts,
+    // No optimistic update needed - just persist to backend
+    // Don't invalidate queries on success as layout changes don't affect UI state
+  });
+
   // Create project pane
   const createProjectPane = useCallback(
     async (paneName: string, projectId: string, workingDir?: string) => {
@@ -314,6 +348,26 @@ export function useTerminalPanes() {
     [swapMutation],
   );
 
+  // Save layouts (bulk update all pane layouts)
+  const saveLayouts = useCallback(
+    async (
+      layouts: Array<{
+        paneId: string;
+        widthPercent?: number;
+        heightPercent?: number;
+      }>,
+    ) => {
+      return layoutMutation.mutateAsync({
+        layouts: layouts.map((l) => ({
+          pane_id: l.paneId,
+          width_percent: l.widthPercent,
+          height_percent: l.heightPercent,
+        })),
+      });
+    },
+    [layoutMutation],
+  );
+
   // Get session ID for the active mode of a pane
   const getActiveSessionId = useCallback(
     (pane: TerminalPane): string | null => {
@@ -352,6 +406,9 @@ export function useTerminalPanes() {
     // Swap operations
     swapPanePositions,
     isSwapping: swapMutation.isPending,
+    // Layout operations
+    saveLayouts,
+    isSavingLayouts: layoutMutation.isPending,
     // Helpers
     getActiveSessionId,
     getSessionByMode,
