@@ -32,7 +32,9 @@ def _parse_log_level(level_str: str | None) -> int:
 _log_level = _parse_log_level(os.getenv("LOG_LEVEL"))
 _handler = logging.StreamHandler(sys.stdout)
 _handler.setLevel(_log_level)
-_handler.setFormatter(logging.Formatter("%(asctime)s - terminal.%(name)s - %(levelname)s - %(message)s"))
+_handler.setFormatter(
+    logging.Formatter("%(asctime)s - terminal.%(name)s - %(levelname)s - %(message)s")
+)
 
 logging.root.setLevel(_log_level)
 logging.root.handlers = [_handler]

@@ -15,3 +15,6 @@ node_modules/
 .vscode/
 *.swp
 backups/*.tar.gz
+
+# Dev tools output (TOON details)
+.dev-tools/
