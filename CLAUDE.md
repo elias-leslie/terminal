@@ -166,4 +166,29 @@ Table: `terminal_sessions`
 
 ---
 
-**Version**: 1.0.0 | **Updated**: 2026-01-08
+---
+
+## Tmux Integration
+
+Sessions map 1:1 to tmux: `summitflow-{session_id}`
+
+```bash
+tmux list-sessions                        # List all
+tmux capture-pane -t summitflow-<id> -p   # Read output
+tmux kill-session -t summitflow-<id>      # Cleanup orphan
+```
+
+**Startup Reconciliation:** On restart, `lifecycle.reconcile_on_startup()` syncs DB with tmux state.
+
+---
+
+## Testing
+
+```bash
+cd ~/terminal && python -m pytest         # Backend tests
+cd ~/terminal/frontend && npm test        # Frontend (vitest)
+```
+
+---
+
+**Version**: 1.0.0 | **Updated**: 2026-01-12
