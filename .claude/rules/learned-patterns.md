@@ -14,14 +14,6 @@ Use the field name `active_mode` instead of `default_mode` for all terminal proj
 
 *Rationale: A significant refactoring was performed to align architectural clarity and state representation across backend and frontend.*
 
-<!-- Pattern ID: fd36c90d-c8c3-4ba5-80f5-21adf88a59d9 | Applied: 2025-12-30T01:19:56.788404 -->
-
-## Safe Remote History Modification
-
-Always use `git push --force-with-lease` instead of a standard force push when updating the main branch after squashing development checkpoints. This prevents overwriting remote changes that were not fetched locally.
-
-*Rationale: Identified as the safe operational practice for pushing significant architectural changes and squashed commits.*
-
 <!-- Pattern ID: 64c9547b-b233-4594-84fc-9a0d572e0bd2 | Applied: 2025-12-30T03:35:29.576775 -->
 
 ## Tmux-based Claude Process Verification
@@ -93,14 +85,6 @@ Set `CLAUDE_POLL_INTERVAL_MS` to 500 in `TerminalTabs.tsx` for state polling. En
 Use the `isGeneric` parameter in the `use-terminal-sessions` hook to create terminal sessions not associated with a specific project. This flag ensures the `project_id` is set to undefined in the session creation request.
 
 *Rationale: Refactored the hook to support ad-hoc terminal sessions across the frontend.*
-
-<!-- Pattern ID: 744c11d1-d538-4625-b030-431eec5dc5c4 | Applied: 2025-12-30T18:06:26.789936 -->
-
-## Strict Git Discipline Blocking Thresholds
-
-Modify the PreToolUse hook to block tool execution if there are more than 10 uncommitted files or if more than 30 minutes have passed since the last commit. Transition from system warnings to hard blocks to ensure frequent, atomic commits during development.
-
-*Rationale: Observed a transition from warnings to hard blocks to maintain development hygiene and prevent large, uncommitted diffs.*
 
 <!-- Pattern ID: e14fc161-59e8-4a92-8cfc-c70d9aadde3c | Applied: 2026-01-01T07:47:05.598129 -->
 
