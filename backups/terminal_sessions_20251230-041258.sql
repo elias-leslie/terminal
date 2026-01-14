@@ -100,4 +100,3 @@ CREATE INDEX idx_terminal_sessions_user ON public.terminal_sessions USING btree 
 --
 
 \unrestrict BvLyjGL8AGamUsO3rRFADKRspv0mPqTf5UUXKZZ5vhE9DPPgoy4qRXtw5MvJXGQ
-
