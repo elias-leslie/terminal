@@ -99,19 +99,18 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
     // Only computed once on mount - window resize doesn't change device type
     const isMobile = useMemo(() => isMobileDevice(), []);
 
-    // Scrolling management via hook (tmux copy-mode for wheel/touch)
-    const { setupScrolling, resetCopyMode } = useTerminalScrolling({
+    // Scrolling management via hook (native xterm.js + alternate screen detection)
+    const { setupScrolling } = useTerminalScrolling({
       wsRef,
+      terminalRef,
       isMobile,
     });
 
     // Store scroll functions in refs to avoid re-init on scroll handler changes
     const setupScrollingRef = useRef(setupScrolling);
-    const resetCopyModeRef = useRef(resetCopyMode);
     useEffect(() => {
       setupScrollingRef.current = setupScrolling;
-      resetCopyModeRef.current = resetCopyMode;
-    }, [setupScrolling, resetCopyMode]);
+    }, [setupScrolling]);
 
     // Expose functions to parent
     useImperativeHandle(
@@ -261,14 +260,12 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
           };
         }
 
-        // Set up terminal input handler - forward to WebSocket and reset copy-mode on typing
+        // Set up terminal input handler - forward to WebSocket
         onDataDisposableRef.current = term.onData((data) => {
           // Only send input if this terminal has focus (prevents grid duplication)
           if (!isFocusedRef.current) return;
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(data);
-            // Typing exits tmux copy-mode, reset our tracking
-            resetCopyModeRef.current();
           }
         });
 

@@ -27,6 +27,8 @@ from ..services.pty_manager import (
 from ..storage import terminal as terminal_store
 from ..utils.tmux import (
     create_tmux_session,
+    get_scrollback,
+    resize_tmux_window,
     validate_session_name,
 )
 
@@ -140,13 +142,18 @@ def _handle_websocket_message(
     message: Any,
     master_fd: int,
     session_id: str,
-) -> None:
+    tmux_session_name: str | None = None,
+) -> tuple[int, int] | None:
     """Handle a single WebSocket message.
 
     Args:
         message: WebSocket message dict
         master_fd: Master file descriptor to write to
         session_id: Terminal session ID (for logging)
+        tmux_session_name: tmux session name for resize operations
+
+    Returns:
+        (cols, rows) tuple if this was a resize event, None otherwise
 
     Handles:
     - Resize commands (JSON starting with {"resize":)
@@ -168,20 +175,23 @@ def _handle_websocket_message(
                     cols = resize.get("cols", TMUX_DEFAULT_COLS)
                     rows = resize.get("rows", TMUX_DEFAULT_ROWS)
                     resize_pty(master_fd, cols, rows)
+                    # Also resize the tmux window to match
+                    if tmux_session_name:
+                        resize_tmux_window(tmux_session_name, cols, rows)
                     logger.info(
                         "terminal_resized",
                         session_id=session_id,
                         cols=cols,
                         rows=rows,
                     )
-                    return
+                    return (cols, rows)
 
                 # Handle refresh command (redraw terminal after connect)
                 if data.get("refresh"):
                     # Send Ctrl+L to trigger terminal redraw
                     os.write(master_fd, b"\x0c")
                     logger.debug("terminal_refreshed", session_id=session_id)
-                    return
+                    return None
 
             except json.JSONDecodeError:
                 # Not valid JSON, treat as input
@@ -189,12 +199,14 @@ def _handle_websocket_message(
 
         # Regular input - write to PTY
         os.write(master_fd, text.encode("utf-8"))
-        return
+        return None
 
     # Handle binary messages
     if "bytes" in message:
         os.write(master_fd, message["bytes"])
-        return
+        return None
+
+    return None
 
 
 @router.websocket("/ws/terminal/{session_id}")
@@ -245,12 +257,47 @@ async def terminal_websocket(
             "session_name": tmux_session_name,
         }
 
-        # NOTE: We intentionally do NOT send tmux scrollback here.
-        # Sending scrollback causes display corruption when tmux width != frontend width.
-        # Users can scroll through tmux history using copy-mode (Ctrl+B [).
-        # The xterm.js scrollback buffer handles new content correctly.
+        # Wait for first resize event from frontend (sync dimensions)
+        # This ensures tmux dimensions match frontend before sending scrollback
+        initial_resize_received = False
+        resize_timeout = 5.0  # seconds to wait for resize
 
-        # Start output reader task
+        try:
+            async with asyncio.timeout(resize_timeout):
+                while not initial_resize_received:
+                    message = await websocket.receive()
+                    if message["type"] == "websocket.disconnect":
+                        return
+                    resize_result = _handle_websocket_message(
+                        message, master_fd, session_id, tmux_session_name
+                    )
+                    if resize_result is not None:
+                        initial_resize_received = True
+                        logger.info(
+                            "initial_resize_received",
+                            session_id=session_id,
+                            cols=resize_result[0],
+                            rows=resize_result[1],
+                        )
+        except TimeoutError:
+            # No resize received, proceed with defaults
+            logger.warning(
+                "initial_resize_timeout",
+                session_id=session_id,
+                timeout=resize_timeout,
+            )
+
+        # Capture and send scrollback after resize (dimensions now match)
+        scrollback = get_scrollback(tmux_session_name)
+        if scrollback:
+            await websocket.send_text(scrollback)
+            logger.info(
+                "scrollback_sent",
+                session_id=session_id,
+                bytes=len(scrollback),
+            )
+
+        # Start output reader task for live output
         output_task = asyncio.create_task(read_pty_output(websocket, master_fd))
 
         # Auto-start Claude for claude-mode sessions
@@ -277,7 +324,9 @@ async def terminal_websocket(
                 if message["type"] == "websocket.disconnect":
                     break
 
-                _handle_websocket_message(message, master_fd, session_id)
+                _handle_websocket_message(
+                    message, master_fd, session_id, tmux_session_name
+                )
 
         except WebSocketDisconnect:
             logger.info("terminal_disconnected", session_id=session_id)

@@ -112,11 +112,21 @@ def resize_pty(master_fd: int, cols: int, rows: int) -> None:
     fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
 
 
+# Output batching constants (from ghostty/AutoMaker analysis)
+FLUSH_INTERVAL_MS = 16  # milliseconds - ~60fps
+BATCH_SIZE_LIMIT = 4096  # bytes - 4KB
+
+
 async def read_pty_output(websocket: WebSocket, master_fd: int) -> None:
-    """Read output from PTY and send to WebSocket.
+    """Read output from PTY and send to WebSocket with batching.
 
     Uses asyncio native FD watching with loop.add_reader() for true zero CPU
     when idle, instead of polling with select().
+
+    Implements 16ms/4KB batching to prevent browser freeze on heavy output:
+    - Accumulates data into a buffer
+    - Flushes every 16ms OR when buffer reaches 4KB
+    - Ensures final buffer is flushed on disconnect
 
     Handles UTF-8 decoding with buffering for incomplete multi-byte sequences.
 
@@ -131,6 +141,10 @@ async def read_pty_output(websocket: WebSocket, master_fd: int) -> None:
     utf8_buffer = b""
     # Max buffer size - UTF-8 chars are max 4 bytes
     MAX_UTF8_BUFFER = 4
+    # Output batch buffer for throttling
+    batch_buffer = ""
+    # Track last flush time
+    last_flush_time = loop.time()
 
     def on_readable() -> None:
         """Callback when FD has data available - runs in event loop thread."""
@@ -150,16 +164,45 @@ async def read_pty_output(websocket: WebSocket, master_fd: int) -> None:
                 )
             queue.put_nowait(None)
 
+    async def flush_batch() -> bool:
+        """Flush accumulated batch buffer to WebSocket.
+
+        Returns:
+            True if session should continue, False if session exited
+        """
+        nonlocal batch_buffer, last_flush_time
+        if batch_buffer:
+            await websocket.send_text(batch_buffer)
+            # Detect tmux session exit - triggers disconnect for reconnect
+            if "[exited]" in batch_buffer:
+                logger.info("tmux_session_exited_detected")
+                batch_buffer = ""
+                return False
+            batch_buffer = ""
+        last_flush_time = loop.time()
+        return True
+
     # Register FD for read events - true event-driven, zero CPU when idle
     loop.add_reader(master_fd, on_readable)
 
     try:
         while True:
-            # Blocks until data available - zero CPU while waiting
-            output = await queue.get()
+            # Calculate time until next flush
+            time_since_flush = (loop.time() - last_flush_time) * 1000  # ms
+            wait_time = max(0.001, (FLUSH_INTERVAL_MS - time_since_flush) / 1000)
+
+            try:
+                # Wait for data with timeout to enable periodic flushing
+                output = await asyncio.wait_for(queue.get(), timeout=wait_time)
+            except TimeoutError:
+                # Flush interval reached - flush current batch if any
+                if not await flush_batch():
+                    break
+                continue
 
             if output is None:
-                # EOF or error
+                # EOF or error - flush remaining buffer before exit
+                await flush_batch()
                 break
 
             # Prepend any buffered incomplete sequence
@@ -187,15 +230,20 @@ async def read_pty_output(websocket: WebSocket, master_fd: int) -> None:
                     decoded = output.decode("utf-8", errors="replace")
 
             if decoded:
-                await websocket.send_text(decoded)
+                batch_buffer += decoded
 
-                # Detect tmux session exit - triggers disconnect for reconnect
-                if "[exited]" in decoded:
-                    logger.info("tmux_session_exited_detected")
-                    break
+                # Flush if batch size limit reached
+                if len(batch_buffer) >= BATCH_SIZE_LIMIT:
+                    if not await flush_batch():
+                        break
 
     except asyncio.CancelledError:
-        pass
+        # Flush remaining buffer on cancellation
+        if batch_buffer:
+            try:
+                await websocket.send_text(batch_buffer)
+            except Exception:
+                pass  # WebSocket may already be closed
     except Exception as e:
         logger.error("terminal_output_error", error=str(e))
     finally:

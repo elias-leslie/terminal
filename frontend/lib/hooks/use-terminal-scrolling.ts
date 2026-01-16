@@ -1,16 +1,14 @@
 "use client";
 
-import { useRef, useCallback, useEffect } from "react";
-import { SCROLL_THRESHOLD, COPY_MODE_TIMEOUT_MS } from "../constants/terminal";
-
-interface CopyModeState {
-  inCopyMode: boolean;
-  timeout: ReturnType<typeof setTimeout> | null;
-}
+import { useCallback } from "react";
+import type { Terminal } from "@xterm/xterm";
+import { SCROLL_THRESHOLD } from "../constants/terminal";
 
 interface UseTerminalScrollingOptions {
-  /** WebSocket ref for sending scroll commands */
+  /** WebSocket ref for sending input to terminal */
   wsRef: React.RefObject<WebSocket | null>;
+  /** Terminal instance ref for buffer type detection */
+  terminalRef: React.RefObject<Terminal | null>;
   /** Whether to enable mobile touch scrolling */
   isMobile: boolean;
 }
@@ -23,104 +21,82 @@ interface ScrollingSetupResult {
 }
 
 interface UseTerminalScrollingReturn {
-  /** Copy-mode state ref for external access */
-  copyModeStateRef: React.RefObject<CopyModeState>;
   /** Set up scrolling handlers on a container element */
   setupScrolling: (container: HTMLElement) => ScrollingSetupResult;
-  /** Reset copy-mode state (call on user input) */
-  resetCopyMode: () => void;
+}
+
+// Arrow key escape sequences (application mode)
+const ARROW_UP = "\x1b[A";
+const ARROW_DOWN = "\x1b[A".replace("A", "B"); // \x1b[B
+
+/**
+ * Check if terminal is in alternate screen mode (vim, less, htop, etc.)
+ *
+ * Alternate screen is used by full-screen applications like vim, less, htop.
+ * In alternate mode, we send arrow keys for scrolling.
+ * In normal mode, xterm.js handles scrolling natively via its scrollback buffer.
+ */
+function isAlternateScreen(terminal: Terminal): boolean {
+  return terminal.buffer.active.type === "alternate";
 }
 
 /**
- * Hook for managing tmux copy-mode scrolling in the terminal.
+ * Hook for managing terminal scrolling with alternate screen detection.
  *
  * Handles:
- * - Desktop wheel scrolling (enter copy-mode, Ctrl+U/D for scroll)
- * - Mobile touch scrolling (swipe gestures)
- * - Copy-mode timeout tracking (auto-exit after 10s inactivity)
+ * - Normal mode: xterm.js handles scroll natively (no intervention)
+ * - Alternate mode: Send arrow keys for vim/less/htop scrolling
  *
  * @example
  * ```tsx
- * const { setupScrolling, resetCopyMode, copyModeStateRef } = useTerminalScrolling({
+ * const { setupScrolling } = useTerminalScrolling({
  *   wsRef,
+ *   terminalRef,
  *   isMobile: isMobileDevice(),
  * });
  *
  * // In terminal init effect:
  * const { wheelCleanup, touchCleanup } = setupScrolling(containerRef.current);
- *
- * // On user input:
- * resetCopyMode();
  * ```
  */
 export function useTerminalScrolling({
   wsRef,
+  terminalRef,
   isMobile,
 }: UseTerminalScrollingOptions): UseTerminalScrollingReturn {
-  const copyModeStateRef = useRef<CopyModeState>({
-    inCopyMode: false,
-    timeout: null,
-  });
-
-  // Enter copy-mode if not already in it
-  const enterCopyMode = useCallback(() => {
-    if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-
-    const state = copyModeStateRef.current;
-
-    // Clear existing timeout
-    if (state.timeout) clearTimeout(state.timeout);
-
-    // Enter copy-mode if not already in it
-    if (!state.inCopyMode) {
-      wsRef.current.send("\x02["); // Ctrl+B [
-      state.inCopyMode = true;
-    }
-
-    // Reset timeout - assume exit after inactivity
-    state.timeout = setTimeout(() => {
-      state.inCopyMode = false;
-      state.timeout = null;
-    }, COPY_MODE_TIMEOUT_MS);
-  }, [wsRef]);
-
-  // Send scroll command in copy-mode (Ctrl+U up, Ctrl+D down)
-  const sendScrollCommand = useCallback(
+  // Send arrow key to terminal for alternate screen scrolling
+  const sendArrowKey = useCallback(
     (direction: "up" | "down") => {
       if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-      wsRef.current.send(direction === "up" ? "\x15" : "\x04");
+      wsRef.current.send(direction === "up" ? ARROW_UP : ARROW_DOWN);
     },
     [wsRef],
   );
 
-  // Reset copy-mode state (on user input)
-  const resetCopyMode = useCallback(() => {
-    const state = copyModeStateRef.current;
-    if (state.inCopyMode) {
-      state.inCopyMode = false;
-      if (state.timeout) {
-        clearTimeout(state.timeout);
-        state.timeout = null;
-      }
-    }
-  }, []);
-
   // Set up scrolling handlers on a container element
-  // NOTE: xterm.js scrollback does NOT work with tmux - tmux controls what's displayed.
-  // The scrollback history is in tmux's buffer, not xterm.js's buffer.
-  // Therefore we need copy-mode for BOTH desktop (wheel) and mobile (touch).
   const setupScrolling = useCallback(
     (container: HTMLElement): ScrollingSetupResult => {
-      const state = copyModeStateRef.current;
-
-      // Wheel handler for desktop scrolling (enters tmux copy-mode)
+      // Wheel handler for desktop scrolling
+      // - Normal mode: Don't prevent default, let xterm.js scroll natively
+      // - Alternate mode: Prevent default, send arrow keys
       const handleWheel = (e: WheelEvent) => {
-        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-        e.preventDefault();
-        e.stopPropagation();
+        const terminal = terminalRef.current;
+        if (!terminal) return;
 
-        enterCopyMode();
-        sendScrollCommand(e.deltaY < 0 ? "up" : "down");
+        // Check if in alternate screen (vim, less, etc.)
+        if (isAlternateScreen(terminal)) {
+          // Prevent xterm.js native scroll, send arrow keys instead
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Send multiple arrow keys for faster scrolling based on delta
+          const lines = Math.max(1, Math.floor(Math.abs(e.deltaY) / 40));
+          const direction = e.deltaY < 0 ? "up" : "down";
+          for (let i = 0; i < lines; i++) {
+            sendArrowKey(direction);
+          }
+        }
+        // In normal mode, don't prevent default - let xterm.js handle it natively
       };
 
       container.addEventListener("wheel", handleWheel, {
@@ -130,10 +106,6 @@ export function useTerminalScrolling({
 
       const wheelCleanup = () => {
         container.removeEventListener("wheel", handleWheel, { capture: true });
-        if (state.timeout) {
-          clearTimeout(state.timeout);
-          state.timeout = null;
-        }
       };
 
       // Touch handlers for mobile scrolling
@@ -145,18 +117,26 @@ export function useTerminalScrolling({
         const handleTouchStart = (e: TouchEvent) => {
           touchStartY = e.touches[0].clientY;
           lastSentY = touchStartY;
-          enterCopyMode();
         };
 
         const handleTouchMove = (e: TouchEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const currentY = e.touches[0].clientY;
-          const deltaY = lastSentY - currentY;
-          if (Math.abs(deltaY) >= SCROLL_THRESHOLD) {
-            sendScrollCommand(deltaY > 0 ? "down" : "up");
-            lastSentY = currentY;
+          const terminal = terminalRef.current;
+          if (!terminal) return;
+
+          // Check if in alternate screen
+          if (isAlternateScreen(terminal)) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const currentY = e.touches[0].clientY;
+            const deltaY = lastSentY - currentY;
+
+            if (Math.abs(deltaY) >= SCROLL_THRESHOLD) {
+              sendArrowKey(deltaY > 0 ? "down" : "up");
+              lastSentY = currentY;
+            }
           }
+          // In normal mode, don't prevent - let xterm.js scroll natively
         };
 
         const handleTouchEnd = () => {
@@ -192,23 +172,10 @@ export function useTerminalScrolling({
 
       return { wheelCleanup, touchCleanup };
     },
-    [wsRef, isMobile, enterCopyMode, sendScrollCommand],
+    [terminalRef, isMobile, sendArrowKey],
   );
 
-  // Cleanup on unmount
-  useEffect(() => {
-    const state = copyModeStateRef.current;
-    return () => {
-      if (state.timeout) {
-        clearTimeout(state.timeout);
-        state.timeout = null;
-      }
-    };
-  }, []);
-
   return {
-    copyModeStateRef,
     setupScrolling,
-    resetCopyMode,
   };
 }

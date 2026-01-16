@@ -116,6 +116,48 @@ def tmux_session_exists(session_id: str) -> bool:
     return tmux_session_exists_by_name(session_name)
 
 
+# Environment variables to filter out (secrets that shouldn't be exposed to child shells)
+# These vars are unset in tmux sessions to prevent accidental exposure
+FILTERED_ENV_VARS = {
+    "DATABASE_URL",
+    "CF_ACCESS_CLIENT_ID",
+    "CF_ACCESS_CLIENT_SECRET",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "SECRET_KEY",
+    "JWT_SECRET",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "GITHUB_TOKEN",
+    "GITLAB_TOKEN",
+    "SLACK_TOKEN",
+    "DISCORD_TOKEN",
+}
+
+
+def _filter_session_environment(session_name: str) -> None:
+    """Remove sensitive environment variables from tmux session.
+
+    Unsets known secret variables to prevent child shells from inheriting them.
+    Uses tmux set-environment -u to unset vars in the session environment.
+
+    Args:
+        session_name: tmux session name
+    """
+    for var in FILTERED_ENV_VARS:
+        # -u removes the variable from the session environment
+        # -g would affect global, but we only want session scope
+        run_tmux_command(["set-environment", "-t", session_name, "-u", var])
+
+    logger.debug(
+        "session_environment_filtered",
+        session=session_name,
+        filtered_count=len(FILTERED_ENV_VARS),
+    )
+
+
 def create_tmux_session(
     session_id: str,
     working_dir: str | None = None,
@@ -144,6 +186,8 @@ def create_tmux_session(
             run_tmux_command(["set-option", "-t", session_name, "mouse", "off"])
         # Ensure status bar is disabled for existing sessions
         run_tmux_command(["set-option", "-t", session_name, "status", "off"])
+        # Re-apply environment filtering (in case new secrets were added)
+        _filter_session_environment(session_name)
         return session_name
 
     # Create new session - default to home directory if working_dir not specified
@@ -179,6 +223,9 @@ def create_tmux_session(
 
     # Disable tmux status bar - web UI handles session info display
     run_tmux_command(["set-option", "-t", session_name, "status", "off"])
+
+    # Filter out sensitive environment variables from the session
+    _filter_session_environment(session_name)
 
     logger.info(
         "tmux_session_created", session=session_name, working_dir=effective_working_dir
@@ -227,3 +274,54 @@ def is_claude_running_in_session(session_name: str) -> bool:
             return True
 
     return False
+
+
+def get_scrollback(session_name: str) -> str | None:
+    """Capture tmux scrollback history for a session.
+
+    Uses tmux capture-pane with options:
+    - -S -: Start from beginning of history
+    - -e: Include escape sequences (colors, formatting)
+    - -J: Join wrapped lines
+    - -p: Print to stdout (instead of tmux buffer)
+
+    Args:
+        session_name: tmux session name
+
+    Returns:
+        Scrollback content with escape sequences, or None if capture fails
+    """
+    success, output = run_tmux_command(
+        ["capture-pane", "-t", session_name, "-S", "-", "-e", "-J", "-p"]
+    )
+
+    if not success:
+        logger.warning("tmux_scrollback_capture_failed", session=session_name)
+        return None
+
+    return output
+
+
+def resize_tmux_window(session_name: str, cols: int, rows: int) -> bool:
+    """Resize tmux window to match frontend dimensions.
+
+    Args:
+        session_name: tmux session name
+        cols: Number of columns
+        rows: Number of rows
+
+    Returns:
+        True if resize succeeded
+    """
+    success, _ = run_tmux_command(
+        ["resize-window", "-t", session_name, "-x", str(cols), "-y", str(rows)]
+    )
+
+    if success:
+        logger.debug("tmux_window_resized", session=session_name, cols=cols, rows=rows)
+    else:
+        logger.warning(
+            "tmux_window_resize_failed", session=session_name, cols=cols, rows=rows
+        )
+
+    return success

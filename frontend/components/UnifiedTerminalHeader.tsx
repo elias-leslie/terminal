@@ -171,6 +171,7 @@ export const UnifiedTerminalHeader = memo(function UnifiedTerminalHeader({
               ? "Open terminal"
               : "Maximum 4 terminals. Close one to add more."
           }
+          data-testid="add-terminal-btn"
         >
           <Plus className={isMobile ? "w-4 h-4" : "w-3 h-3"} />
         </button>

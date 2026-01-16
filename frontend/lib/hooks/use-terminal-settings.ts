@@ -53,11 +53,12 @@ export const TERMINAL_FONT_SIZES = [
   10, 11, 12, 13, 14, 15, 16, 18, 20,
 ] as const;
 
-// Scrollback buffer sizes (lines)
+// Scrollback buffer sizes (lines) - 100K matches tmux history-limit
 export const TERMINAL_SCROLLBACK_OPTIONS = [
   { value: 1000, label: "1K lines" },
   { value: 10000, label: "10K lines" },
   { value: 50000, label: "50K lines" },
+  { value: 100000, label: "100K lines" },
   { value: 999999, label: "Unlimited" },
 ] as const;
 
@@ -85,7 +86,7 @@ const STORAGE_KEY_PROJECT_PREFIX = "terminal-settings-project-";
 const DEFAULT_SETTINGS: TerminalSettings = {
   fontId: "jetbrains-mono",
   fontSize: 14,
-  scrollback: 10000,
+  scrollback: 100000,
   cursorStyle: "block",
   cursorBlink: true,
   themeId: "phosphor",
