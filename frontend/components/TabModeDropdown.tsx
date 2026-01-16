@@ -96,6 +96,7 @@ export function TabModeDropdown({
     <div className="relative">
       <button
         ref={buttonRef}
+        data-testid="mode-dropdown"
         onClick={(e) => {
           e.stopPropagation();
           if (!isDisabled) setIsOpen(!isOpen);
@@ -109,8 +110,12 @@ export function TabModeDropdown({
         `}
         style={{
           backgroundColor: isOpen ? "var(--term-bg-deep)" : "transparent",
-          color: isDisabled ? "var(--term-text-muted)" : "var(--term-text-primary)",
-          border: isOpen ? "1px solid var(--term-border-active)" : "1px solid transparent",
+          color: isDisabled
+            ? "var(--term-text-muted)"
+            : "var(--term-text-primary)",
+          border: isOpen
+            ? "1px solid var(--term-border-active)"
+            : "1px solid transparent",
           opacity: isDisabled ? 0.5 : 1,
           cursor: isDisabled ? "not-allowed" : "pointer",
         }}
@@ -126,21 +131,30 @@ export function TabModeDropdown({
             e.currentTarget.style.borderColor = "transparent";
           }
         }}
-        title={isCurrentlyLoading ? "Switching mode..." : `Current mode: ${value}`}
+        title={
+          isCurrentlyLoading ? "Switching mode..." : `Current mode: ${value}`
+        }
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-busy={isCurrentlyLoading}
       >
         {/* Loading spinner when switching modes */}
         {isCurrentlyLoading ? (
-          <Loader2 className="w-3 h-3 animate-spin" style={{ color: "var(--term-accent)" }} />
+          <Loader2
+            className="w-3 h-3 animate-spin"
+            style={{ color: "var(--term-accent)" }}
+          />
+        ) : /* Mode indicator icon */
+        value === "claude" ? (
+          <Sparkles
+            className="w-3 h-3"
+            style={{ color: "var(--term-accent)" }}
+          />
         ) : (
-          /* Mode indicator icon */
-          value === "claude" ? (
-            <Sparkles className="w-3 h-3" style={{ color: "var(--term-accent)" }} />
-          ) : (
-            <Terminal className="w-3 h-3" style={{ color: "var(--term-text-muted)" }} />
-          )
+          <Terminal
+            className="w-3 h-3"
+            style={{ color: "var(--term-text-muted)" }}
+          />
         )}
         <ChevronDown
           className={`w-3 h-3 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}
@@ -162,6 +176,7 @@ export function TabModeDropdown({
 
           <div
             ref={dropdownRef}
+            data-testid="mode-dropdown-menu"
             role="listbox"
             className="min-w-[100px] rounded-md overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100"
             style={{
@@ -226,13 +241,25 @@ function ModeOption({
       }}
     >
       {mode === "claude" ? (
-        <Sparkles className="w-3.5 h-3.5" style={{ color: isSelected ? "var(--term-accent)" : "var(--term-text-muted)" }} />
+        <Sparkles
+          className="w-3.5 h-3.5"
+          style={{
+            color: isSelected ? "var(--term-accent)" : "var(--term-text-muted)",
+          }}
+        />
       ) : (
-        <Terminal className="w-3.5 h-3.5" style={{ color: isSelected ? "var(--term-accent)" : "var(--term-text-muted)" }} />
+        <Terminal
+          className="w-3.5 h-3.5"
+          style={{
+            color: isSelected ? "var(--term-accent)" : "var(--term-text-muted)",
+          }}
+        />
       )}
       <span>{mode === "claude" ? "Claude" : "Shell"}</span>
       {isSelected && (
-        <span className="ml-auto" style={{ color: "var(--term-accent)" }}>✓</span>
+        <span className="ml-auto" style={{ color: "var(--term-accent)" }}>
+          ✓
+        </span>
       )}
     </button>
   );

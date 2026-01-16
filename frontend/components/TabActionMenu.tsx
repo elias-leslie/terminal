@@ -80,6 +80,7 @@ export function TabActionMenu({
     <div className="relative">
       <button
         ref={buttonRef}
+        data-testid="tab-action-menu"
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(!isOpen);
@@ -127,6 +128,7 @@ export function TabActionMenu({
 
           <div
             ref={menuRef}
+            data-testid="tab-action-menu-items"
             role="menu"
             className="min-w-[120px] rounded-md overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100"
             style={{
@@ -172,8 +174,10 @@ function MenuItem({
   isMobile: boolean;
   variant?: "default" | "danger";
 }) {
-  const colorVar = variant === "danger" ? "var(--term-error)" : "var(--term-text-primary)";
-  const hoverColorVar = variant === "danger" ? "var(--term-error)" : "var(--term-accent)";
+  const colorVar =
+    variant === "danger" ? "var(--term-error)" : "var(--term-text-primary)";
+  const hoverColorVar =
+    variant === "danger" ? "var(--term-error)" : "var(--term-accent)";
 
   return (
     <button

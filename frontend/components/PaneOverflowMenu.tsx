@@ -70,6 +70,7 @@ export function PaneOverflowMenu({
     <div className="relative">
       <button
         ref={buttonRef}
+        data-testid="pane-overflow-menu"
         onClick={() => setIsOpen(!isOpen)}
         className={clsx(
           "flex items-center justify-center rounded transition-all duration-150",
@@ -96,6 +97,7 @@ export function PaneOverflowMenu({
       {isOpen && (
         <div
           ref={menuRef}
+          data-testid="pane-overflow-menu-items"
           className="absolute right-0 top-full mt-1 z-50 min-w-[140px] py-1 rounded-md shadow-lg"
           style={{
             backgroundColor: "var(--term-bg-elevated)",

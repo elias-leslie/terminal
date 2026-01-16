@@ -83,6 +83,7 @@ export function LayoutModeButtons({
     <div className="relative">
       <button
         ref={buttonRef}
+        data-testid="layout-dropdown"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1 p-1.5 rounded-md transition-all duration-150"
         style={{
@@ -123,6 +124,7 @@ export function LayoutModeButtons({
 
           <div
             ref={dropdownRef}
+            data-testid="layout-dropdown-menu"
             role="listbox"
             className="min-w-[140px] rounded-md overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100"
             style={{

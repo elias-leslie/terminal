@@ -75,6 +75,7 @@ export function TerminalSwitcher({
     <div ref={dropdownRef} className="relative flex items-center gap-1">
       {/* Trigger button */}
       <button
+        data-testid="terminal-switcher"
         onClick={() => setIsOpen(!isOpen)}
         className={clsx(
           "flex items-center gap-1 px-1.5 py-0.5 rounded text-xs truncate max-w-[140px] transition-all duration-150",
@@ -105,6 +106,7 @@ export function TerminalSwitcher({
       {/* Dropdown - slot list */}
       {isOpen && (
         <div
+          data-testid="terminal-switcher-menu"
           className={clsx(
             "absolute left-0 top-full mt-1 z-50 rounded-md shadow-lg overflow-hidden",
             isMobile ? "min-w-[200px]" : "min-w-[180px]",

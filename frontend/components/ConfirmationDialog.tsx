@@ -78,6 +78,7 @@ export function ConfirmationDialog({
     >
       <div
         ref={dialogRef}
+        data-testid="confirm-dialog"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
@@ -137,6 +138,7 @@ export function ConfirmationDialog({
           }}
         >
           <button
+            data-testid="confirm-dialog-cancel"
             onClick={onCancel}
             className="px-3 py-1.5 text-xs rounded transition-colors"
             style={{
@@ -158,6 +160,7 @@ export function ConfirmationDialog({
           </button>
           <button
             ref={confirmButtonRef}
+            data-testid="confirm-dialog-confirm"
             onClick={onConfirm}
             className="px-3 py-1.5 text-xs rounded transition-colors"
             style={{

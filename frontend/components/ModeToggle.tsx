@@ -63,6 +63,7 @@ export function ModeToggle({
   return (
     <>
       <button
+        data-testid="mode-toggle"
         onClick={handleClick}
         disabled={isDisabled}
         onMouseEnter={() => setIsHovered(true)}

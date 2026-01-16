@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import styles from './PromptCleaner.module.css';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import styles from "./PromptCleaner.module.css";
 
-type CleanerState = 'idle' | 'processing' | 'preview' | 'refining';
+type CleanerState = "idle" | "processing" | "preview" | "refining";
 
 interface PromptCleanerProps {
   /** The raw prompt text to clean */
@@ -25,13 +25,13 @@ export function PromptCleaner({
   cleanPrompt,
   showDiffToggle = true,
 }: PromptCleanerProps) {
-  const [state, setState] = useState<CleanerState>('idle');
-  const [cleanedPrompt, setCleanedPrompt] = useState('');
-  const [displayedText, setDisplayedText] = useState('');
+  const [state, setState] = useState<CleanerState>("idle");
+  const [cleanedPrompt, setCleanedPrompt] = useState("");
+  const [displayedText, setDisplayedText] = useState("");
   const [showDiff, setShowDiff] = useState(false);
-  const [refinementInput, setRefinementInput] = useState('');
+  const [refinementInput, setRefinementInput] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [editedPrompt, setEditedPrompt] = useState('');
+  const [editedPrompt, setEditedPrompt] = useState("");
   const [scanProgress, setScanProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -52,10 +52,10 @@ export function PromptCleaner({
 
   // Typewriter effect for cleaned prompt
   useEffect(() => {
-    if (state !== 'preview' || !cleanedPrompt) return;
+    if (state !== "preview" || !cleanedPrompt) return;
 
     let index = 0;
-    setDisplayedText('');
+    setDisplayedText("");
 
     const interval = setInterval(() => {
       if (index < cleanedPrompt.length) {
@@ -71,13 +71,13 @@ export function PromptCleaner({
 
   // Scan progress animation
   useEffect(() => {
-    if (state !== 'processing') {
+    if (state !== "processing") {
       setScanProgress(0);
       return;
     }
 
     const interval = setInterval(() => {
-      setScanProgress(prev => {
+      setScanProgress((prev) => {
         if (prev >= 100) return 0;
         return prev + 2;
       });
@@ -87,15 +87,15 @@ export function PromptCleaner({
   }, [state]);
 
   const handleClean = async (refinement?: string) => {
-    setState(refinement ? 'refining' : 'processing');
+    setState(refinement ? "refining" : "processing");
     try {
       const result = await cleanPrompt(rawPrompt, refinement);
       setCleanedPrompt(result);
       setEditedPrompt(result);
-      setState('preview');
+      setState("preview");
     } catch (error) {
-      console.error('Failed to clean prompt:', error);
-      setState('idle');
+      console.error("Failed to clean prompt:", error);
+      setState("idle");
     }
   };
 
@@ -112,7 +112,7 @@ export function PromptCleaner({
   const handleRefine = () => {
     if (refinementInput.trim()) {
       handleClean(refinementInput);
-      setRefinementInput('');
+      setRefinementInput("");
     }
   };
 
@@ -127,14 +127,15 @@ export function PromptCleaner({
     <>
       {/* Backdrop with scanline texture */}
       <div
-        className={`${styles.backdrop} ${isVisible ? styles.backdropVisible : ''}`}
+        className={`${styles.backdrop} ${isVisible ? styles.backdropVisible : ""}`}
         onClick={handleClose}
       />
 
       {/* Main panel */}
       <div
         ref={panelRef}
-        className={`${styles.panel} ${isVisible ? styles.panelVisible : ''}`}
+        data-testid="prompt-cleaner-modal"
+        className={`${styles.panel} ${isVisible ? styles.panelVisible : ""}`}
       >
         {/* Scanline overlay */}
         <div className={styles.scanlineOverlay} />
@@ -147,55 +148,81 @@ export function PromptCleaner({
             <span className={styles.headerVersion}>v1.0</span>
           </div>
           <div className={styles.headerRight}>
-            {showDiffToggle && state === 'preview' && (
+            {showDiffToggle && state === "preview" && (
               <button
-                className={`${styles.toggleBtn} ${showDiff ? styles.toggleBtnActive : ''}`}
+                className={`${styles.toggleBtn} ${showDiff ? styles.toggleBtnActive : ""}`}
                 onClick={() => setShowDiff(!showDiff)}
               >
                 <span className={styles.toggleIcon}>◐</span>
                 DIFF
               </button>
             )}
-            <button className={styles.closeBtn} onClick={handleClose}>
+            <button
+              data-testid="prompt-cleaner-modal-close"
+              className={styles.closeBtn}
+              onClick={handleClose}
+            >
               <span>×</span>
             </button>
           </div>
         </div>
 
         {/* Processing state */}
-        {(state === 'processing' || state === 'refining') && (
+        {(state === "processing" || state === "refining") && (
           <div className={styles.processingContainer}>
             <div className={styles.scanAnimation}>
-              <div className={styles.scanLine} style={{ top: `${scanProgress}%` }} />
+              <div
+                className={styles.scanLine}
+                style={{ top: `${scanProgress}%` }}
+              />
               <div className={styles.scanText}>
-                {state === 'refining' ? '> REFINING...' : '> ANALYZING PROMPT...'}
+                {state === "refining"
+                  ? "> REFINING..."
+                  : "> ANALYZING PROMPT..."}
               </div>
               <div className={styles.originalPreview}>
-                {rawPrompt.split('\n').map((line, i) => (
-                  <div key={i} className={styles.scanLineText}>{line || '\u00A0'}</div>
+                {rawPrompt.split("\n").map((line, i) => (
+                  <div key={i} className={styles.scanLineText}>
+                    {line || "\u00A0"}
+                  </div>
                 ))}
               </div>
             </div>
             <div className={styles.progressBar}>
-              <div className={styles.progressFill} style={{ width: `${scanProgress}%` }} />
+              <div
+                className={styles.progressFill}
+                style={{ width: `${scanProgress}%` }}
+              />
             </div>
           </div>
         )}
 
         {/* Preview state */}
-        {state === 'preview' && (
+        {state === "preview" && (
           <div className={styles.previewContainer}>
             {showDiff ? (
               <div className={styles.diffView}>
-                <div className={`${styles.diffPanel} ${styles.diffPanelOriginal}`}>
-                  <div className={`${styles.diffLabel} ${styles.diffLabelOriginal}`}>ORIGINAL</div>
+                <div
+                  className={`${styles.diffPanel} ${styles.diffPanelOriginal}`}
+                >
+                  <div
+                    className={`${styles.diffLabel} ${styles.diffLabelOriginal}`}
+                  >
+                    ORIGINAL
+                  </div>
                   <div className={styles.diffContent}>{rawPrompt}</div>
                 </div>
                 <div className={styles.diffDivider}>
                   <span className={styles.arrow}>→</span>
                 </div>
-                <div className={`${styles.diffPanel} ${styles.diffPanelCleaned}`}>
-                  <div className={`${styles.diffLabel} ${styles.diffLabelCleaned}`}>CLEANED</div>
+                <div
+                  className={`${styles.diffPanel} ${styles.diffPanelCleaned}`}
+                >
+                  <div
+                    className={`${styles.diffLabel} ${styles.diffLabelCleaned}`}
+                  >
+                    CLEANED
+                  </div>
                   <div className={styles.diffContent}>{displayedText}</div>
                 </div>
               </div>
@@ -234,7 +261,7 @@ export function PromptCleaner({
                   placeholder="Refine: 'make it shorter', 'add context about X'..."
                   value={refinementInput}
                   onChange={(e) => setRefinementInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
+                  onKeyDown={(e) => e.key === "Enter" && handleRefine()}
                 />
                 {refinementInput && (
                   <button className={styles.refineBtn} onClick={handleRefine}>
@@ -247,17 +274,26 @@ export function PromptCleaner({
         )}
 
         {/* Action bar */}
-        {state === 'preview' && (
+        {state === "preview" && (
           <div className={styles.actionBar}>
-            <button className={`${styles.actionBtn} ${styles.actionBtnSecondary}`} onClick={handleClose}>
+            <button
+              className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
+              onClick={handleClose}
+            >
               <span className={styles.btnIcon}>✕</span>
               CANCEL
             </button>
-            <button className={`${styles.actionBtn} ${styles.actionBtnSecondary}`} onClick={toggleEditMode}>
-              <span className={styles.btnIcon}>{isEditing ? '◉' : '✎'}</span>
-              {isEditing ? 'PREVIEW' : 'EDIT'}
+            <button
+              className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
+              onClick={toggleEditMode}
+            >
+              <span className={styles.btnIcon}>{isEditing ? "◉" : "✎"}</span>
+              {isEditing ? "PREVIEW" : "EDIT"}
             </button>
-            <button className={`${styles.actionBtn} ${styles.actionBtnPrimary}`} onClick={handleSend}>
+            <button
+              className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
+              onClick={handleSend}
+            >
               <span className={styles.btnIcon}>▶</span>
               SEND
               <span className={styles.keyHint}>⏎</span>

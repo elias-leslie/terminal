@@ -92,6 +92,7 @@ export function GlobalActionMenu({
     <div className="relative">
       <button
         ref={buttonRef}
+        data-testid="global-action-menu"
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(!isOpen);
@@ -140,6 +141,7 @@ export function GlobalActionMenu({
 
           <div
             ref={menuRef}
+            data-testid="global-action-menu-items"
             role="menu"
             className="min-w-[160px] rounded-md overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100"
             style={{

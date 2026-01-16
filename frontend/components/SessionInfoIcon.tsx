@@ -41,9 +41,12 @@ export const SessionInfoIcon = memo(function SessionInfoIcon({
 
   return (
     <button
+      data-testid="session-info-icon"
       onClick={handleClick}
       className={`p-1 rounded transition-colors duration-150 ${className || ""}`}
-      style={{ color: copied ? "var(--term-accent)" : "var(--term-text-muted)" }}
+      style={{
+        color: copied ? "var(--term-accent)" : "var(--term-text-muted)",
+      }}
       title={copied ? "Copied!" : tooltipText}
       onMouseEnter={(e) => {
         if (!copied) {
@@ -54,7 +57,11 @@ export const SessionInfoIcon = memo(function SessionInfoIcon({
         e.currentTarget.style.backgroundColor = "transparent";
       }}
     >
-      {copied ? <Check className="w-3.5 h-3.5" /> : <Info className="w-3.5 h-3.5" />}
+      {copied ? (
+        <Check className="w-3.5 h-3.5" />
+      ) : (
+        <Info className="w-3.5 h-3.5" />
+      )}
     </button>
   );
 });

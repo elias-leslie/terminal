@@ -182,6 +182,7 @@ export function TerminalManagerModal({
 
       {/* Modal - z-10001 above overlay */}
       <div
+        data-testid="terminal-manager-modal"
         className="fixed z-[10001] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[480px] rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         style={{
           backgroundColor: "var(--term-bg-elevated)",
@@ -204,6 +205,7 @@ export function TerminalManagerModal({
             TERMINALS
           </h2>
           <button
+            data-testid="terminal-manager-modal-close"
             onClick={onClose}
             className="flex items-center justify-center w-11 h-11 rounded transition-colors"
             onMouseEnter={closeButtonHover.onMouseEnter}

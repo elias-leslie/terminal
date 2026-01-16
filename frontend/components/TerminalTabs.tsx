@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { clsx } from "clsx";
 import { UploadProgressToast, UploadErrorToast } from "./UploadStatusToast";
 import { FileUploadDropzone } from "./FileUploadDropzone";
@@ -109,6 +110,33 @@ export function TerminalTabs({
     saveLayouts,
   } = useTerminalTabsState({ projectId, projectPath });
 
+  // URL param handling for modals
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlModal = searchParams.get("modal");
+
+  // Helper to update URL params
+  const updateUrlParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const newParams = new URLSearchParams(searchParams.toString());
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === null) {
+          newParams.delete(key);
+        } else {
+          newParams.set(key, value);
+        }
+      }
+      const query = newParams.toString();
+      router.replace(`${pathname}${query ? `?${query}` : ""}`, {
+        scroll: false,
+      });
+    },
+    [searchParams, router, pathname],
+  );
+
+  // Sync modal state from URL params (keyboard shortcuts handled after hook is defined)
+
   // Note: single mode header removed - all controls now in pane headers
 
   // Handler for project selection from switcher
@@ -127,14 +155,17 @@ export function TerminalTabs({
   const [cleanerRawPrompt, setCleanerRawPrompt] = useState("");
 
   // Memoized modal/settings openers to avoid inline arrow functions
-  const handleOpenTerminalManager = useCallback(
-    () => setShowTerminalManager(true),
-    [setShowTerminalManager],
-  );
-  const handleCloseTerminalManager = useCallback(
-    () => setShowTerminalManager(false),
-    [setShowTerminalManager],
-  );
+  // With URL param support for modals
+  const handleOpenTerminalManager = useCallback(() => {
+    setShowTerminalManager(true);
+    updateUrlParams({ modal: "terminal-manager" });
+  }, [setShowTerminalManager, updateUrlParams]);
+
+  const handleCloseTerminalManager = useCallback(() => {
+    setShowTerminalManager(false);
+    updateUrlParams({ modal: null });
+  }, [setShowTerminalManager, updateUrlParams]);
+
   const handleOpenSettings = useCallback(
     () => setShowSettings(true),
     [setShowSettings],
@@ -176,7 +207,7 @@ export function TerminalTabs({
   // to prevent race conditions between multiple effects
 
   // Keyboard shortcuts
-  const { showHelp: showKeyboardHelp, closeHelp: closeKeyboardHelp } =
+  const { showHelp: showKeyboardHelp, setShowHelp: setShowKeyboardHelp } =
     useTerminalKeyboardShortcuts({
       onNewTerminal: handleOpenTerminalManager,
       onCloseTab: () => {
@@ -253,6 +284,21 @@ export function TerminalTabs({
         if (targetSlot) handleSlotSwitch(targetSlot);
       },
     });
+
+  // Sync modal state from URL params
+  useEffect(() => {
+    if (urlModal === "terminal-manager") {
+      setShowTerminalManager(true);
+    } else if (urlModal === "keyboard-shortcuts") {
+      setShowKeyboardHelp(true);
+    }
+  }, [urlModal, setShowTerminalManager, setShowKeyboardHelp]);
+
+  // Close keyboard shortcuts handler with URL param update
+  const closeKeyboardHelp = useCallback(() => {
+    setShowKeyboardHelp(false);
+    updateUrlParams({ modal: null });
+  }, [setShowKeyboardHelp, updateUrlParams]);
 
   // File upload and prompt cleaner functionality
   const { cleanPrompt, isLoading: isCleanerLoading } = usePromptCleaner();

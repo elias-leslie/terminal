@@ -121,6 +121,7 @@ export function SettingsDropdown({
       {renderTrigger && (
         <button
           ref={buttonRef}
+          data-testid="settings-dropdown"
           onClick={() => setShowSettings(!showSettings)}
           title="Terminal settings"
           className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md transition-all duration-150"
@@ -157,6 +158,7 @@ export function SettingsDropdown({
       {showSettings && dropdownStyle && (
         <div
           ref={dropdownRef}
+          data-testid="settings-dropdown-menu"
           style={{
             ...dropdownStyle,
             backgroundColor: "rgba(21, 27, 35, 0.85)",

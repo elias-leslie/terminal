@@ -12,6 +12,7 @@ interface UploadProgressToastProps {
 export function UploadProgressToast({ progress }: UploadProgressToastProps) {
   return (
     <div
+      data-testid="upload-progress-toast"
       className={TOAST_BASE_CLASSES}
       style={{
         backgroundColor: "var(--term-bg-elevated)",
@@ -38,6 +39,7 @@ interface UploadErrorToastProps {
 export function UploadErrorToast({ message }: UploadErrorToastProps) {
   return (
     <div
+      data-testid="upload-error-toast"
       className={TOAST_BASE_CLASSES}
       style={{
         backgroundColor: "var(--term-bg-elevated)",

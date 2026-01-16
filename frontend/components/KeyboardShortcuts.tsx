@@ -47,6 +47,7 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
       onClick={onClose}
     >
       <div
+        data-testid="keyboard-shortcuts-modal"
         className="w-full max-w-md mx-4 rounded-lg overflow-hidden shadow-2xl"
         style={{
           backgroundColor: "var(--term-bg-surface)",
@@ -75,6 +76,7 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
             </span>
           </div>
           <button
+            data-testid="keyboard-shortcuts-modal-close"
             onClick={onClose}
             className="p-1 rounded hover:bg-[var(--term-bg-deep)] transition-colors"
             style={{ color: "var(--term-text-muted)" }}
