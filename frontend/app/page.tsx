@@ -1,13 +1,13 @@
-"use client";
+'use client'
 
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
-import { TerminalTabs } from "@/components/TerminalTabs";
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+import { TerminalTabs } from '@/components/TerminalTabs'
 
 function TerminalPage() {
-  const searchParams = useSearchParams();
-  const projectId = searchParams.get("project") || undefined;
-  const projectPath = searchParams.get("dir") || undefined;
+  const searchParams = useSearchParams()
+  const projectId = searchParams.get('project') || undefined
+  const projectPath = searchParams.get('dir') || undefined
 
   return (
     <div className="h-screen flex flex-col bg-slate-900">
@@ -17,7 +17,7 @@ function TerminalPage() {
         className="flex-1 min-h-0"
       />
     </div>
-  );
+  )
 }
 
 // Wrap in Suspense for useSearchParams
@@ -32,5 +32,5 @@ export default function Home() {
     >
       <TerminalPage />
     </Suspense>
-  );
+  )
 }

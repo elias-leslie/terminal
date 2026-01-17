@@ -1,6 +1,6 @@
-"use client";
+'use client'
 
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useState } from 'react'
 
 /**
  * SSR-safe media query hook.
@@ -19,31 +19,31 @@ import { useLayoutEffect, useState } from "react";
  * ```
  */
 export function useMediaQuery(query: string, defaultValue = false): boolean {
-  const [matches, setMatches] = useState(defaultValue);
+  const [matches, setMatches] = useState(defaultValue)
 
   useLayoutEffect(() => {
     // Only run on client
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return
 
-    const mediaQuery = window.matchMedia(query);
+    const mediaQuery = window.matchMedia(query)
 
     // Set initial value - sync with actual browser state after hydration
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: SSR-safe hydration sync
-    setMatches(mediaQuery.matches);
+    setMatches(mediaQuery.matches)
 
     // Listen for changes
     const handler = (event: MediaQueryListEvent) => {
-      setMatches(event.matches);
-    };
+      setMatches(event.matches)
+    }
 
-    mediaQuery.addEventListener("change", handler);
+    mediaQuery.addEventListener('change', handler)
 
     return () => {
-      mediaQuery.removeEventListener("change", handler);
-    };
-  }, [query]);
+      mediaQuery.removeEventListener('change', handler)
+    }
+  }, [query])
 
-  return matches;
+  return matches
 }
 
 /**
@@ -52,7 +52,7 @@ export function useMediaQuery(query: string, defaultValue = false): boolean {
  * Defaults to false (desktop) on server to prevent layout shift.
  */
 export function useIsMobile(): boolean {
-  return useMediaQuery("(max-width: 767px)", false);
+  return useMediaQuery('(max-width: 767px)', false)
 }
 
 /**
@@ -61,5 +61,5 @@ export function useIsMobile(): boolean {
  * Defaults to true (desktop) on server to prevent layout shift.
  */
 export function useIsDesktop(): boolean {
-  return useMediaQuery("(min-width: 768px)", true);
+  return useMediaQuery('(min-width: 768px)', true)
 }

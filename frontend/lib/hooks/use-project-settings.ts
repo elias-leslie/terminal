@@ -1,28 +1,30 @@
-"use client";
+'use client'
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface ProjectSetting {
-  id: string;
-  name: string;
-  root_path: string | null;
-  terminal_enabled: boolean;
-  mode: "shell" | "claude";  // Active mode (shell or claude)
-  display_order: number;
+  id: string
+  name: string
+  root_path: string | null
+  terminal_enabled: boolean
+  mode: 'shell' | 'claude' // Active mode (shell or claude)
+  display_order: number
 }
 
 // Alias for backward compatibility
-export type ProjectSettingWithMode = ProjectSetting & { active_mode: "shell" | "claude" };
+export type ProjectSettingWithMode = ProjectSetting & {
+  active_mode: 'shell' | 'claude'
+}
 
 interface ProjectSettingsUpdate {
-  enabled?: boolean;
-  active_mode?: "shell" | "claude";
-  display_order?: number;
+  enabled?: boolean
+  active_mode?: 'shell' | 'claude'
+  display_order?: number
 }
 
 // ============================================================================
@@ -30,54 +32,62 @@ interface ProjectSettingsUpdate {
 // ============================================================================
 
 async function fetchProjects(): Promise<ProjectSetting[]> {
-  const res = await fetch("/api/terminal/projects");
-  if (!res.ok) throw new Error("Failed to fetch projects");
-  return res.json();
+  const res = await fetch('/api/terminal/projects')
+  if (!res.ok) throw new Error('Failed to fetch projects')
+  return res.json()
 }
 
 async function updateProjectSettings(
   projectId: string,
-  update: ProjectSettingsUpdate
+  update: ProjectSettingsUpdate,
 ): Promise<ProjectSetting> {
   const res = await fetch(`/api/terminal/project-settings/${projectId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(update),
-  });
+  })
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: "Failed to update settings" }));
-    throw new Error(error.detail || "Failed to update settings");
+    const error = await res
+      .json()
+      .catch(() => ({ detail: 'Failed to update settings' }))
+    throw new Error(error.detail || 'Failed to update settings')
   }
-  return res.json();
+  return res.json()
 }
 
-async function bulkUpdateOrder(projectIds: string[]): Promise<ProjectSetting[]> {
-  const res = await fetch("/api/terminal/project-settings/bulk-order", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+async function bulkUpdateOrder(
+  projectIds: string[],
+): Promise<ProjectSetting[]> {
+  const res = await fetch('/api/terminal/project-settings/bulk-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ project_ids: projectIds }),
-  });
+  })
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: "Failed to update order" }));
-    throw new Error(error.detail || "Failed to update order");
+    const error = await res
+      .json()
+      .catch(() => ({ detail: 'Failed to update order' }))
+    throw new Error(error.detail || 'Failed to update order')
   }
-  return res.json();
+  return res.json()
 }
 
 async function switchProjectMode(
   projectId: string,
-  mode: "shell" | "claude"
+  mode: 'shell' | 'claude',
 ): Promise<ProjectSetting> {
   const res = await fetch(`/api/terminal/projects/${projectId}/mode`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ mode }),
-  });
+  })
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: "Failed to switch mode" }));
-    throw new Error(error.detail || "Failed to switch mode");
+    const error = await res
+      .json()
+      .catch(() => ({ detail: 'Failed to switch mode' }))
+    throw new Error(error.detail || 'Failed to switch mode')
   }
-  return res.json();
+  return res.json()
 }
 
 // ============================================================================
@@ -106,7 +116,7 @@ async function switchProjectMode(
  * ```
  */
 export function useProjectSettings() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   // Query: fetch projects with settings
   const {
@@ -115,85 +125,96 @@ export function useProjectSettings() {
     isError,
     error,
   } = useQuery({
-    queryKey: ["terminal-projects"],
+    queryKey: ['terminal-projects'],
     queryFn: fetchProjects,
     staleTime: 30000, // Consider fresh for 30s
-  });
+  })
 
   // Derived: only enabled projects, sorted by display_order
   const enabledProjects = projects
     .filter((p) => p.terminal_enabled)
-    .sort((a, b) => a.display_order - b.display_order);
+    .sort((a, b) => a.display_order - b.display_order)
 
   // Mutation: update single project settings
   const updateMutation = useMutation({
-    mutationFn: ({ projectId, ...update }: ProjectSettingsUpdate & { projectId: string }) =>
+    mutationFn: ({
+      projectId,
+      ...update
+    }: ProjectSettingsUpdate & { projectId: string }) =>
       updateProjectSettings(projectId, update),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["terminal-projects"] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-projects'] })
     },
-  });
+  })
 
   // Mutation: bulk update order
   const orderMutation = useMutation({
     mutationFn: bulkUpdateOrder,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["terminal-projects"] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-projects'] })
     },
-  });
+  })
 
   // Mutation: switch project mode
   const switchModeMutation = useMutation({
-    mutationFn: ({ projectId, mode }: { projectId: string; mode: "shell" | "claude" }) =>
-      switchProjectMode(projectId, mode),
+    mutationFn: ({
+      projectId,
+      mode,
+    }: {
+      projectId: string
+      mode: 'shell' | 'claude'
+    }) => switchProjectMode(projectId, mode),
     onMutate: async ({ projectId, mode }) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["terminal-projects"] });
+      await queryClient.cancelQueries({ queryKey: ['terminal-projects'] })
       // Snapshot the previous value
-      const previousProjects = queryClient.getQueryData<ProjectSetting[]>(["terminal-projects"]);
+      const previousProjects = queryClient.getQueryData<ProjectSetting[]>([
+        'terminal-projects',
+      ])
       // Optimistically update to the new mode
-      queryClient.setQueryData<ProjectSetting[]>(["terminal-projects"], (old) =>
-        old?.map((p) =>
-          p.id === projectId ? { ...p, mode: mode } : p
-        )
-      );
-      return { previousProjects };
+      queryClient.setQueryData<ProjectSetting[]>(['terminal-projects'], (old) =>
+        old?.map((p) => (p.id === projectId ? { ...p, mode: mode } : p)),
+      )
+      return { previousProjects }
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       // Rollback on error
       if (context?.previousProjects) {
-        queryClient.setQueryData(["terminal-projects"], context.previousProjects);
+        queryClient.setQueryData(
+          ['terminal-projects'],
+          context.previousProjects,
+        )
       }
     },
     onSettled: () => {
       // Always refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ["terminal-projects"] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-projects'] })
     },
-  });
+  })
 
   // Update settings for a project
   const updateSettings = useCallback(
     async (projectId: string, update: ProjectSettingsUpdate) => {
-      return updateMutation.mutateAsync({ projectId, ...update });
+      return updateMutation.mutateAsync({ projectId, ...update })
     },
-    [updateMutation]
-  );
+    [updateMutation],
+  )
 
   // Bulk update order (for drag-and-drop)
   const updateOrder = useCallback(
     async (projectIds: string[]) => {
-      return orderMutation.mutateAsync(projectIds);
+      return orderMutation.mutateAsync(projectIds)
     },
-    [orderMutation]
-  );
+    [orderMutation],
+  )
 
   // Switch project mode (shell <-> claude)
   const switchMode = useCallback(
-    async (projectId: string, mode: "shell" | "claude") => {
-      return switchModeMutation.mutateAsync({ projectId, mode });
+    async (projectId: string, mode: 'shell' | 'claude') => {
+      return switchModeMutation.mutateAsync({ projectId, mode })
     },
-    [switchModeMutation]
-  );
+    [switchModeMutation],
+  )
 
   return {
     projects,
@@ -204,6 +225,9 @@ export function useProjectSettings() {
     isLoading,
     isError,
     error,
-    isUpdating: updateMutation.isPending || orderMutation.isPending || switchModeMutation.isPending,
-  };
+    isUpdating:
+      updateMutation.isPending ||
+      orderMutation.isPending ||
+      switchModeMutation.isPending,
+  }
 }

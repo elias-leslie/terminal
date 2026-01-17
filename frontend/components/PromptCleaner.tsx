@@ -1,21 +1,21 @@
-"use client";
+'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import styles from "./PromptCleaner.module.css";
+import { useCallback, useEffect, useRef, useState } from 'react'
+import styles from './PromptCleaner.module.css'
 
-type CleanerState = "idle" | "processing" | "preview" | "refining";
+type CleanerState = 'idle' | 'processing' | 'preview' | 'refining'
 
 interface PromptCleanerProps {
   /** The raw prompt text to clean */
-  rawPrompt: string;
+  rawPrompt: string
   /** Called when user confirms sending the cleaned prompt */
-  onSend: (cleanedPrompt: string) => void;
+  onSend: (cleanedPrompt: string) => void
   /** Called when user cancels */
-  onCancel: () => void;
+  onCancel: () => void
   /** Function to call the LLM for cleaning */
-  cleanPrompt: (prompt: string, refinement?: string) => Promise<string>;
+  cleanPrompt: (prompt: string, refinement?: string) => Promise<string>
   /** Optional: show diff view toggle */
-  showDiffToggle?: boolean;
+  showDiffToggle?: boolean
 }
 
 export function PromptCleaner({
@@ -25,109 +25,111 @@ export function PromptCleaner({
   cleanPrompt,
   showDiffToggle = true,
 }: PromptCleanerProps) {
-  const [state, setState] = useState<CleanerState>("idle");
-  const [cleanedPrompt, setCleanedPrompt] = useState("");
-  const [displayedText, setDisplayedText] = useState("");
-  const [showDiff, setShowDiff] = useState(false);
-  const [refinementInput, setRefinementInput] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedPrompt, setEditedPrompt] = useState("");
-  const [scanProgress, setScanProgress] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
+  const [state, setState] = useState<CleanerState>('idle')
+  const [cleanedPrompt, setCleanedPrompt] = useState('')
+  const [displayedText, setDisplayedText] = useState('')
+  const [showDiff, setShowDiff] = useState(false)
+  const [refinementInput, setRefinementInput] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedPrompt, setEditedPrompt] = useState('')
+  const [scanProgress, setScanProgress] = useState(0)
+  const [isVisible, setIsVisible] = useState(false)
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  const handleClean = useCallback(
+    async (refinement?: string) => {
+      setState(refinement ? 'refining' : 'processing')
+      try {
+        const result = await cleanPrompt(rawPrompt, refinement)
+        setCleanedPrompt(result)
+        setEditedPrompt(result)
+        setState('preview')
+      } catch (error) {
+        console.error('Failed to clean prompt:', error)
+        setState('idle')
+      }
+    },
+    [cleanPrompt, rawPrompt]
+  )
 
   // Trigger entrance animation
   useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
+    const timer = setTimeout(() => setIsVisible(true), 50)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Auto-start cleaning on mount
   useEffect(() => {
-    handleClean();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    handleClean()
+  }, [handleClean])
 
   // Typewriter effect for cleaned prompt
   useEffect(() => {
-    if (state !== "preview" || !cleanedPrompt) return;
+    if (state !== 'preview' || !cleanedPrompt) return
 
-    let index = 0;
-    setDisplayedText("");
+    let index = 0
+    setDisplayedText('')
 
     const interval = setInterval(() => {
       if (index < cleanedPrompt.length) {
-        setDisplayedText(cleanedPrompt.slice(0, index + 1));
-        index++;
+        setDisplayedText(cleanedPrompt.slice(0, index + 1))
+        index++
       } else {
-        clearInterval(interval);
+        clearInterval(interval)
       }
-    }, 12);
+    }, 12)
 
-    return () => clearInterval(interval);
-  }, [cleanedPrompt, state]);
+    return () => clearInterval(interval)
+  }, [cleanedPrompt, state])
 
   // Scan progress animation
   useEffect(() => {
-    if (state !== "processing") {
-      setScanProgress(0);
-      return;
+    if (state !== 'processing') {
+      setScanProgress(0)
+      return
     }
 
     const interval = setInterval(() => {
       setScanProgress((prev) => {
-        if (prev >= 100) return 0;
-        return prev + 2;
-      });
-    }, 50);
+        if (prev >= 100) return 0
+        return prev + 2
+      })
+    }, 50)
 
-    return () => clearInterval(interval);
-  }, [state]);
-
-  const handleClean = async (refinement?: string) => {
-    setState(refinement ? "refining" : "processing");
-    try {
-      const result = await cleanPrompt(rawPrompt, refinement);
-      setCleanedPrompt(result);
-      setEditedPrompt(result);
-      setState("preview");
-    } catch (error) {
-      console.error("Failed to clean prompt:", error);
-      setState("idle");
-    }
-  };
+    return () => clearInterval(interval)
+  }, [state])
 
   const handleSend = () => {
-    const finalPrompt = isEditing ? editedPrompt : cleanedPrompt;
-    onSend(finalPrompt);
-  };
+    const finalPrompt = isEditing ? editedPrompt : cleanedPrompt
+    onSend(finalPrompt)
+  }
 
   const handleClose = useCallback(() => {
-    setIsVisible(false);
-    setTimeout(onCancel, 300);
-  }, [onCancel]);
+    setIsVisible(false)
+    setTimeout(onCancel, 300)
+  }, [onCancel])
 
   const handleRefine = () => {
     if (refinementInput.trim()) {
-      handleClean(refinementInput);
-      setRefinementInput("");
+      handleClean(refinementInput)
+      setRefinementInput('')
     }
-  };
+  }
 
   const toggleEditMode = () => {
-    setIsEditing(!isEditing);
+    setIsEditing(!isEditing)
     if (!isEditing) {
-      setTimeout(() => textareaRef.current?.focus(), 100);
+      setTimeout(() => textareaRef.current?.focus(), 100)
     }
-  };
+  }
 
   return (
     <>
       {/* Backdrop with scanline texture */}
       <div
-        className={`${styles.backdrop} ${isVisible ? styles.backdropVisible : ""}`}
+        className={`${styles.backdrop} ${isVisible ? styles.backdropVisible : ''}`}
         onClick={handleClose}
       />
 
@@ -135,7 +137,7 @@ export function PromptCleaner({
       <div
         ref={panelRef}
         data-testid="prompt-cleaner-modal"
-        className={`${styles.panel} ${isVisible ? styles.panelVisible : ""}`}
+        className={`${styles.panel} ${isVisible ? styles.panelVisible : ''}`}
       >
         {/* Scanline overlay */}
         <div className={styles.scanlineOverlay} />
@@ -148,9 +150,9 @@ export function PromptCleaner({
             <span className={styles.headerVersion}>v1.0</span>
           </div>
           <div className={styles.headerRight}>
-            {showDiffToggle && state === "preview" && (
+            {showDiffToggle && state === 'preview' && (
               <button
-                className={`${styles.toggleBtn} ${showDiff ? styles.toggleBtnActive : ""}`}
+                className={`${styles.toggleBtn} ${showDiff ? styles.toggleBtnActive : ''}`}
                 onClick={() => setShowDiff(!showDiff)}
               >
                 <span className={styles.toggleIcon}>◐</span>
@@ -168,7 +170,7 @@ export function PromptCleaner({
         </div>
 
         {/* Processing state */}
-        {(state === "processing" || state === "refining") && (
+        {(state === 'processing' || state === 'refining') && (
           <div className={styles.processingContainer}>
             <div className={styles.scanAnimation}>
               <div
@@ -176,14 +178,14 @@ export function PromptCleaner({
                 style={{ top: `${scanProgress}%` }}
               />
               <div className={styles.scanText}>
-                {state === "refining"
-                  ? "> REFINING..."
-                  : "> ANALYZING PROMPT..."}
+                {state === 'refining'
+                  ? '> REFINING...'
+                  : '> ANALYZING PROMPT...'}
               </div>
               <div className={styles.originalPreview}>
-                {rawPrompt.split("\n").map((line, i) => (
+                {rawPrompt.split('\n').map((line, i) => (
                   <div key={i} className={styles.scanLineText}>
-                    {line || "\u00A0"}
+                    {line || '\u00A0'}
                   </div>
                 ))}
               </div>
@@ -198,7 +200,7 @@ export function PromptCleaner({
         )}
 
         {/* Preview state */}
-        {state === "preview" && (
+        {state === 'preview' && (
           <div className={styles.previewContainer}>
             {showDiff ? (
               <div className={styles.diffView}>
@@ -261,7 +263,7 @@ export function PromptCleaner({
                   placeholder="Refine: 'make it shorter', 'add context about X'..."
                   value={refinementInput}
                   onChange={(e) => setRefinementInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleRefine()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
                 />
                 {refinementInput && (
                   <button className={styles.refineBtn} onClick={handleRefine}>
@@ -274,7 +276,7 @@ export function PromptCleaner({
         )}
 
         {/* Action bar */}
-        {state === "preview" && (
+        {state === 'preview' && (
           <div className={styles.actionBar}>
             <button
               className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
@@ -287,8 +289,8 @@ export function PromptCleaner({
               className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
               onClick={toggleEditMode}
             >
-              <span className={styles.btnIcon}>{isEditing ? "◉" : "✎"}</span>
-              {isEditing ? "PREVIEW" : "EDIT"}
+              <span className={styles.btnIcon}>{isEditing ? '◉' : '✎'}</span>
+              {isEditing ? 'PREVIEW' : 'EDIT'}
             </button>
             <button
               className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
@@ -306,7 +308,7 @@ export function PromptCleaner({
         <div className={styles.glowBottom} />
       </div>
     </>
-  );
+  )
 }
 
-export default PromptCleaner;
+export default PromptCleaner

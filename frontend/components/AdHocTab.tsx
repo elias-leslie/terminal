@@ -1,10 +1,10 @@
-"use client";
+'use client'
 
-import { RefObject } from "react";
-import { clsx } from "clsx";
-import { ConnectionStatus } from "./Terminal";
-import { TabActionMenu } from "./TabActionMenu";
-import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
+import { clsx } from 'clsx'
+import type { RefObject } from 'react'
+import type { TerminalSession } from '@/lib/hooks/use-terminal-sessions'
+import { TabActionMenu } from './TabActionMenu'
+import type { ConnectionStatus } from './Terminal'
 
 // ============================================================================
 // Utility Functions
@@ -12,15 +12,13 @@ import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 
 function getTabClassName(isActive: boolean, isMobile: boolean): string {
   return clsx(
-    "flex items-center rounded-md transition-all duration-200 cursor-pointer",
-    "group min-w-0 flex-shrink-0",
+    'flex items-center rounded-md transition-all duration-200 cursor-pointer',
+    'group min-w-0 flex-shrink-0',
     isMobile
-      ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
-      : "gap-1.5 px-2 py-1.5 text-sm",
-    isActive
-      ? "tab-active"
-      : "tab-inactive"
-  );
+      ? 'gap-1 px-2 py-1 text-xs min-h-[36px]'
+      : 'gap-1.5 px-2 py-1.5 text-sm',
+    isActive ? 'tab-active' : 'tab-inactive',
+  )
 }
 
 // ============================================================================
@@ -29,28 +27,28 @@ function getTabClassName(isActive: boolean, isMobile: boolean): string {
 
 export interface AdHocTabProps {
   // Session data
-  session: TerminalSession;
-  sessionStatus?: ConnectionStatus;
+  session: TerminalSession
+  sessionStatus?: ConnectionStatus
 
   // Active state
-  isActive: boolean;
+  isActive: boolean
 
   // Handlers
-  onClick: (sessionId: string) => void;
-  onReset: (sessionId: string) => void;
-  onRemove: (sessionId: string) => void;
+  onClick: (sessionId: string) => void
+  onReset: (sessionId: string) => void
+  onRemove: (sessionId: string) => void
 
   // Tab editing
-  isEditing: boolean;
-  editValue: string;
-  setEditValue: (value: string) => void;
-  editInputRef: RefObject<HTMLInputElement | null>;
-  startEdit: (sessionId: string, currentName: string) => void;
-  saveEdit: () => void;
-  handleEditKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  isEditing: boolean
+  editValue: string
+  setEditValue: (value: string) => void
+  editInputRef: RefObject<HTMLInputElement | null>
+  startEdit: (sessionId: string, currentName: string) => void
+  saveEdit: () => void
+  handleEditKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
 
   // UI state
-  isMobile: boolean;
+  isMobile: boolean
 }
 
 // ============================================================================
@@ -80,19 +78,26 @@ export function AdHocTab({
     >
       {/* Status dot for ad-hoc tabs */}
       <span
-        className={clsx("w-2 h-2 rounded-full flex-shrink-0", {
-          "animate-pulse": sessionStatus === "connecting",
+        className={clsx('w-2 h-2 rounded-full flex-shrink-0', {
+          'animate-pulse': sessionStatus === 'connecting',
         })}
         style={{
           backgroundColor:
-            sessionStatus === "connected" ? "var(--term-accent)" :
-            sessionStatus === "connecting" ? "var(--term-warning)" :
-            sessionStatus === "error" || sessionStatus === "timeout" ? "var(--term-error)" :
-            sessionStatus === "session_dead" ? "var(--term-warning)" :
-            "var(--term-text-muted)",
-          boxShadow: sessionStatus === "connected" ? "0 0 6px var(--term-accent)" : "none",
+            sessionStatus === 'connected'
+              ? 'var(--term-accent)'
+              : sessionStatus === 'connecting'
+                ? 'var(--term-warning)'
+                : sessionStatus === 'error' || sessionStatus === 'timeout'
+                  ? 'var(--term-error)'
+                  : sessionStatus === 'session_dead'
+                    ? 'var(--term-warning)'
+                    : 'var(--term-text-muted)',
+          boxShadow:
+            sessionStatus === 'connected'
+              ? '0 0 6px var(--term-accent)'
+              : 'none',
         }}
-        title={sessionStatus || "unknown"}
+        title={sessionStatus || 'unknown'}
       />
       {/* Tab content */}
       <div className="flex items-center">
@@ -106,22 +111,25 @@ export function AdHocTab({
             onKeyDown={handleEditKeyDown}
             className="rounded px-1 py-0 text-sm w-24 focus:outline-none focus:ring-1"
             style={{
-              backgroundColor: "var(--term-bg-deep)",
-              borderColor: "var(--term-accent)",
-              color: "var(--term-text-primary)",
+              backgroundColor: 'var(--term-bg-deep)',
+              borderColor: 'var(--term-accent)',
+              color: 'var(--term-text-primary)',
             }}
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
           <span
-            className={clsx("truncate", isMobile ? "max-w-[80px]" : "max-w-[100px]")}
+            className={clsx(
+              'truncate',
+              isMobile ? 'max-w-[80px]' : 'max-w-[100px]',
+            )}
             onDoubleClick={(e) => {
-              e.stopPropagation();
-              startEdit(session.id, session.name);
+              e.stopPropagation()
+              startEdit(session.id, session.name)
             }}
           >
             {session.name}
-            {!session.is_alive && " (dead)"}
+            {!session.is_alive && ' (dead)'}
           </span>
         )}
       </div>
@@ -135,5 +143,5 @@ export function AdHocTab({
         />
       </div>
     </div>
-  );
+  )
 }

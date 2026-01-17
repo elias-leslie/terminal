@@ -6,21 +6,21 @@
 
   /* Phosphor Terminal Theme */
   /* Backgrounds */
-  --term-bg-deep: #0a0e14;        /* Terminal canvas */
-  --term-bg-surface: #0f1419;     /* Tab bar, panels */
-  --term-bg-elevated: #151b23;    /* Dropdowns, modals */
+  --term-bg-deep: #0a0e14; /* Terminal canvas */
+  --term-bg-surface: #0f1419; /* Tab bar, panels */
+  --term-bg-elevated: #151b23; /* Dropdowns, modals */
 
   /* Borders */
-  --term-border: #1e2530;         /* Default border */
-  --term-border-active: #2a3544;  /* Active/focused border */
+  --term-border: #1e2530; /* Default border */
+  --term-border-active: #2a3544; /* Active/focused border */
 
   /* Text */
-  --term-text-primary: #e6edf3;   /* Primary text */
-  --term-text-muted: #7d8590;     /* Secondary/muted text */
+  --term-text-primary: #e6edf3; /* Primary text */
+  --term-text-muted: #7d8590; /* Secondary/muted text */
 
   /* Accent - Phosphor Green */
-  --term-accent: #00ff9f;                     /* Primary accent */
-  --term-accent-muted: #00cc7f;               /* Muted accent */
+  --term-accent: #00ff9f; /* Primary accent */
+  --term-accent-muted: #00cc7f; /* Muted accent */
   --term-accent-glow: rgba(0, 255, 159, 0.15); /* Glow effect */
 
   /* Status Colors */
@@ -60,16 +60,18 @@ body {
 .xterm-screen,
 .xterm-rows {
   /* Ensure consistent font rendering for character width calculation */
-  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: "JetBrains Mono", "Consolas", "Monaco", "Courier New", monospace;
   letter-spacing: 0;
-  font-feature-settings: 'liga' off, 'calt' off; /* Disable ligatures */
+  font-feature-settings:
+    "liga" off,
+    "calt" off; /* Disable ligatures */
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 .xterm-viewport {
-  overflow-y: auto !important;
+  overflow-y: auto;
 }
 
 /* Native xterm.js scrollbar styling */
@@ -101,11 +103,15 @@ body {
 
 /* Make cursor highly visible with glow effect */
 .xterm-cursor-block {
-  box-shadow: 0 0 8px #ffffff, 0 0 16px rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 0 8px #ffffff,
+    0 0 16px rgba(255, 255, 255, 0.5);
 }
 
 .xterm-cursor-outline {
-  box-shadow: 0 0 6px #ffffff, 0 0 12px rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 0 6px #ffffff,
+    0 0 12px rgba(255, 255, 255, 0.4);
 }
 
 /* Terminal tab styling */
@@ -113,7 +119,9 @@ body {
   background-color: var(--term-bg-elevated);
   color: var(--term-text-primary);
   border: 1px solid var(--term-border-active);
-  box-shadow: 0 0 12px var(--term-accent-glow), inset 0 1px 0 rgba(255,255,255,0.05);
+  box-shadow:
+    0 0 12px var(--term-accent-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .tab-inactive {
@@ -135,7 +143,9 @@ body {
   flex-shrink: 0;
   position: relative;
   outline: none;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 /* Horizontal handle (vertical divider between side-by-side panes) */

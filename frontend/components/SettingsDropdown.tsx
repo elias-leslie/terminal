@@ -1,46 +1,46 @@
-"use client";
+'use client'
 
-import { useCallback, useRef, useMemo, useState, useLayoutEffect } from "react";
-import { useClickOutside } from "@/lib/hooks/useClickOutside";
-import { Settings2 } from "lucide-react";
+import { Settings2 } from 'lucide-react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  TERMINAL_FONTS,
-  TERMINAL_FONT_SIZES,
-  TERMINAL_SCROLLBACK_OPTIONS,
   TERMINAL_CURSOR_STYLES,
+  TERMINAL_FONT_SIZES,
+  TERMINAL_FONTS,
+  TERMINAL_SCROLLBACK_OPTIONS,
   TERMINAL_THEMES,
-  TerminalFontId,
-  TerminalFontSize,
-  TerminalScrollback,
-  TerminalCursorStyle,
-  TerminalThemeId,
-} from "@/lib/hooks/use-terminal-settings";
+  type TerminalCursorStyle,
+  type TerminalFontId,
+  type TerminalFontSize,
+  type TerminalScrollback,
+  type TerminalThemeId,
+} from '@/lib/hooks/use-terminal-settings'
+import { useClickOutside } from '@/lib/hooks/useClickOutside'
 
 // Keyboard size type
-export type KeyboardSizePreset = "small" | "medium" | "large";
+export type KeyboardSizePreset = 'small' | 'medium' | 'large'
 
 export interface SettingsDropdownProps {
-  fontId: TerminalFontId;
-  fontSize: TerminalFontSize;
-  scrollback: TerminalScrollback;
-  cursorStyle: TerminalCursorStyle;
-  cursorBlink: boolean;
-  themeId: TerminalThemeId;
-  setFontId: (id: TerminalFontId) => void;
-  setFontSize: (size: TerminalFontSize) => void;
-  setScrollback: (scrollback: TerminalScrollback) => void;
-  setCursorStyle: (style: TerminalCursorStyle) => void;
-  setCursorBlink: (blink: boolean) => void;
-  setThemeId: (id: TerminalThemeId) => void;
-  showSettings: boolean;
-  setShowSettings: (show: boolean) => void;
+  fontId: TerminalFontId
+  fontSize: TerminalFontSize
+  scrollback: TerminalScrollback
+  cursorStyle: TerminalCursorStyle
+  cursorBlink: boolean
+  themeId: TerminalThemeId
+  setFontId: (id: TerminalFontId) => void
+  setFontSize: (size: TerminalFontSize) => void
+  setScrollback: (scrollback: TerminalScrollback) => void
+  setCursorStyle: (style: TerminalCursorStyle) => void
+  setCursorBlink: (blink: boolean) => void
+  setThemeId: (id: TerminalThemeId) => void
+  showSettings: boolean
+  setShowSettings: (show: boolean) => void
   // Keyboard size (only shown on mobile)
-  keyboardSize?: KeyboardSizePreset;
-  setKeyboardSize?: (size: KeyboardSizePreset) => void;
-  isMobile?: boolean;
+  keyboardSize?: KeyboardSizePreset
+  setKeyboardSize?: (size: KeyboardSizePreset) => void
+  isMobile?: boolean
   // When false, only renders the dropdown panel (no trigger button)
   // Used for grid/split modes where trigger is in UnifiedTerminalHeader
-  renderTrigger?: boolean;
+  renderTrigger?: boolean
 }
 
 export function SettingsDropdown({
@@ -63,61 +63,61 @@ export function SettingsDropdown({
   isMobile,
   renderTrigger = true,
 }: SettingsDropdownProps) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const closeDropdown = useCallback(
     () => setShowSettings(false),
     [setShowSettings],
-  );
+  )
   // Only include buttonRef if we're rendering it
   const clickOutsideRefs = useMemo(
     () => (renderTrigger ? [buttonRef, dropdownRef] : [dropdownRef]),
     [renderTrigger],
-  );
+  )
 
   // Close dropdown when clicking outside
-  useClickOutside(clickOutsideRefs, closeDropdown, showSettings);
+  useClickOutside(clickOutsideRefs, closeDropdown, showSettings)
 
   // Calculate dropdown position - opens downward from button
   // Uses safe-area-inset for PWA/Chrome app title bars
   const [dropdownStyle, setDropdownStyle] =
-    useState<React.CSSProperties | null>(null);
+    useState<React.CSSProperties | null>(null)
   useLayoutEffect(() => {
     if (showSettings) {
       // Get safe area inset (for PWA apps with title bars)
       const safeAreaTop = parseInt(
-        getComputedStyle(document.documentElement).getPropertyValue("--sat") ||
-          "0",
+        getComputedStyle(document.documentElement).getPropertyValue('--sat') ||
+          '0',
         10,
-      );
-      const minTop = Math.max(safeAreaTop, 8);
+      )
+      const minTop = Math.max(safeAreaTop, 8)
 
       if (renderTrigger && buttonRef.current) {
         // Position relative to button
-        const rect = buttonRef.current.getBoundingClientRect();
-        const calculatedTop = rect.bottom + 4;
+        const rect = buttonRef.current.getBoundingClientRect()
+        const calculatedTop = rect.bottom + 4
         setDropdownStyle({
-          position: "fixed",
+          position: 'fixed',
           right: window.innerWidth - rect.right,
           top: Math.max(minTop, calculatedTop),
           zIndex: 10001,
-        });
+        })
       } else {
         // No button - position in top-right corner
         setDropdownStyle({
-          position: "fixed",
+          position: 'fixed',
           right: 16,
           top: Math.max(minTop, 56), // Below typical header height
           zIndex: 10001,
-        });
+        })
       }
     } else {
-      setDropdownStyle(null);
+      setDropdownStyle(null)
     }
-  }, [showSettings, renderTrigger]);
+  }, [showSettings, renderTrigger])
 
   return (
-    <div className={renderTrigger ? "relative ml-2" : ""}>
+    <div className={renderTrigger ? 'relative ml-2' : ''}>
       {renderTrigger && (
         <button
           ref={buttonRef}
@@ -127,25 +127,25 @@ export function SettingsDropdown({
           className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md transition-all duration-150"
           style={{
             backgroundColor: showSettings
-              ? "var(--term-bg-elevated)"
-              : "transparent",
+              ? 'var(--term-bg-elevated)'
+              : 'transparent',
             color: showSettings
-              ? "var(--term-accent)"
-              : "var(--term-text-muted)",
+              ? 'var(--term-accent)'
+              : 'var(--term-text-muted)',
             boxShadow: showSettings
-              ? "0 0 8px var(--term-accent-glow)"
-              : "none",
+              ? '0 0 8px var(--term-accent-glow)'
+              : 'none',
           }}
           onMouseEnter={(e) => {
             if (!showSettings) {
-              e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
-              e.currentTarget.style.color = "var(--term-text-primary)";
+              e.currentTarget.style.backgroundColor = 'var(--term-bg-elevated)'
+              e.currentTarget.style.color = 'var(--term-text-primary)'
             }
           }}
           onMouseLeave={(e) => {
             if (!showSettings) {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.color = "var(--term-text-muted)";
+              e.currentTarget.style.backgroundColor = 'transparent'
+              e.currentTarget.style.color = 'var(--term-text-muted)'
             }
           }}
         >
@@ -161,12 +161,12 @@ export function SettingsDropdown({
           data-testid="settings-dropdown-menu"
           style={{
             ...dropdownStyle,
-            backgroundColor: "rgba(21, 27, 35, 0.85)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            border: "1px solid var(--term-border-active)",
+            backgroundColor: 'rgba(21, 27, 35, 0.85)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid var(--term-border-active)',
             boxShadow:
-              "0 8px 32px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.1)",
+              '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.1)',
           }}
           className="rounded-lg p-4 min-w-[220px] max-h-[80vh] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-150"
         >
@@ -174,7 +174,7 @@ export function SettingsDropdown({
           <div className="mb-4">
             <label
               className="block text-xs font-medium mb-1.5"
-              style={{ color: "var(--term-text-muted)" }}
+              style={{ color: 'var(--term-text-muted)' }}
             >
               Font Family
             </label>
@@ -183,15 +183,15 @@ export function SettingsDropdown({
               onChange={(e) => setFontId(e.target.value as TerminalFontId)}
               className="w-full px-2.5 py-3 min-h-[44px] text-sm rounded-md transition-colors focus:outline-none"
               style={{
-                backgroundColor: "var(--term-bg-deep)",
-                border: "1px solid var(--term-border)",
-                color: "var(--term-text-primary)",
+                backgroundColor: 'var(--term-bg-deep)',
+                border: '1px solid var(--term-border)',
+                color: 'var(--term-text-primary)',
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--term-accent)";
+                e.currentTarget.style.borderColor = 'var(--term-accent)'
               }}
               onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--term-border)";
+                e.currentTarget.style.borderColor = 'var(--term-border)'
               }}
             >
               {TERMINAL_FONTS.map((font) => (
@@ -206,7 +206,7 @@ export function SettingsDropdown({
           <div className="mb-4">
             <label
               className="block text-xs font-medium mb-1.5"
-              style={{ color: "var(--term-text-muted)" }}
+              style={{ color: 'var(--term-text-muted)' }}
             >
               Font Size
             </label>
@@ -217,15 +217,15 @@ export function SettingsDropdown({
               }
               className="w-full px-2.5 py-3 min-h-[44px] text-sm rounded-md transition-colors focus:outline-none"
               style={{
-                backgroundColor: "var(--term-bg-deep)",
-                border: "1px solid var(--term-border)",
-                color: "var(--term-text-primary)",
+                backgroundColor: 'var(--term-bg-deep)',
+                border: '1px solid var(--term-border)',
+                color: 'var(--term-text-primary)',
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--term-accent)";
+                e.currentTarget.style.borderColor = 'var(--term-accent)'
               }}
               onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--term-border)";
+                e.currentTarget.style.borderColor = 'var(--term-border)'
               }}
             >
               {TERMINAL_FONT_SIZES.map((size) => (
@@ -240,7 +240,7 @@ export function SettingsDropdown({
           <div className="mb-4">
             <label
               className="block text-xs font-medium mb-1.5"
-              style={{ color: "var(--term-text-muted)" }}
+              style={{ color: 'var(--term-text-muted)' }}
             >
               Theme
             </label>
@@ -249,15 +249,15 @@ export function SettingsDropdown({
               onChange={(e) => setThemeId(e.target.value as TerminalThemeId)}
               className="w-full px-2.5 py-3 min-h-[44px] text-sm rounded-md transition-colors focus:outline-none"
               style={{
-                backgroundColor: "var(--term-bg-deep)",
-                border: "1px solid var(--term-border)",
-                color: "var(--term-text-primary)",
+                backgroundColor: 'var(--term-bg-deep)',
+                border: '1px solid var(--term-border)',
+                color: 'var(--term-text-primary)',
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--term-accent)";
+                e.currentTarget.style.borderColor = 'var(--term-accent)'
               }}
               onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--term-border)";
+                e.currentTarget.style.borderColor = 'var(--term-border)'
               }}
             >
               {Object.entries(TERMINAL_THEMES).map(([id, { name }]) => (
@@ -272,13 +272,13 @@ export function SettingsDropdown({
           <div className="mb-4">
             <label
               className="block text-xs font-medium mb-1.5"
-              style={{ color: "var(--term-text-muted)" }}
+              style={{ color: 'var(--term-text-muted)' }}
             >
               Cursor Style
             </label>
             <div className="flex gap-1.5">
               {TERMINAL_CURSOR_STYLES.map((style) => {
-                const isActive = cursorStyle === style;
+                const isActive = cursorStyle === style
                 return (
                   <button
                     key={style}
@@ -287,20 +287,20 @@ export function SettingsDropdown({
                     className="flex-1 px-2 py-2.5 min-h-[44px] text-xs rounded-md transition-all duration-150 capitalize"
                     style={{
                       backgroundColor: isActive
-                        ? "var(--term-accent)"
-                        : "var(--term-bg-deep)",
+                        ? 'var(--term-accent)'
+                        : 'var(--term-bg-deep)',
                       color: isActive
-                        ? "var(--term-bg-deep)"
-                        : "var(--term-text-muted)",
-                      border: `1px solid ${isActive ? "var(--term-accent)" : "var(--term-border)"}`,
+                        ? 'var(--term-bg-deep)'
+                        : 'var(--term-text-muted)',
+                      border: `1px solid ${isActive ? 'var(--term-accent)' : 'var(--term-border)'}`,
                       boxShadow: isActive
-                        ? "0 0 8px var(--term-accent-glow)"
-                        : "none",
+                        ? '0 0 8px var(--term-accent-glow)'
+                        : 'none',
                     }}
                   >
                     {style}
                   </button>
-                );
+                )
               })}
             </div>
           </div>
@@ -314,12 +314,12 @@ export function SettingsDropdown({
                 onChange={(e) => setCursorBlink(e.target.checked)}
                 className="w-5 h-5 rounded"
                 style={{
-                  accentColor: "var(--term-accent)",
+                  accentColor: 'var(--term-accent)',
                 }}
               />
               <span
                 className="text-sm font-medium"
-                style={{ color: "var(--term-text-muted)" }}
+                style={{ color: 'var(--term-text-muted)' }}
               >
                 Cursor Blink
               </span>
@@ -327,10 +327,10 @@ export function SettingsDropdown({
           </div>
 
           {/* Scrollback */}
-          <div className={isMobile && keyboardSize !== undefined ? "mb-4" : ""}>
+          <div className={isMobile && keyboardSize !== undefined ? 'mb-4' : ''}>
             <label
               className="block text-xs font-medium mb-1.5"
-              style={{ color: "var(--term-text-muted)" }}
+              style={{ color: 'var(--term-text-muted)' }}
             >
               Scrollback Buffer
             </label>
@@ -341,15 +341,15 @@ export function SettingsDropdown({
               }
               className="w-full px-2.5 py-3 min-h-[44px] text-sm rounded-md transition-colors focus:outline-none"
               style={{
-                backgroundColor: "var(--term-bg-deep)",
-                border: "1px solid var(--term-border)",
-                color: "var(--term-text-primary)",
+                backgroundColor: 'var(--term-bg-deep)',
+                border: '1px solid var(--term-border)',
+                color: 'var(--term-text-primary)',
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--term-accent)";
+                e.currentTarget.style.borderColor = 'var(--term-accent)'
               }}
               onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--term-border)";
+                e.currentTarget.style.borderColor = 'var(--term-border)'
               }}
             >
               {TERMINAL_SCROLLBACK_OPTIONS.map((opt) => (
@@ -365,13 +365,13 @@ export function SettingsDropdown({
             <div>
               <label
                 className="block text-xs font-medium mb-1.5"
-                style={{ color: "var(--term-text-muted)" }}
+                style={{ color: 'var(--term-text-muted)' }}
               >
                 Keyboard Size
               </label>
               <div className="flex gap-1.5">
-                {(["small", "medium", "large"] as const).map((size) => {
-                  const isActive = keyboardSize === size;
+                {(['small', 'medium', 'large'] as const).map((size) => {
+                  const isActive = keyboardSize === size
                   return (
                     <button
                       key={size}
@@ -380,20 +380,20 @@ export function SettingsDropdown({
                       className="flex-1 px-2 py-2.5 min-h-[44px] text-xs rounded-md transition-all duration-150 capitalize"
                       style={{
                         backgroundColor: isActive
-                          ? "var(--term-accent)"
-                          : "var(--term-bg-deep)",
+                          ? 'var(--term-accent)'
+                          : 'var(--term-bg-deep)',
                         color: isActive
-                          ? "var(--term-bg-deep)"
-                          : "var(--term-text-muted)",
-                        border: `1px solid ${isActive ? "var(--term-accent)" : "var(--term-border)"}`,
+                          ? 'var(--term-bg-deep)'
+                          : 'var(--term-text-muted)',
+                        border: `1px solid ${isActive ? 'var(--term-accent)' : 'var(--term-border)'}`,
                         boxShadow: isActive
-                          ? "0 0 8px var(--term-accent-glow)"
-                          : "none",
+                          ? '0 0 8px var(--term-accent-glow)'
+                          : 'none',
                       }}
                     >
                       {size}
                     </button>
-                  );
+                  )
                 })}
               </div>
             </div>
@@ -401,5 +401,5 @@ export function SettingsDropdown({
         </div>
       )}
     </div>
-  );
+  )
 }

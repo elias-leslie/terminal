@@ -1,31 +1,31 @@
-"use client";
+'use client'
 
-import { useState, useCallback, useEffect } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { clsx } from "clsx";
-import { UploadProgressToast, UploadErrorToast } from "./UploadStatusToast";
-import { FileUploadDropzone } from "./FileUploadDropzone";
-import { PromptCleaner } from "./PromptCleaner";
-import { MobileKeyboard } from "./keyboard/MobileKeyboard";
-import { TerminalManagerModal } from "./TerminalManagerModal";
-import { SettingsDropdown } from "./SettingsDropdown";
+import { clsx } from 'clsx'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
+import { useLayoutPersistence } from '@/lib/hooks/use-layout-persistence'
+import { usePromptCleaner } from '@/lib/hooks/use-prompt-cleaner'
+import { useTerminalActionHandlers } from '@/lib/hooks/use-terminal-action-handlers'
+import { useTerminalSlotHandlers } from '@/lib/hooks/use-terminal-slot-handlers'
+import { useTerminalTabsState } from '@/lib/hooks/use-terminal-tabs-state'
+import { FileUploadDropzone } from './FileUploadDropzone'
 // SessionTabBar removed - all terminal selection via TerminalSwitcher dropdown in pane header
 import {
   KeyboardShortcuts,
   useTerminalKeyboardShortcuts,
-} from "./KeyboardShortcuts";
-import { TerminalSkeleton } from "./TerminalSkeleton";
-import { TerminalLayoutRenderer } from "./TerminalLayoutRenderer";
-import { useTerminalTabsState } from "@/lib/hooks/use-terminal-tabs-state";
-import { usePromptCleaner } from "@/lib/hooks/use-prompt-cleaner";
-import { useTerminalSlotHandlers } from "@/lib/hooks/use-terminal-slot-handlers";
-import { useTerminalActionHandlers } from "@/lib/hooks/use-terminal-action-handlers";
-import { useLayoutPersistence } from "@/lib/hooks/use-layout-persistence";
+} from './KeyboardShortcuts'
+import { MobileKeyboard } from './keyboard/MobileKeyboard'
+import { PromptCleaner } from './PromptCleaner'
+import { SettingsDropdown } from './SettingsDropdown'
+import { TerminalLayoutRenderer } from './TerminalLayoutRenderer'
+import { TerminalManagerModal } from './TerminalManagerModal'
+import { TerminalSkeleton } from './TerminalSkeleton'
+import { UploadErrorToast, UploadProgressToast } from './UploadStatusToast'
 
 interface TerminalTabsProps {
-  projectId?: string;
-  projectPath?: string;
-  className?: string;
+  projectId?: string
+  projectPath?: string
+  className?: string
 }
 
 export function TerminalTabs({
@@ -108,32 +108,32 @@ export function TerminalTabs({
     removePane,
     createAdHocPane: _createAdHocPane,
     saveLayouts,
-  } = useTerminalTabsState({ projectId, projectPath });
+  } = useTerminalTabsState({ projectId, projectPath })
 
   // URL param handling for modals
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const urlModal = searchParams.get("modal");
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const urlModal = searchParams.get('modal')
 
   // Helper to update URL params
   const updateUrlParams = useCallback(
     (updates: Record<string, string | null>) => {
-      const newParams = new URLSearchParams(searchParams.toString());
+      const newParams = new URLSearchParams(searchParams.toString())
       for (const [key, value] of Object.entries(updates)) {
         if (value === null) {
-          newParams.delete(key);
+          newParams.delete(key)
         } else {
-          newParams.set(key, value);
+          newParams.set(key, value)
         }
       }
-      const query = newParams.toString();
-      router.replace(`${pathname}${query ? `?${query}` : ""}`, {
+      const query = newParams.toString()
+      router.replace(`${pathname}${query ? `?${query}` : ''}`, {
         scroll: false,
-      });
+      })
     },
     [searchParams, router, pathname],
-  );
+  )
 
   // Sync modal state from URL params (keyboard shortcuts handled after hook is defined)
 
@@ -142,34 +142,34 @@ export function TerminalTabs({
   // Handler for project selection from switcher
   const _handleSelectProject = useCallback(
     (pId: string) => {
-      const pt = projectTerminals.find((p) => p.projectId === pId);
+      const pt = projectTerminals.find((p) => p.projectId === pId)
       if (pt) {
-        handleProjectTabClick(pt);
+        handleProjectTabClick(pt)
       }
     },
     [projectTerminals, handleProjectTabClick],
-  );
+  )
 
   // Prompt cleaner state
-  const [showCleaner, setShowCleaner] = useState(false);
-  const [cleanerRawPrompt, setCleanerRawPrompt] = useState("");
+  const [showCleaner, setShowCleaner] = useState(false)
+  const [cleanerRawPrompt, setCleanerRawPrompt] = useState('')
 
   // Memoized modal/settings openers to avoid inline arrow functions
   // With URL param support for modals
   const handleOpenTerminalManager = useCallback(() => {
-    setShowTerminalManager(true);
-    updateUrlParams({ modal: "terminal-manager" });
-  }, [setShowTerminalManager, updateUrlParams]);
+    setShowTerminalManager(true)
+    updateUrlParams({ modal: 'terminal-manager' })
+  }, [setShowTerminalManager, updateUrlParams])
 
   const handleCloseTerminalManager = useCallback(() => {
-    setShowTerminalManager(false);
-    updateUrlParams({ modal: null });
-  }, [setShowTerminalManager, updateUrlParams]);
+    setShowTerminalManager(false)
+    updateUrlParams({ modal: null })
+  }, [setShowTerminalManager, updateUrlParams])
 
   const handleOpenSettings = useCallback(
     () => setShowSettings(true),
     [setShowSettings],
-  );
+  )
 
   // Slot-based handlers for grid/split mode headers
   const {
@@ -194,14 +194,14 @@ export function TerminalTabs({
     setCleanerRawPrompt,
     sessions,
     handleProjectModeChange,
-  });
+  })
 
   // Layout persistence with debouncing
   const { handleLayoutChange } = useLayoutPersistence({
     saveLayouts,
     debounceMs: 500,
     maxRetries: 3,
-  });
+  })
 
   // Auto-create logic is now handled in use-terminal-tabs-state.ts
   // to prevent race conditions between multiple effects
@@ -214,94 +214,94 @@ export function TerminalTabs({
         // Close the current active slot if available
         const activeSlot = terminalSlots.find(
           (slot) =>
-            (slot.type === "project" &&
+            (slot.type === 'project' &&
               slot.activeSessionId === activeSessionId) ||
-            (slot.type === "adhoc" && slot.sessionId === activeSessionId),
-        );
+            (slot.type === 'adhoc' && slot.sessionId === activeSessionId),
+        )
         if (activeSlot) {
-          handleSlotClose(activeSlot);
+          handleSlotClose(activeSlot)
         }
       },
       onNextTerminal: () => {
         // Cycle to next terminal in orderedIds
-        if (orderedIds.length <= 1) return;
+        if (orderedIds.length <= 1) return
         const currentIndex = orderedIds.findIndex((id) =>
           terminalSlots.some(
             (slot) =>
-              (slot.type === "project" &&
+              (slot.type === 'project' &&
                 slot.activeSessionId === activeSessionId &&
                 `project-${slot.projectId}` === id) ||
-              (slot.type === "adhoc" &&
+              (slot.type === 'adhoc' &&
                 slot.sessionId === activeSessionId &&
                 `adhoc-${slot.sessionId}` === id),
           ),
-        );
-        const nextIndex = (currentIndex + 1) % orderedIds.length;
+        )
+        const nextIndex = (currentIndex + 1) % orderedIds.length
         const nextSlot = terminalSlots.find(
           (slot) =>
-            (slot.type === "project" &&
+            (slot.type === 'project' &&
               `project-${slot.projectId}` === orderedIds[nextIndex]) ||
-            (slot.type === "adhoc" &&
+            (slot.type === 'adhoc' &&
               `adhoc-${slot.sessionId}` === orderedIds[nextIndex]),
-        );
-        if (nextSlot) handleSlotSwitch(nextSlot);
+        )
+        if (nextSlot) handleSlotSwitch(nextSlot)
       },
       onPrevTerminal: () => {
         // Cycle to previous terminal in orderedIds
-        if (orderedIds.length <= 1) return;
+        if (orderedIds.length <= 1) return
         const currentIndex = orderedIds.findIndex((id) =>
           terminalSlots.some(
             (slot) =>
-              (slot.type === "project" &&
+              (slot.type === 'project' &&
                 slot.activeSessionId === activeSessionId &&
                 `project-${slot.projectId}` === id) ||
-              (slot.type === "adhoc" &&
+              (slot.type === 'adhoc' &&
                 slot.sessionId === activeSessionId &&
                 `adhoc-${slot.sessionId}` === id),
           ),
-        );
+        )
         const prevIndex =
-          (currentIndex - 1 + orderedIds.length) % orderedIds.length;
+          (currentIndex - 1 + orderedIds.length) % orderedIds.length
         const prevSlot = terminalSlots.find(
           (slot) =>
-            (slot.type === "project" &&
+            (slot.type === 'project' &&
               `project-${slot.projectId}` === orderedIds[prevIndex]) ||
-            (slot.type === "adhoc" &&
+            (slot.type === 'adhoc' &&
               `adhoc-${slot.sessionId}` === orderedIds[prevIndex]),
-        );
-        if (prevSlot) handleSlotSwitch(prevSlot);
+        )
+        if (prevSlot) handleSlotSwitch(prevSlot)
       },
       onJumpToTerminal: (index) => {
         // Jump to terminal at position (0-indexed)
-        if (index >= orderedIds.length) return;
+        if (index >= orderedIds.length) return
         const targetSlot = terminalSlots.find(
           (slot) =>
-            (slot.type === "project" &&
+            (slot.type === 'project' &&
               `project-${slot.projectId}` === orderedIds[index]) ||
-            (slot.type === "adhoc" &&
+            (slot.type === 'adhoc' &&
               `adhoc-${slot.sessionId}` === orderedIds[index]),
-        );
-        if (targetSlot) handleSlotSwitch(targetSlot);
+        )
+        if (targetSlot) handleSlotSwitch(targetSlot)
       },
-    });
+    })
 
   // Sync modal state from URL params
   useEffect(() => {
-    if (urlModal === "terminal-manager") {
-      setShowTerminalManager(true);
-    } else if (urlModal === "keyboard-shortcuts") {
-      setShowKeyboardHelp(true);
+    if (urlModal === 'terminal-manager') {
+      setShowTerminalManager(true)
+    } else if (urlModal === 'keyboard-shortcuts') {
+      setShowKeyboardHelp(true)
     }
-  }, [urlModal, setShowTerminalManager, setShowKeyboardHelp]);
+  }, [urlModal, setShowTerminalManager, setShowKeyboardHelp])
 
   // Close keyboard shortcuts handler with URL param update
   const closeKeyboardHelp = useCallback(() => {
-    setShowKeyboardHelp(false);
-    updateUrlParams({ modal: null });
-  }, [setShowKeyboardHelp, updateUrlParams]);
+    setShowKeyboardHelp(false)
+    updateUrlParams({ modal: null })
+  }, [setShowKeyboardHelp, updateUrlParams])
 
   // File upload and prompt cleaner functionality
-  const { cleanPrompt, isLoading: _isCleanerLoading } = usePromptCleaner();
+  const { cleanPrompt, isLoading: _isCleanerLoading } = usePromptCleaner()
   const {
     fileInputRef,
     progress,
@@ -319,21 +319,21 @@ export function TerminalTabs({
     showCleaner,
     setShowCleaner,
     setCleanerRawPrompt,
-  });
+  })
 
   // Loading state - show skeleton instead of spinner
   if (isLoading) {
     return (
-      <div className={clsx("flex flex-col h-full min-h-0", className)}>
+      <div className={clsx('flex flex-col h-full min-h-0', className)}>
         <TerminalSkeleton />
       </div>
-    );
+    )
   }
 
   return (
     <div
       className={clsx(
-        "flex flex-col h-full min-h-0 overflow-visible",
+        'flex flex-col h-full min-h-0 overflow-visible',
         className,
       )}
     >
@@ -379,8 +379,8 @@ export function TerminalTabs({
         onFileSelect={handleFileSelect}
         disabled={isUploading}
         className={clsx(
-          "flex-1 min-h-0 relative overflow-hidden",
-          isMobile ? "order-1" : "order-2",
+          'flex-1 min-h-0 relative overflow-hidden',
+          isMobile ? 'order-1' : 'order-2',
         )}
       >
         <TerminalLayoutRenderer
@@ -427,7 +427,7 @@ export function TerminalTabs({
         onClose={handleCloseTerminalManager}
         onCreateGenericTerminal={handleAddTab}
         onCreateProjectTerminal={(projectId, rootPath) =>
-          handleNewTerminalForProject(projectId, "shell", rootPath)
+          handleNewTerminalForProject(projectId, 'shell', rootPath)
         }
         panes={panes}
       />
@@ -449,5 +449,5 @@ export function TerminalTabs({
         onClose={closeKeyboardHelp}
       />
     </div>
-  );
+  )
 }

@@ -1,11 +1,11 @@
-"use client";
+'use client'
 
-import { clsx } from "clsx";
-import { ClaudeIndicator } from "./ClaudeIndicator";
-import { ModeToggle } from "./ModeToggle";
-import { TabActionMenu } from "./TabActionMenu";
-import { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
-import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
+import { clsx } from 'clsx'
+import type { ProjectTerminal } from '@/lib/hooks/use-project-terminals'
+import type { TerminalSession } from '@/lib/hooks/use-terminal-sessions'
+import { ClaudeIndicator } from './ClaudeIndicator'
+import { ModeToggle } from './ModeToggle'
+import { TabActionMenu } from './TabActionMenu'
 
 // ============================================================================
 // Utility Functions
@@ -13,13 +13,13 @@ import { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
 
 function getTabClassName(isActive: boolean, isMobile: boolean): string {
   return clsx(
-    "flex items-center rounded-md transition-all duration-200 cursor-pointer",
-    "group min-w-0 flex-shrink-0",
+    'flex items-center rounded-md transition-all duration-200 cursor-pointer',
+    'group min-w-0 flex-shrink-0',
     isMobile
-      ? "gap-1 px-2 py-1 text-xs min-h-[36px]"
-      : "gap-1.5 px-2 py-1.5 text-sm",
-    isActive ? "tab-active" : "tab-inactive",
-  );
+      ? 'gap-1 px-2 py-1 text-xs min-h-[36px]'
+      : 'gap-1.5 px-2 py-1.5 text-sm',
+    isActive ? 'tab-active' : 'tab-inactive',
+  )
 }
 
 // ============================================================================
@@ -28,27 +28,27 @@ function getTabClassName(isActive: boolean, isMobile: boolean): string {
 
 export interface ProjectTabProps {
   // Project terminal data
-  projectTerminal: ProjectTerminal;
+  projectTerminal: ProjectTerminal
 
   // Active state
-  isActive: boolean;
+  isActive: boolean
 
   // Handlers
-  onClick: () => void;
+  onClick: () => void
   onModeChange: (
     projectId: string,
-    mode: "shell" | "claude",
+    mode: 'shell' | 'claude',
     projectSessions: TerminalSession[],
     rootPath: string | null,
-  ) => void;
-  onReset: (projectId: string) => void;
-  onDisable: (projectId: string) => void;
+  ) => void
+  onReset: (projectId: string) => void
+  onDisable: (projectId: string) => void
 
   // Ref callback for tab element
-  tabRef: (el: HTMLDivElement | null) => void;
+  tabRef: (el: HTMLDivElement | null) => void
 
   // UI state
-  isMobile: boolean;
+  isMobile: boolean
 }
 
 // ============================================================================
@@ -72,12 +72,12 @@ export function ProjectTab({
       className={getTabClassName(isActive, isMobile)}
     >
       {/* Claude indicator for project tabs */}
-      <ClaudeIndicator state={pt.activeMode === "claude" ? "idle" : "none"} />
+      <ClaudeIndicator state={pt.activeMode === 'claude' ? 'idle' : 'none'} />
       {/* Project name */}
       <span
         className={clsx(
-          "truncate",
-          isMobile ? "max-w-[80px]" : "max-w-[100px]",
+          'truncate',
+          isMobile ? 'max-w-[80px]' : 'max-w-[100px]',
         )}
       >
         {pt.projectName}
@@ -107,5 +107,5 @@ export function ProjectTab({
         />
       </div>
     </div>
-  );
+  )
 }

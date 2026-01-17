@@ -1,57 +1,57 @@
-"use client";
+'use client'
 
-import { ResizablePaneLayout, type PaneLayout } from "./ResizablePaneLayout";
-import { TerminalComponent, type TerminalHandle } from "./Terminal";
-import { type TerminalSlot, type PaneSlot } from "@/lib/utils/slot";
-import { type ConnectionStatus } from "./terminal.types";
-import { type TerminalMode } from "./ModeToggle";
+import type { PaneSlot, TerminalSlot } from '@/lib/utils/slot'
+import type { TerminalMode } from './ModeToggle'
+import { type PaneLayout, ResizablePaneLayout } from './ResizablePaneLayout'
+import type { TerminalComponent, TerminalHandle } from './Terminal'
+import type { ConnectionStatus } from './terminal.types'
 
 interface TerminalLayoutRendererProps {
   // Slots (pane-based architecture)
-  terminalSlots: (TerminalSlot | PaneSlot)[];
+  terminalSlots: (TerminalSlot | PaneSlot)[]
 
   // Terminal settings
-  fontFamily: string;
-  fontSize: number;
-  scrollback: number;
-  cursorStyle: "bar" | "block" | "underline";
-  cursorBlink: boolean;
-  theme?: Parameters<typeof TerminalComponent>[0]["theme"];
+  fontFamily: string
+  fontSize: number
+  scrollback: number
+  cursorStyle: 'bar' | 'block' | 'underline'
+  cursorBlink: boolean
+  theme?: Parameters<typeof TerminalComponent>[0]['theme']
 
   // Terminal ref and status handlers
-  onTerminalRef: (sessionId: string, handle: TerminalHandle | null) => void;
-  onStatusChange: (sessionId: string, status: ConnectionStatus) => void;
+  onTerminalRef: (sessionId: string, handle: TerminalHandle | null) => void
+  onStatusChange: (sessionId: string, status: ConnectionStatus) => void
 
   // Slot action handlers
-  onSlotSwitch: (slot: TerminalSlot | PaneSlot) => void;
-  onSlotReset: (slot: TerminalSlot | PaneSlot) => void;
-  onSlotClose: (slot: TerminalSlot | PaneSlot) => void;
-  onSlotClean: (slot: TerminalSlot | PaneSlot) => void;
+  onSlotSwitch: (slot: TerminalSlot | PaneSlot) => void
+  onSlotReset: (slot: TerminalSlot | PaneSlot) => void
+  onSlotClose: (slot: TerminalSlot | PaneSlot) => void
+  onSlotClean: (slot: TerminalSlot | PaneSlot) => void
 
   // Pane limits
-  canAddPane: boolean;
+  canAddPane: boolean
 
   // UI callbacks
-  onShowSettings: () => void;
-  onShowTerminalManager: () => void;
-  onUploadClick: () => void;
+  onShowSettings: () => void
+  onShowTerminalManager: () => void
+  onUploadClick: () => void
 
   // Mode switch handler for project slots
   onModeSwitch?: (
     slot: TerminalSlot | PaneSlot,
     mode: TerminalMode,
-  ) => void | Promise<void>;
-  isModeSwitching?: boolean;
+  ) => void | Promise<void>
+  isModeSwitching?: boolean
 
   // Device
-  isMobile: boolean;
+  isMobile: boolean
 
   // Pane swap (for dropdown swap)
-  onSwapPanes?: (slotIdA: string, slotIdB: string) => void;
+  onSwapPanes?: (slotIdA: string, slotIdB: string) => void
 
   // Layout persistence
-  onLayoutChange?: (layouts: PaneLayout[]) => void;
-  initialLayouts?: PaneLayout[];
+  onLayoutChange?: (layouts: PaneLayout[]) => void
+  initialLayouts?: PaneLayout[]
 }
 
 export function TerminalLayoutRenderer({
@@ -105,5 +105,5 @@ export function TerminalLayoutRenderer({
       onLayoutChange={onLayoutChange}
       initialLayouts={initialLayouts}
     />
-  );
+  )
 }

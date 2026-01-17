@@ -1,19 +1,19 @@
-'use client';
+'use client'
 
-import React, { useState, useCallback } from 'react';
-import { PromptCleaner } from './PromptCleaner';
+import { useCallback, useState } from 'react'
+import { PromptCleaner } from './PromptCleaner'
 
 interface PromptCleanerTriggerProps {
   /** Get the current input from the terminal */
-  getCurrentInput: () => string;
+  getCurrentInput: () => string
   /** Send cleaned prompt to terminal */
-  onSendCleaned: (prompt: string) => void;
+  onSendCleaned: (prompt: string) => void
   /** LLM cleanup function - integrate with your agent-hub */
-  cleanPrompt: (prompt: string, refinement?: string) => Promise<string>;
+  cleanPrompt: (prompt: string, refinement?: string) => Promise<string>
   /** Disabled state */
-  disabled?: boolean;
+  disabled?: boolean
   /** Variant for different contexts */
-  variant?: 'default' | 'compact' | 'mobile';
+  variant?: 'default' | 'compact' | 'mobile'
 }
 
 export function PromptCleanerTrigger({
@@ -23,28 +23,31 @@ export function PromptCleanerTrigger({
   disabled = false,
   variant = 'default',
 }: PromptCleanerTriggerProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [rawPrompt, setRawPrompt] = useState('');
+  const [isOpen, setIsOpen] = useState(false)
+  const [rawPrompt, setRawPrompt] = useState('')
 
   const handleOpen = useCallback(() => {
-    const input = getCurrentInput();
-    if (!input.trim()) return;
-    setRawPrompt(input);
-    setIsOpen(true);
-  }, [getCurrentInput]);
+    const input = getCurrentInput()
+    if (!input.trim()) return
+    setRawPrompt(input)
+    setIsOpen(true)
+  }, [getCurrentInput])
 
-  const handleSend = useCallback((cleaned: string) => {
-    onSendCleaned(cleaned);
-    setIsOpen(false);
-    setRawPrompt('');
-  }, [onSendCleaned]);
+  const handleSend = useCallback(
+    (cleaned: string) => {
+      onSendCleaned(cleaned)
+      setIsOpen(false)
+      setRawPrompt('')
+    },
+    [onSendCleaned],
+  )
 
   const handleCancel = useCallback(() => {
-    setIsOpen(false);
-    setRawPrompt('');
-  }, []);
+    setIsOpen(false)
+    setRawPrompt('')
+  }, [])
 
-  const buttonClass = `cleaner-trigger-btn ${variant}`;
+  const buttonClass = `cleaner-trigger-btn ${variant}`
 
   return (
     <>
@@ -181,7 +184,7 @@ export function PromptCleanerTrigger({
         }
       `}</style>
     </>
-  );
+  )
 }
 
-export default PromptCleanerTrigger;
+export default PromptCleanerTrigger

@@ -1,74 +1,74 @@
-"use client";
+'use client'
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface PaneSession {
-  id: string;
-  name: string;
-  mode: "shell" | "claude";
-  session_number: number;
-  is_alive: boolean;
-  working_dir: string | null;
+  id: string
+  name: string
+  mode: 'shell' | 'claude'
+  session_number: number
+  is_alive: boolean
+  working_dir: string | null
 }
 
 export interface TerminalPane {
-  id: string;
-  pane_type: "project" | "adhoc";
-  project_id: string | null;
-  pane_order: number;
-  pane_name: string;
-  active_mode: "shell" | "claude";
-  created_at: string | null;
-  sessions: PaneSession[];
+  id: string
+  pane_type: 'project' | 'adhoc'
+  project_id: string | null
+  pane_order: number
+  pane_name: string
+  active_mode: 'shell' | 'claude'
+  created_at: string | null
+  sessions: PaneSession[]
   // Layout fields (for persistence)
-  width_percent: number;
-  height_percent: number;
-  grid_row: number;
-  grid_col: number;
+  width_percent: number
+  height_percent: number
+  grid_row: number
+  grid_col: number
 }
 
 interface PaneListResponse {
-  items: TerminalPane[];
-  total: number;
-  max_panes: number;
+  items: TerminalPane[]
+  total: number
+  max_panes: number
 }
 
 interface PaneCountResponse {
-  count: number;
-  max_panes: number;
-  at_limit: boolean;
+  count: number
+  max_panes: number
+  at_limit: boolean
 }
 
 interface CreatePaneRequest {
-  pane_type: "project" | "adhoc";
-  pane_name: string;
-  project_id?: string;
-  working_dir?: string;
+  pane_type: 'project' | 'adhoc'
+  pane_name: string
+  project_id?: string
+  working_dir?: string
 }
 
 interface UpdatePaneRequest {
-  pane_name?: string;
-  active_mode?: "shell" | "claude";
+  pane_name?: string
+  active_mode?: 'shell' | 'claude'
 }
 
 interface SwapPanesRequest {
-  pane_id_a: string;
-  pane_id_b: string;
+  pane_id_a: string
+  pane_id_b: string
 }
 
 interface PaneLayoutItem {
-  pane_id: string;
-  width_percent?: number;
-  height_percent?: number;
+  pane_id: string
+  width_percent?: number
+  height_percent?: number
 }
 
 interface BulkLayoutUpdateRequest {
-  layouts: PaneLayoutItem[];
+  layouts: PaneLayoutItem[]
 }
 
 // ============================================================================
@@ -76,30 +76,30 @@ interface BulkLayoutUpdateRequest {
 // ============================================================================
 
 async function fetchPanes(): Promise<PaneListResponse> {
-  const res = await fetch("/api/terminal/panes");
-  if (!res.ok) throw new Error("Failed to fetch terminal panes");
-  return res.json();
+  const res = await fetch('/api/terminal/panes')
+  if (!res.ok) throw new Error('Failed to fetch terminal panes')
+  return res.json()
 }
 
 async function _fetchPaneCount(): Promise<PaneCountResponse> {
-  const res = await fetch("/api/terminal/panes/count");
-  if (!res.ok) throw new Error("Failed to fetch pane count");
-  return res.json();
+  const res = await fetch('/api/terminal/panes/count')
+  if (!res.ok) throw new Error('Failed to fetch pane count')
+  return res.json()
 }
 
 async function createPane(request: CreatePaneRequest): Promise<TerminalPane> {
-  const res = await fetch("/api/terminal/panes", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  const res = await fetch('/api/terminal/panes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
-  });
+  })
   if (!res.ok) {
     const error = await res
       .json()
-      .catch(() => ({ detail: "Failed to create pane" }));
-    throw new Error(error.detail || "Failed to create pane");
+      .catch(() => ({ detail: 'Failed to create pane' }))
+    throw new Error(error.detail || 'Failed to create pane')
   }
-  return res.json();
+  return res.json()
 }
 
 async function updatePane(
@@ -107,45 +107,45 @@ async function updatePane(
   request: UpdatePaneRequest,
 ): Promise<TerminalPane> {
   const res = await fetch(`/api/terminal/panes/${paneId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
-  });
+  })
   if (!res.ok) {
     const error = await res
       .json()
-      .catch(() => ({ detail: "Failed to update pane" }));
-    throw new Error(error.detail || "Failed to update pane");
+      .catch(() => ({ detail: 'Failed to update pane' }))
+    throw new Error(error.detail || 'Failed to update pane')
   }
-  return res.json();
+  return res.json()
 }
 
 async function deletePane(paneId: string): Promise<void> {
   const res = await fetch(`/api/terminal/panes/${paneId}`, {
-    method: "DELETE",
-  });
-  if (!res.ok) throw new Error("Failed to delete pane");
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error('Failed to delete pane')
 }
 
 async function swapPanes(request: SwapPanesRequest): Promise<void> {
-  const res = await fetch("/api/terminal/panes/swap", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  const res = await fetch('/api/terminal/panes/swap', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
-  });
-  if (!res.ok) throw new Error("Failed to swap panes");
+  })
+  if (!res.ok) throw new Error('Failed to swap panes')
 }
 
 async function updateAllLayouts(
   request: BulkLayoutUpdateRequest,
 ): Promise<TerminalPane[]> {
-  const res = await fetch("/api/terminal/layout", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
+  const res = await fetch('/api/terminal/layout', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
-  });
-  if (!res.ok) throw new Error("Failed to update layouts");
-  return res.json();
+  })
+  if (!res.ok) throw new Error('Failed to update layouts')
+  return res.json()
 }
 
 // ============================================================================
@@ -181,7 +181,7 @@ async function updateAllLayouts(
  * ```
  */
 export function useTerminalPanes() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   // Query: fetch panes with sessions
   const {
@@ -190,23 +190,23 @@ export function useTerminalPanes() {
     isError,
     error,
   } = useQuery({
-    queryKey: ["terminal-panes"],
+    queryKey: ['terminal-panes'],
     queryFn: fetchPanes,
-  });
+  })
 
-  const panes = panesData?.items ?? [];
-  const maxPanes = panesData?.max_panes ?? 4;
-  const atLimit = panes.length >= maxPanes;
+  const panes = panesData?.items ?? []
+  const maxPanes = panesData?.max_panes ?? 4
+  const atLimit = panes.length >= maxPanes
 
   // Mutation: create pane
   const createMutation = useMutation({
     mutationFn: createPane,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["terminal-panes"] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-panes'] })
       // Also invalidate sessions since new ones were created
-      queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-sessions'] })
     },
-  });
+  })
 
   // Mutation: update pane
   const updateMutation = useMutation({
@@ -215,127 +215,127 @@ export function useTerminalPanes() {
       ...request
     }: UpdatePaneRequest & { paneId: string }) => updatePane(paneId, request),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["terminal-panes"] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-panes'] })
     },
-  });
+  })
 
   // Mutation: delete pane
   const deleteMutation = useMutation({
     mutationFn: deletePane,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["terminal-panes"] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-panes'] })
       // Also invalidate sessions since they were cascade-deleted
-      queryClient.invalidateQueries({ queryKey: ["terminal-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-sessions'] })
     },
-  });
+  })
 
   // Mutation: swap panes
   const swapMutation = useMutation({
     mutationFn: swapPanes,
     onMutate: async ({ pane_id_a, pane_id_b }) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["terminal-panes"] });
+      await queryClient.cancelQueries({ queryKey: ['terminal-panes'] })
 
       // Snapshot for rollback
       const previousPanes = queryClient.getQueryData<PaneListResponse>([
-        "terminal-panes",
-      ]);
+        'terminal-panes',
+      ])
 
       // Optimistically update the cache
       if (previousPanes) {
-        const paneA = previousPanes.items.find((p) => p.id === pane_id_a);
-        const paneB = previousPanes.items.find((p) => p.id === pane_id_b);
+        const paneA = previousPanes.items.find((p) => p.id === pane_id_a)
+        const paneB = previousPanes.items.find((p) => p.id === pane_id_b)
 
         if (paneA && paneB) {
           const newItems = previousPanes.items.map((p) => {
             if (p.id === pane_id_a) {
-              return { ...p, pane_order: paneB.pane_order };
+              return { ...p, pane_order: paneB.pane_order }
             }
             if (p.id === pane_id_b) {
-              return { ...p, pane_order: paneA.pane_order };
+              return { ...p, pane_order: paneA.pane_order }
             }
-            return p;
-          });
+            return p
+          })
 
           // Sort by new order
-          newItems.sort((a, b) => a.pane_order - b.pane_order);
+          newItems.sort((a, b) => a.pane_order - b.pane_order)
 
-          queryClient.setQueryData<PaneListResponse>(["terminal-panes"], {
+          queryClient.setQueryData<PaneListResponse>(['terminal-panes'], {
             ...previousPanes,
             items: newItems,
-          });
+          })
         }
       }
 
-      return { previousPanes };
+      return { previousPanes }
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       // Rollback on error
       if (context?.previousPanes) {
-        queryClient.setQueryData(["terminal-panes"], context.previousPanes);
+        queryClient.setQueryData(['terminal-panes'], context.previousPanes)
       }
     },
     onSettled: () => {
       // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ["terminal-panes"] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-panes'] })
     },
-  });
+  })
 
   // Mutation: update layouts (bulk)
   const layoutMutation = useMutation({
     mutationFn: updateAllLayouts,
     // No optimistic update needed - just persist to backend
     // Don't invalidate queries on success as layout changes don't affect UI state
-  });
+  })
 
   // Create project pane
   const createProjectPane = useCallback(
     async (paneName: string, projectId: string, workingDir?: string) => {
       return createMutation.mutateAsync({
-        pane_type: "project",
+        pane_type: 'project',
         pane_name: paneName,
         project_id: projectId,
         working_dir: workingDir,
-      });
+      })
     },
     [createMutation],
-  );
+  )
 
   // Create ad-hoc pane
   const createAdHocPane = useCallback(
     async (paneName: string, workingDir?: string) => {
       return createMutation.mutateAsync({
-        pane_type: "adhoc",
+        pane_type: 'adhoc',
         pane_name: paneName,
         working_dir: workingDir,
-      });
+      })
     },
     [createMutation],
-  );
+  )
 
   // Update pane mode
   const setActiveMode = useCallback(
-    async (paneId: string, mode: "shell" | "claude") => {
-      return updateMutation.mutateAsync({ paneId, active_mode: mode });
+    async (paneId: string, mode: 'shell' | 'claude') => {
+      return updateMutation.mutateAsync({ paneId, active_mode: mode })
     },
     [updateMutation],
-  );
+  )
 
   // Update pane name
   const renamePne = useCallback(
     async (paneId: string, newName: string) => {
-      return updateMutation.mutateAsync({ paneId, pane_name: newName });
+      return updateMutation.mutateAsync({ paneId, pane_name: newName })
     },
     [updateMutation],
-  );
+  )
 
   // Delete pane
   const removePane = useCallback(
     async (paneId: string) => {
-      return deleteMutation.mutateAsync(paneId);
+      return deleteMutation.mutateAsync(paneId)
     },
     [deleteMutation],
-  );
+  )
 
   // Swap pane positions
   const swapPanePositions = useCallback(
@@ -343,18 +343,18 @@ export function useTerminalPanes() {
       return swapMutation.mutateAsync({
         pane_id_a: paneIdA,
         pane_id_b: paneIdB,
-      });
+      })
     },
     [swapMutation],
-  );
+  )
 
   // Save layouts (bulk update all pane layouts)
   const saveLayouts = useCallback(
     async (
       layouts: Array<{
-        paneId: string;
-        widthPercent?: number;
-        heightPercent?: number;
+        paneId: string
+        widthPercent?: number
+        heightPercent?: number
       }>,
     ) => {
       return layoutMutation.mutateAsync({
@@ -363,27 +363,27 @@ export function useTerminalPanes() {
           width_percent: l.widthPercent,
           height_percent: l.heightPercent,
         })),
-      });
+      })
     },
     [layoutMutation],
-  );
+  )
 
   // Get session ID for the active mode of a pane
   const getActiveSessionId = useCallback(
     (pane: TerminalPane): string | null => {
-      const session = pane.sessions.find((s) => s.mode === pane.active_mode);
-      return session?.id ?? null;
+      const session = pane.sessions.find((s) => s.mode === pane.active_mode)
+      return session?.id ?? null
     },
     [],
-  );
+  )
 
   // Get a specific session from a pane by mode
   const getSessionByMode = useCallback(
-    (pane: TerminalPane, mode: "shell" | "claude"): PaneSession | null => {
-      return pane.sessions.find((s) => s.mode === mode) ?? null;
+    (pane: TerminalPane, mode: 'shell' | 'claude'): PaneSession | null => {
+      return pane.sessions.find((s) => s.mode === mode) ?? null
     },
     [],
-  );
+  )
 
   return {
     panes,
@@ -412,8 +412,8 @@ export function useTerminalPanes() {
     // Helpers
     getActiveSessionId,
     getSessionByMode,
-  };
+  }
 }
 
 // Re-export types for consumers
-export type { CreatePaneRequest, UpdatePaneRequest, SwapPanesRequest };
+export type { CreatePaneRequest, UpdatePaneRequest, SwapPanesRequest }

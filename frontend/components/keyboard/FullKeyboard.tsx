@@ -1,175 +1,186 @@
-"use client";
+'use client'
 
-import { useEffect, useRef } from "react";
-import Keyboard from "simple-keyboard";
-import "simple-keyboard/build/css/index.css";
-import { useModifiers } from "./ModifierContext";
-import { useKeyboardInput } from "./useKeyboardInput";
-import { KEY_SEQUENCES } from "./keyMappings";
-import { TerminalInputHandler, KeyboardSizePreset, KEYBOARD_SIZE_HEIGHTS } from "./types";
+import { useEffect, useRef } from 'react'
+import Keyboard from 'simple-keyboard'
+import 'simple-keyboard/build/css/index.css'
+import { KEY_SEQUENCES } from './keyMappings'
+import { useModifiers } from './ModifierContext'
+import {
+  KEYBOARD_SIZE_HEIGHTS,
+  type KeyboardSizePreset,
+  type TerminalInputHandler,
+} from './types'
+import { useKeyboardInput } from './useKeyboardInput'
 
 // Android-like keyboard layout
 const layout = {
   default: [
-    "1 2 3 4 5 6 7 8 9 0",
-    "q w e r t y u i o p",
-    "a s d f g h j k l",
-    "{shift} z x c v b n m {bksp}",
-    "{sym} , {space} . {enter}",
+    '1 2 3 4 5 6 7 8 9 0',
+    'q w e r t y u i o p',
+    'a s d f g h j k l',
+    '{shift} z x c v b n m {bksp}',
+    '{sym} , {space} . {enter}',
   ],
   shift: [
-    "1 2 3 4 5 6 7 8 9 0",
-    "Q W E R T Y U I O P",
-    "A S D F G H J K L",
-    "{shift} Z X C V B N M {bksp}",
-    "{sym} , {space} . {enter}",
+    '1 2 3 4 5 6 7 8 9 0',
+    'Q W E R T Y U I O P',
+    'A S D F G H J K L',
+    '{shift} Z X C V B N M {bksp}',
+    '{sym} , {space} . {enter}',
   ],
   symbols: [
-    "! @ # $ % ^ & * ( )",
+    '! @ # $ % ^ & * ( )',
     "- _ = + [ ] \\ ' / ~",
-    "` < > { } : ; \" ?",
-    "{shift} € £ ¥ • ° ± § {bksp}",
-    "{abc} | {space} , {enter}",
+    '` < > { } : ; " ?',
+    '{shift} € £ ¥ • ° ± § {bksp}',
+    '{abc} | {space} , {enter}',
   ],
-};
+}
 
 // Button display names
 const display = {
-  "{bksp}": "⌫",
-  "{enter}": "↵",
-  "{shift}": "⇧",
-  "{space}": " ",
-  "{sym}": "?123",
-  "{abc}": "ABC",
-};
-
-interface FullKeyboardProps {
-  onSend: TerminalInputHandler;
-  keyboardSize?: KeyboardSizePreset;
+  '{bksp}': '⌫',
+  '{enter}': '↵',
+  '{shift}': '⇧',
+  '{space}': ' ',
+  '{sym}': '?123',
+  '{abc}': 'ABC',
 }
 
-function FullKeyboardInner({ onSend, keyboardSize = "medium" }: FullKeyboardProps) {
-  const keyboardRef = useRef<Keyboard | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { sendKey, sendRaw, modifiers } = useKeyboardInput({ onSend });
-  const { toggleModifier } = useModifiers();
+interface FullKeyboardProps {
+  onSend: TerminalInputHandler
+  keyboardSize?: KeyboardSizePreset
+}
+
+function FullKeyboardInner({
+  onSend,
+  keyboardSize = 'medium',
+}: FullKeyboardProps) {
+  const keyboardRef = useRef<Keyboard | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { sendKey, sendRaw, modifiers } = useKeyboardInput({ onSend })
+  const { toggleModifier } = useModifiers()
 
   // Get row height based on size preset
-  const rowHeight = KEYBOARD_SIZE_HEIGHTS[keyboardSize];
+  const rowHeight = KEYBOARD_SIZE_HEIGHTS[keyboardSize]
 
   // Store callbacks in refs to avoid recreating keyboard on every change
-  const sendKeyRef = useRef(sendKey);
-  const sendRawRef = useRef(sendRaw);
-  const toggleModifierRef = useRef(toggleModifier);
+  const sendKeyRef = useRef(sendKey)
+  const sendRawRef = useRef(sendRaw)
+  const toggleModifierRef = useRef(toggleModifier)
 
   // Keep refs updated
   useEffect(() => {
-    sendKeyRef.current = sendKey;
-    sendRawRef.current = sendRaw;
-    toggleModifierRef.current = toggleModifier;
-  }, [sendKey, sendRaw, toggleModifier]);
+    sendKeyRef.current = sendKey
+    sendRawRef.current = sendRaw
+    toggleModifierRef.current = toggleModifier
+  }, [sendKey, sendRaw, toggleModifier])
 
   // Initialize simple-keyboard
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) return
 
     // Handler uses refs so it never needs to change
     const handleKeyPress = (button: string) => {
       // Handle special keys
       switch (button) {
-        case "{enter}":
-          sendRawRef.current(KEY_SEQUENCES.ENTER);
-          break;
-        case "{bksp}":
-          sendRawRef.current(KEY_SEQUENCES.BACKSPACE);
-          break;
-        case "{space}":
-          sendKeyRef.current(" ");
-          break;
-        case "{shift}":
-          toggleModifierRef.current("shift");
+        case '{enter}':
+          sendRawRef.current(KEY_SEQUENCES.ENTER)
+          break
+        case '{bksp}':
+          sendRawRef.current(KEY_SEQUENCES.BACKSPACE)
+          break
+        case '{space}':
+          sendKeyRef.current(' ')
+          break
+        case '{shift}':
+          toggleModifierRef.current('shift')
           // Toggle shift layout in simple-keyboard
           if (keyboardRef.current) {
-            const currentLayout = keyboardRef.current.options.layoutName;
-            if (currentLayout === "symbols") {
+            const currentLayout = keyboardRef.current.options.layoutName
+            if (currentLayout === 'symbols') {
               // Stay in symbols, just toggle modifier
             } else {
               keyboardRef.current.setOptions({
-                layoutName: currentLayout === "shift" ? "default" : "shift",
-              });
+                layoutName: currentLayout === 'shift' ? 'default' : 'shift',
+              })
             }
           }
-          break;
-        case "{sym}":
+          break
+        case '{sym}':
           // Switch to symbols layout
           if (keyboardRef.current) {
             keyboardRef.current.setOptions({
-              layoutName: "symbols",
-            });
+              layoutName: 'symbols',
+            })
           }
-          break;
-        case "{abc}":
+          break
+        case '{abc}':
           // Switch back to default layout
           if (keyboardRef.current) {
             keyboardRef.current.setOptions({
-              layoutName: "default",
-            });
+              layoutName: 'default',
+            })
           }
-          break;
+          break
         default:
           // Regular character
-          sendKeyRef.current(button);
-          break;
+          sendKeyRef.current(button)
+          break
       }
 
       // Haptic feedback
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(10);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(10)
       }
-    };
+    }
 
     const keyboard = new Keyboard(containerRef.current, {
       onKeyPress: handleKeyPress,
       layout,
       display,
-      layoutName: "default",
-      theme: "hg-theme-default terminal-keyboard-theme",
+      layoutName: 'default',
+      theme: 'hg-theme-default terminal-keyboard-theme',
       mergeDisplay: true,
       physicalKeyboardHighlight: false,
       physicalKeyboardHighlightPress: false,
       disableButtonHold: false,
-    });
+    })
 
-    keyboardRef.current = keyboard;
+    keyboardRef.current = keyboard
 
     return () => {
-      keyboard.destroy();
-    };
-  }, [keyboardSize]); // Recreate keyboard when size changes
+      keyboard.destroy()
+    }
+  }, []) // Recreate keyboard when size changes
 
   // Update modifier button styles
   useEffect(() => {
-    if (!keyboardRef.current) return;
+    if (!keyboardRef.current) return
 
     // Get button classes based on modifier state
-    const shiftClass = modifiers.shift === "sticky"
-      ? "modifier-sticky"
-      : modifiers.shift === "locked"
-        ? "modifier-locked"
-        : "";
+    const shiftClass =
+      modifiers.shift === 'sticky'
+        ? 'modifier-sticky'
+        : modifiers.shift === 'locked'
+          ? 'modifier-locked'
+          : ''
 
     // Update button themes
     keyboardRef.current.setOptions({
       buttonTheme: [
-        ...(shiftClass ? [{ class: shiftClass, buttons: "{shift}" }] : []),
-        { class: "accent-key", buttons: "{shift} {bksp} {enter}" },
-        { class: "wide-key", buttons: "{sym} {abc}" },
+        ...(shiftClass ? [{ class: shiftClass, buttons: '{shift}' }] : []),
+        { class: 'accent-key', buttons: '{shift} {bksp} {enter}' },
+        { class: 'wide-key', buttons: '{sym} {abc}' },
       ],
-    });
-  }, [modifiers]);
+    })
+  }, [modifiers])
 
   return (
-    <div className="terminal-keyboard-container" style={{ backgroundColor: "var(--term-bg-surface)" }}>
+    <div
+      className="terminal-keyboard-container"
+      style={{ backgroundColor: 'var(--term-bg-surface)' }}
+    >
       <div ref={containerRef} />
       <style jsx global>{`
         .terminal-keyboard-theme {
@@ -290,10 +301,10 @@ function FullKeyboardInner({ onSend, keyboardSize = "medium" }: FullKeyboardProp
         }
       `}</style>
     </div>
-  );
+  )
 }
 
 export function FullKeyboard(props: FullKeyboardProps) {
   // ModifierProvider is expected to be at parent level (MobileKeyboard)
-  return <FullKeyboardInner {...props} />;
+  return <FullKeyboardInner {...props} />
 }

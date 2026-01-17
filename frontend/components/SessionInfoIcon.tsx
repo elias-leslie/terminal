@@ -1,13 +1,13 @@
-"use client";
+'use client'
 
-import { memo, useCallback, useState } from "react";
-import { Info, Check } from "lucide-react";
+import { Check, Info } from 'lucide-react'
+import { memo, useCallback, useState } from 'react'
 
 export interface SessionInfoIconProps {
-  sessionId: string;
-  mode: "shell" | "claude";
-  timestamp?: string;
-  className?: string;
+  sessionId: string
+  mode: 'shell' | 'claude'
+  timestamp?: string
+  className?: string
 }
 
 /**
@@ -19,7 +19,7 @@ export const SessionInfoIcon = memo(function SessionInfoIcon({
   timestamp,
   className,
 }: SessionInfoIconProps) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false)
 
   const tooltipText = [
     `Session: ${sessionId}`,
@@ -27,34 +27,34 @@ export const SessionInfoIcon = memo(function SessionInfoIcon({
     timestamp ? `Created: ${timestamp}` : null,
   ]
     .filter(Boolean)
-    .join("\n");
+    .join('\n')
 
   const handleClick = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(tooltipText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(tooltipText)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     } catch (e) {
-      console.error("Failed to copy:", e);
+      console.error('Failed to copy:', e)
     }
-  }, [tooltipText]);
+  }, [tooltipText])
 
   return (
     <button
       data-testid="session-info-icon"
       onClick={handleClick}
-      className={`p-1 rounded transition-colors duration-150 ${className || ""}`}
+      className={`p-1 rounded transition-colors duration-150 ${className || ''}`}
       style={{
-        color: copied ? "var(--term-accent)" : "var(--term-text-muted)",
+        color: copied ? 'var(--term-accent)' : 'var(--term-text-muted)',
       }}
-      title={copied ? "Copied!" : tooltipText}
+      title={copied ? 'Copied!' : tooltipText}
       onMouseEnter={(e) => {
         if (!copied) {
-          e.currentTarget.style.backgroundColor = "var(--term-bg-elevated)";
+          e.currentTarget.style.backgroundColor = 'var(--term-bg-elevated)'
         }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "transparent";
+        e.currentTarget.style.backgroundColor = 'transparent'
       }}
     >
       {copied ? (
@@ -63,5 +63,5 @@ export const SessionInfoIcon = memo(function SessionInfoIcon({
         <Info className="w-3.5 h-3.5" />
       )}
     </button>
-  );
-});
+  )
+})

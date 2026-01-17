@@ -1,18 +1,18 @@
-"use client";
+'use client'
 
-import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { ChevronDown, Terminal, Sparkles, Loader2 } from "lucide-react";
-import { useClickOutside } from "@/lib/hooks/useClickOutside";
+import { ChevronDown, Loader2, Sparkles, Terminal } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useClickOutside } from '@/lib/hooks/useClickOutside'
 
-export type TerminalMode = "shell" | "claude";
+export type TerminalMode = 'shell' | 'claude'
 
 interface TabModeDropdownProps {
-  value: TerminalMode;
-  onChange: (mode: TerminalMode) => void | Promise<void>;
-  disabled?: boolean;
-  isMobile?: boolean;
+  value: TerminalMode
+  onChange: (mode: TerminalMode) => void | Promise<void>
+  disabled?: boolean
+  isMobile?: boolean
   /** External loading state - when true, dropdown is disabled and shows spinner */
-  isLoading?: boolean;
+  isLoading?: boolean
 }
 
 /**
@@ -26,71 +26,71 @@ export function TabModeDropdown({
   isMobile = false,
   isLoading = false,
 }: TabModeDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [internalLoading, setInternalLoading] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const [isOpen, setIsOpen] = useState(false)
+  const [internalLoading, setInternalLoading] = useState(false)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
 
   // Combined loading state - either external or internal
-  const isCurrentlyLoading = isLoading || internalLoading;
+  const isCurrentlyLoading = isLoading || internalLoading
 
   // Combined disabled state
-  const isDisabled = disabled || isCurrentlyLoading;
+  const isDisabled = disabled || isCurrentlyLoading
 
-  const closeDropdown = useCallback(() => setIsOpen(false), []);
-  const clickOutsideRefs = useMemo(() => [buttonRef, dropdownRef], []);
-  useClickOutside(clickOutsideRefs, closeDropdown, isOpen);
+  const closeDropdown = useCallback(() => setIsOpen(false), [])
+  const clickOutsideRefs = useMemo(() => [buttonRef, dropdownRef], [])
+  useClickOutside(clickOutsideRefs, closeDropdown, isOpen)
 
   // Calculate dropdown position based on viewport - use fixed positioning
   useEffect(() => {
-    if (!isOpen || !buttonRef.current) return;
+    if (!isOpen || !buttonRef.current) return
 
-    const rect = buttonRef.current.getBoundingClientRect();
-    const dropdownHeight = 88; // Approximate height of 2 options
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const openAbove = spaceBelow < dropdownHeight;
+    const rect = buttonRef.current.getBoundingClientRect()
+    const dropdownHeight = 88 // Approximate height of 2 options
+    const spaceBelow = window.innerHeight - rect.bottom
+    const openAbove = spaceBelow < dropdownHeight
 
     setDropdownStyle({
-      position: "fixed",
+      position: 'fixed',
       top: openAbove ? undefined : rect.bottom + 4,
       bottom: openAbove ? window.innerHeight - rect.top + 4 : undefined,
       right: window.innerWidth - rect.right,
       zIndex: 9999,
-    });
-  }, [isOpen]);
+    })
+  }, [isOpen])
 
   const handleSelect = async (mode: TerminalMode) => {
     // Prevent selection if already loading or selecting same mode
     if (isCurrentlyLoading || mode === value) {
-      setIsOpen(false);
-      return;
+      setIsOpen(false)
+      return
     }
 
-    setIsOpen(false);
-    setInternalLoading(true);
+    setIsOpen(false)
+    setInternalLoading(true)
 
     try {
       // onChange may be async (mode switch with session creation/Claude start)
-      await onChange(mode);
+      await onChange(mode)
     } catch (error) {
-      console.error("Failed to switch mode:", error);
+      console.error('Failed to switch mode:', error)
     } finally {
-      setInternalLoading(false);
+      setInternalLoading(false)
     }
-  };
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      setIsOpen(false);
-    } else if (e.key === "ArrowDown" && !isOpen) {
-      e.preventDefault();
-      setIsOpen(true);
+    if (e.key === 'Escape') {
+      setIsOpen(false)
+    } else if (e.key === 'ArrowDown' && !isOpen) {
+      e.preventDefault()
+      setIsOpen(true)
     }
-  };
+  }
 
   // Touch target sizing
-  const touchTargetClass = isMobile ? "min-h-[44px] min-w-[44px]" : "";
+  const touchTargetClass = isMobile ? 'min-h-[44px] min-w-[44px]' : ''
 
   return (
     <div className="relative">
@@ -98,41 +98,41 @@ export function TabModeDropdown({
         ref={buttonRef}
         data-testid="mode-dropdown"
         onClick={(e) => {
-          e.stopPropagation();
-          if (!isDisabled) setIsOpen(!isOpen);
+          e.stopPropagation()
+          if (!isDisabled) setIsOpen(!isOpen)
         }}
         onKeyDown={handleKeyDown}
         disabled={isDisabled}
         className={`
           flex items-center gap-1 rounded transition-all duration-150
-          ${isMobile ? "px-2 py-2" : "px-1.5 py-1"}
+          ${isMobile ? 'px-2 py-2' : 'px-1.5 py-1'}
           ${touchTargetClass}
         `}
         style={{
-          backgroundColor: isOpen ? "var(--term-bg-deep)" : "transparent",
+          backgroundColor: isOpen ? 'var(--term-bg-deep)' : 'transparent',
           color: isDisabled
-            ? "var(--term-text-muted)"
-            : "var(--term-text-primary)",
+            ? 'var(--term-text-muted)'
+            : 'var(--term-text-primary)',
           border: isOpen
-            ? "1px solid var(--term-border-active)"
-            : "1px solid transparent",
+            ? '1px solid var(--term-border-active)'
+            : '1px solid transparent',
           opacity: isDisabled ? 0.5 : 1,
-          cursor: isDisabled ? "not-allowed" : "pointer",
+          cursor: isDisabled ? 'not-allowed' : 'pointer',
         }}
         onMouseEnter={(e) => {
           if (!isDisabled && !isOpen) {
-            e.currentTarget.style.backgroundColor = "var(--term-bg-deep)";
-            e.currentTarget.style.borderColor = "var(--term-border)";
+            e.currentTarget.style.backgroundColor = 'var(--term-bg-deep)'
+            e.currentTarget.style.borderColor = 'var(--term-border)'
           }
         }}
         onMouseLeave={(e) => {
           if (!isDisabled && !isOpen) {
-            e.currentTarget.style.backgroundColor = "transparent";
-            e.currentTarget.style.borderColor = "transparent";
+            e.currentTarget.style.backgroundColor = 'transparent'
+            e.currentTarget.style.borderColor = 'transparent'
           }
         }}
         title={
-          isCurrentlyLoading ? "Switching mode..." : `Current mode: ${value}`
+          isCurrentlyLoading ? 'Switching mode...' : `Current mode: ${value}`
         }
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -142,23 +142,23 @@ export function TabModeDropdown({
         {isCurrentlyLoading ? (
           <Loader2
             className="w-3 h-3 animate-spin"
-            style={{ color: "var(--term-accent)" }}
+            style={{ color: 'var(--term-accent)' }}
           />
         ) : /* Mode indicator icon */
-        value === "claude" ? (
+        value === 'claude' ? (
           <Sparkles
             className="w-3 h-3"
-            style={{ color: "var(--term-accent)" }}
+            style={{ color: 'var(--term-accent)' }}
           />
         ) : (
           <Terminal
             className="w-3 h-3"
-            style={{ color: "var(--term-text-muted)" }}
+            style={{ color: 'var(--term-text-muted)' }}
           />
         )}
         <ChevronDown
-          className={`w-3 h-3 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}
-          style={{ color: "var(--term-text-muted)" }}
+          className={`w-3 h-3 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`}
+          style={{ color: 'var(--term-text-muted)' }}
         />
       </button>
 
@@ -169,8 +169,8 @@ export function TabModeDropdown({
           <div
             className="fixed inset-0 z-[9998]"
             onClick={(e) => {
-              e.stopPropagation();
-              setIsOpen(false);
+              e.stopPropagation()
+              setIsOpen(false)
             }}
           />
 
@@ -181,31 +181,31 @@ export function TabModeDropdown({
             className="min-w-[100px] rounded-md overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100"
             style={{
               ...dropdownStyle,
-              backgroundColor: "rgba(21, 27, 35, 0.95)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              border: "1px solid var(--term-border-active)",
-              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
+              backgroundColor: 'rgba(21, 27, 35, 0.95)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid var(--term-border-active)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <ModeOption
               mode="shell"
-              isSelected={value === "shell"}
-              onClick={() => handleSelect("shell")}
+              isSelected={value === 'shell'}
+              onClick={() => handleSelect('shell')}
               isMobile={isMobile}
             />
             <ModeOption
               mode="claude"
-              isSelected={value === "claude"}
-              onClick={() => handleSelect("claude")}
+              isSelected={value === 'claude'}
+              onClick={() => handleSelect('claude')}
               isMobile={isMobile}
             />
           </div>
         </>
       )}
     </div>
-  );
+  )
 }
 
 function ModeOption({
@@ -214,10 +214,10 @@ function ModeOption({
   onClick,
   isMobile,
 }: {
-  mode: TerminalMode;
-  isSelected: boolean;
-  onClick: () => void;
-  isMobile: boolean;
+  mode: TerminalMode
+  isSelected: boolean
+  onClick: () => void
+  isMobile: boolean
 }) {
   return (
     <button
@@ -226,41 +226,41 @@ function ModeOption({
       onClick={onClick}
       className={`
         flex items-center gap-2 w-full text-left transition-colors
-        ${isMobile ? "px-3 py-3 text-sm min-h-[44px]" : "px-2.5 py-2 text-xs"}
+        ${isMobile ? 'px-3 py-3 text-sm min-h-[44px]' : 'px-2.5 py-2 text-xs'}
       `}
       style={{
-        color: isSelected ? "var(--term-accent)" : "var(--term-text-primary)",
-        backgroundColor: "transparent",
-        fontFamily: "var(--font-mono)",
+        color: isSelected ? 'var(--term-accent)' : 'var(--term-text-primary)',
+        backgroundColor: 'transparent',
+        fontFamily: 'var(--font-mono)',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
+        e.currentTarget.style.backgroundColor = 'var(--term-bg-surface)'
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "transparent";
+        e.currentTarget.style.backgroundColor = 'transparent'
       }}
     >
-      {mode === "claude" ? (
+      {mode === 'claude' ? (
         <Sparkles
           className="w-3.5 h-3.5"
           style={{
-            color: isSelected ? "var(--term-accent)" : "var(--term-text-muted)",
+            color: isSelected ? 'var(--term-accent)' : 'var(--term-text-muted)',
           }}
         />
       ) : (
         <Terminal
           className="w-3.5 h-3.5"
           style={{
-            color: isSelected ? "var(--term-accent)" : "var(--term-text-muted)",
+            color: isSelected ? 'var(--term-accent)' : 'var(--term-text-muted)',
           }}
         />
       )}
-      <span>{mode === "claude" ? "Claude" : "Shell"}</span>
+      <span>{mode === 'claude' ? 'Claude' : 'Shell'}</span>
       {isSelected && (
-        <span className="ml-auto" style={{ color: "var(--term-accent)" }}>
+        <span className="ml-auto" style={{ color: 'var(--term-accent)' }}>
           ✓
         </span>
       )}
     </button>
-  );
+  )
 }

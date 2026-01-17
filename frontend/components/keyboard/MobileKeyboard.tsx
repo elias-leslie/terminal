@@ -1,60 +1,63 @@
-"use client";
+'use client'
 
-import { useState, useCallback } from "react";
-import { FullKeyboard } from "./FullKeyboard";
-import { ControlBar } from "./ControlBar";
-import { ModifierProvider } from "./ModifierContext";
-import { KeyboardSizePreset, TerminalInputHandler } from "./types";
-import { ConnectionStatus } from "../Terminal";
+import { useCallback, useState } from 'react'
+import type { ConnectionStatus } from '../Terminal'
+import { ControlBar } from './ControlBar'
+import { FullKeyboard } from './FullKeyboard'
+import { ModifierProvider } from './ModifierContext'
+import type { KeyboardSizePreset, TerminalInputHandler } from './types'
 
-const MINIMIZED_STORAGE_KEY = "terminal-keyboard-minimized";
+const MINIMIZED_STORAGE_KEY = 'terminal-keyboard-minimized'
 
 interface MobileKeyboardProps {
-  onSend: TerminalInputHandler;
-  connectionStatus?: ConnectionStatus;
-  onReconnect?: () => void;
-  keyboardSize?: KeyboardSizePreset;
+  onSend: TerminalInputHandler
+  connectionStatus?: ConnectionStatus
+  onReconnect?: () => void
+  keyboardSize?: KeyboardSizePreset
 }
 
 export function MobileKeyboard({
   onSend,
   // connectionStatus and onReconnect reserved for future mobile status display
-  keyboardSize = "medium",
+  keyboardSize = 'medium',
 }: MobileKeyboardProps) {
-  const [ctrlActive, setCtrlActive] = useState(false);
+  const [ctrlActive, setCtrlActive] = useState(false)
   // Use lazy initialization to load from localStorage
   const [minimized, setMinimized] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(MINIMIZED_STORAGE_KEY) === "true";
-  });
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem(MINIMIZED_STORAGE_KEY) === 'true'
+  })
 
   // Save minimized state
   const handleToggleMinimize = useCallback(() => {
-    setMinimized(prev => {
-      const newValue = !prev;
-      localStorage.setItem(MINIMIZED_STORAGE_KEY, String(newValue));
-      return newValue;
-    });
-  }, []);
+    setMinimized((prev) => {
+      const newValue = !prev
+      localStorage.setItem(MINIMIZED_STORAGE_KEY, String(newValue))
+      return newValue
+    })
+  }, [])
 
   // Wrapped onSend that handles CTRL modifier
-  const handleSend = useCallback((key: string) => {
-    if (ctrlActive && key.length === 1) {
-      // Send Ctrl+key sequence (ASCII control codes)
-      const char = key.toLowerCase();
-      if (char >= 'a' && char <= 'z') {
-        const ctrlCode = char.charCodeAt(0) - 96; // a=1, b=2, ..., z=26
-        onSend(String.fromCharCode(ctrlCode));
-        setCtrlActive(false);
-        return;
+  const handleSend = useCallback(
+    (key: string) => {
+      if (ctrlActive && key.length === 1) {
+        // Send Ctrl+key sequence (ASCII control codes)
+        const char = key.toLowerCase()
+        if (char >= 'a' && char <= 'z') {
+          const ctrlCode = char.charCodeAt(0) - 96 // a=1, b=2, ..., z=26
+          onSend(String.fromCharCode(ctrlCode))
+          setCtrlActive(false)
+          return
+        }
       }
-    }
-    onSend(key);
-  }, [ctrlActive, onSend]);
+      onSend(key)
+    },
+    [ctrlActive, onSend],
+  )
 
   const handleCtrlToggle = useCallback(() => {
-    setCtrlActive(prev => !prev);
-  }, []);
+    setCtrlActive((prev) => !prev)
+  }, [])
 
   return (
     <ModifierProvider>
@@ -69,12 +72,9 @@ export function MobileKeyboard({
         />
         {/* Full keyboard - hidden when minimized */}
         {!minimized && (
-          <FullKeyboard
-            onSend={handleSend}
-            keyboardSize={keyboardSize}
-          />
+          <FullKeyboard onSend={handleSend} keyboardSize={keyboardSize} />
         )}
       </div>
     </ModifierProvider>
-  );
+  )
 }

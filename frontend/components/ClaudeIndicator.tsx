@@ -1,10 +1,10 @@
-"use client";
+'use client'
 
-type ClaudeState = "none" | "active" | "idle";
+type ClaudeState = 'none' | 'active' | 'idle'
 
 interface ClaudeIndicatorProps {
-  state: ClaudeState;
-  className?: string;
+  state: ClaudeState
+  className?: string
 }
 
 /**
@@ -15,26 +15,32 @@ interface ClaudeIndicatorProps {
  * - idle: Ring with static glow (Claude session exists but user in base shell)
  * - active: Ring with breathing animation (Claude session active)
  */
-export function ClaudeIndicator({ state, className = "" }: ClaudeIndicatorProps) {
+export function ClaudeIndicator({
+  state,
+  className = '',
+}: ClaudeIndicatorProps) {
   return (
     <div className={`flex items-center justify-center w-3 h-3 ${className}`}>
-      {state === "none" ? (
+      {state === 'none' ? (
         // Dim dot for shell-only
         <div
           className="w-1.5 h-1.5 rounded-full"
           style={{
-            backgroundColor: "var(--term-text-muted)",
+            backgroundColor: 'var(--term-text-muted)',
             opacity: 0.5,
           }}
         />
       ) : (
         // Ring for Claude (idle or active)
         <div
-          className={`w-2.5 h-2.5 rounded-full ${state === "active" ? "claude-indicator-active" : ""}`}
+          className={`w-2.5 h-2.5 rounded-full ${state === 'active' ? 'claude-indicator-active' : ''}`}
           style={{
-            border: "2px solid var(--term-accent)",
-            backgroundColor: "transparent",
-            boxShadow: state === "active" ? "0 0 6px var(--term-accent)" : "0 0 4px var(--term-accent)",
+            border: '2px solid var(--term-accent)',
+            backgroundColor: 'transparent',
+            boxShadow:
+              state === 'active'
+                ? '0 0 6px var(--term-accent)'
+                : '0 0 4px var(--term-accent)',
           }}
         />
       )}
@@ -57,5 +63,5 @@ export function ClaudeIndicator({ state, className = "" }: ClaudeIndicatorProps)
         }
       `}</style>
     </div>
-  );
+  )
 }

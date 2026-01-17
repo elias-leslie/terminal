@@ -1,4 +1,4 @@
-import type { Terminal } from "@xterm/xterm";
+import type { Terminal } from '@xterm/xterm'
 
 /**
  * Sets up mouse event handling for a terminal to enable local text selection
@@ -14,26 +14,26 @@ import type { Terminal } from "@xterm/xterm";
  */
 export function setupTerminalMouseHandling(
   terminal: Terminal,
-  container: HTMLElement
+  container: HTMLElement,
 ): () => void {
   const forceLocalMouseHandling = (e: MouseEvent) => {
-    if (e.shiftKey) return; // Already has shift (including our synthetic events), let it through
-    if (!e.isTrusted) return; // Skip synthetic events to prevent loops
+    if (e.shiftKey) return // Already has shift (including our synthetic events), let it through
+    if (!e.isTrusted) return // Skip synthetic events to prevent loops
 
     // Check if mouse reporting is enabled via xterm internal API
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const core = (terminal as any)._core;
-    const mouseService = core?.coreMouseService;
-    const mouseActive = mouseService?.areMouseEventsActive;
+    const core = (terminal as any)._core
+    const mouseService = core?.coreMouseService
+    const mouseActive = mouseService?.areMouseEventsActive
 
     if (!mouseActive) {
       // Mouse reporting not enabled, let event pass through normally
-      return;
+      return
     }
 
     // Mouse reporting is enabled - intercept and force local handling
-    e.stopPropagation();
-    e.preventDefault();
+    e.stopPropagation()
+    e.preventDefault()
 
     // Create new event with shiftKey=true
     const newEvent = new MouseEvent(e.type, {
@@ -52,20 +52,32 @@ export function setupTerminalMouseHandling(
       button: e.button,
       buttons: e.buttons,
       relatedTarget: e.relatedTarget,
-    });
+    })
 
-    e.target?.dispatchEvent(newEvent);
-  };
+    e.target?.dispatchEvent(newEvent)
+  }
 
   // Attach listeners in capture phase to intercept before xterm processes them
-  container.addEventListener('mousedown', forceLocalMouseHandling, { capture: true });
-  container.addEventListener('mouseup', forceLocalMouseHandling, { capture: true });
-  container.addEventListener('mousemove', forceLocalMouseHandling, { capture: true });
+  container.addEventListener('mousedown', forceLocalMouseHandling, {
+    capture: true,
+  })
+  container.addEventListener('mouseup', forceLocalMouseHandling, {
+    capture: true,
+  })
+  container.addEventListener('mousemove', forceLocalMouseHandling, {
+    capture: true,
+  })
 
   // Return cleanup function
   return () => {
-    container.removeEventListener('mousedown', forceLocalMouseHandling, { capture: true });
-    container.removeEventListener('mouseup', forceLocalMouseHandling, { capture: true });
-    container.removeEventListener('mousemove', forceLocalMouseHandling, { capture: true });
-  };
+    container.removeEventListener('mousedown', forceLocalMouseHandling, {
+      capture: true,
+    })
+    container.removeEventListener('mouseup', forceLocalMouseHandling, {
+      capture: true,
+    })
+    container.removeEventListener('mousemove', forceLocalMouseHandling, {
+      capture: true,
+    })
+  }
 }

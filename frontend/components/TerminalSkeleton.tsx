@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Skeleton loading state for terminal.
@@ -8,24 +8,24 @@ export function TerminalSkeleton() {
   return (
     <div
       className="flex-1 flex flex-col"
-      style={{ backgroundColor: "var(--term-bg-deep)" }}
+      style={{ backgroundColor: 'var(--term-bg-deep)' }}
     >
       {/* Header skeleton */}
       <div
         className="flex items-center gap-2 px-3 py-2"
         style={{
-          backgroundColor: "var(--term-bg-surface)",
-          borderBottom: "1px solid var(--term-border)",
+          backgroundColor: 'var(--term-bg-surface)',
+          borderBottom: '1px solid var(--term-border)',
         }}
       >
         <div
           className="h-4 w-24 rounded animate-pulse"
-          style={{ backgroundColor: "var(--term-bg-elevated)" }}
+          style={{ backgroundColor: 'var(--term-bg-elevated)' }}
         />
         <div className="flex-1" />
         <div
           className="h-4 w-4 rounded animate-pulse"
-          style={{ backgroundColor: "var(--term-bg-elevated)" }}
+          style={{ backgroundColor: 'var(--term-bg-elevated)' }}
         />
       </div>
 
@@ -35,11 +35,11 @@ export function TerminalSkeleton() {
         <div className="flex items-center gap-2">
           <div
             className="h-3 w-20 rounded animate-pulse"
-            style={{ backgroundColor: "var(--term-bg-elevated)" }}
+            style={{ backgroundColor: 'var(--term-bg-elevated)' }}
           />
           <div
             className="h-3 w-32 rounded animate-pulse opacity-60"
-            style={{ backgroundColor: "var(--term-bg-elevated)" }}
+            style={{ backgroundColor: 'var(--term-bg-elevated)' }}
           />
         </div>
 
@@ -49,7 +49,7 @@ export function TerminalSkeleton() {
             key={i}
             className="h-3 rounded animate-pulse"
             style={{
-              backgroundColor: "var(--term-bg-elevated)",
+              backgroundColor: 'var(--term-bg-elevated)',
               width: `${width * 100}%`,
               opacity: 0.3 + i * 0.05,
               animationDelay: `${i * 100}ms`,
@@ -61,17 +61,17 @@ export function TerminalSkeleton() {
         <div className="flex items-center gap-2 mt-4">
           <div
             className="h-3 w-20 rounded animate-pulse"
-            style={{ backgroundColor: "var(--term-bg-elevated)" }}
+            style={{ backgroundColor: 'var(--term-bg-elevated)' }}
           />
           <div
             className="h-4 w-2 rounded-sm animate-pulse"
             style={{
-              backgroundColor: "var(--term-accent)",
-              animationDuration: "0.8s",
+              backgroundColor: 'var(--term-accent)',
+              animationDuration: '0.8s',
             }}
           />
         </div>
       </div>
     </div>
-  );
+  )
 }

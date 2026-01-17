@@ -2,7 +2,7 @@
  * Session creation utilities
  */
 
-import type { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
+import type { ProjectTerminal } from '@/lib/hooks/use-project-terminals'
 
 /**
  * Get the active session ID for a project based on its current mode.
@@ -10,13 +10,13 @@ import type { ProjectTerminal } from "@/lib/hooks/use-project-terminals";
  * @returns Session ID for the active mode, or null if not set
  */
 export function getProjectSessionId(pt: ProjectTerminal): string | null {
-  return pt.activeSessionId;
+  return pt.activeSessionId
 }
 
 interface CreateProjectSessionParams {
-  projectId: string;
-  mode: "shell" | "claude";
-  workingDir: string | null;
+  projectId: string
+  mode: 'shell' | 'claude'
+  workingDir: string | null
 }
 
 /**
@@ -26,14 +26,14 @@ interface CreateProjectSessionParams {
  */
 export function getNextTerminalName(sessions: Array<{ name: string }>): string {
   // Find the highest "Terminal N" number
-  let maxNum = 0;
+  let maxNum = 0
   for (const session of sessions) {
-    const match = session.name.match(/^Terminal\s+(\d+)$/i);
+    const match = session.name.match(/^Terminal\s+(\d+)$/i)
     if (match) {
-      maxNum = Math.max(maxNum, parseInt(match[1], 10));
+      maxNum = Math.max(maxNum, parseInt(match[1], 10))
     }
   }
-  return `Terminal ${maxNum + 1}`;
+  return `Terminal ${maxNum + 1}`
 }
 
 /**
@@ -49,6 +49,6 @@ export async function createProjectSession(
   _params: CreateProjectSessionParams,
 ): Promise<never> {
   throw new Error(
-    "Direct session creation is blocked. Use createProjectPane() or createAdHocPane() from useTerminalPanes hook instead.",
-  );
+    'Direct session creation is blocked. Use createProjectPane() or createAdHocPane() from useTerminalPanes hook instead.',
+  )
 }

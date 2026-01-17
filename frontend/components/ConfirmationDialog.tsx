@@ -1,17 +1,17 @@
-"use client";
+'use client'
 
-import { useEffect, useRef, useCallback } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle } from 'lucide-react'
+import { useCallback, useEffect, useRef } from 'react'
 
 interface ConfirmationDialogProps {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  variant?: "danger" | "warning";
-  onConfirm: () => void;
-  onCancel: () => void;
+  isOpen: boolean
+  title: string
+  message: string
+  confirmText?: string
+  cancelText?: string
+  variant?: 'danger' | 'warning'
+  onConfirm: () => void
+  onCancel: () => void
 }
 
 /**
@@ -22,58 +22,58 @@ export function ConfirmationDialog({
   isOpen,
   title,
   message,
-  confirmText = "Confirm",
-  cancelText = "Cancel",
-  variant = "danger",
+  confirmText = 'Confirm',
+  cancelText = 'Cancel',
+  variant = 'danger',
   onConfirm,
   onCancel,
 }: ConfirmationDialogProps) {
-  const confirmButtonRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
 
   // Focus confirm button when dialog opens
   useEffect(() => {
     if (isOpen) {
       // Small delay to ensure dialog is rendered
       const timer = setTimeout(() => {
-        confirmButtonRef.current?.focus();
-      }, 10);
-      return () => clearTimeout(timer);
+        confirmButtonRef.current?.focus()
+      }, 10)
+      return () => clearTimeout(timer)
     }
-  }, [isOpen]);
+  }, [isOpen])
 
   // Handle keyboard events
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (!isOpen) return;
+      if (!isOpen) return
 
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        onConfirm();
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onCancel()
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        onConfirm()
       }
     },
     [isOpen, onCancel, onConfirm],
-  );
+  )
 
   useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   const accentColor =
-    variant === "danger" ? "var(--term-error)" : "var(--term-warning, #f59e0b)";
+    variant === 'danger' ? 'var(--term-error)' : 'var(--term-warning, #f59e0b)'
 
   return (
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center"
-      style={{ backgroundColor: "rgba(0, 0, 0, 0.7)" }}
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onCancel();
+        if (e.target === e.currentTarget) onCancel()
       }}
     >
       <div
@@ -85,7 +85,7 @@ export function ConfirmationDialog({
         aria-describedby="confirm-dialog-message"
         className="rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-w-md w-full mx-4"
         style={{
-          backgroundColor: "var(--term-bg-surface)",
+          backgroundColor: 'var(--term-bg-surface)',
           border: `1px solid ${accentColor}`,
           boxShadow: `0 0 20px ${accentColor}40, 0 8px 32px rgba(0, 0, 0, 0.5)`,
         }}
@@ -106,8 +106,8 @@ export function ConfirmationDialog({
             id="confirm-dialog-title"
             className="text-sm font-medium"
             style={{
-              color: "var(--term-text-primary)",
-              fontFamily: "var(--font-mono)",
+              color: 'var(--term-text-primary)',
+              fontFamily: 'var(--font-mono)',
             }}
           >
             {title}
@@ -120,8 +120,8 @@ export function ConfirmationDialog({
             id="confirm-dialog-message"
             className="text-sm"
             style={{
-              color: "var(--term-text-secondary)",
-              fontFamily: "var(--font-mono)",
+              color: 'var(--term-text-secondary)',
+              fontFamily: 'var(--font-mono)',
               lineHeight: 1.5,
             }}
           >
@@ -133,8 +133,8 @@ export function ConfirmationDialog({
         <div
           className="px-4 py-3 flex justify-end gap-2"
           style={{
-            backgroundColor: "var(--term-bg-elevated)",
-            borderTop: "1px solid var(--term-border)",
+            backgroundColor: 'var(--term-bg-elevated)',
+            borderTop: '1px solid var(--term-border)',
           }}
         >
           <button
@@ -142,18 +142,18 @@ export function ConfirmationDialog({
             onClick={onCancel}
             className="px-3 py-1.5 text-xs rounded transition-colors"
             style={{
-              backgroundColor: "transparent",
-              color: "var(--term-text-muted)",
-              border: "1px solid var(--term-border)",
-              fontFamily: "var(--font-mono)",
+              backgroundColor: 'transparent',
+              color: 'var(--term-text-muted)',
+              border: '1px solid var(--term-border)',
+              fontFamily: 'var(--font-mono)',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--term-bg-surface)";
-              e.currentTarget.style.color = "var(--term-text-primary)";
+              e.currentTarget.style.backgroundColor = 'var(--term-bg-surface)'
+              e.currentTarget.style.color = 'var(--term-text-primary)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.color = "var(--term-text-muted)";
+              e.currentTarget.style.backgroundColor = 'transparent'
+              e.currentTarget.style.color = 'var(--term-text-muted)'
             }}
           >
             {cancelText}
@@ -165,16 +165,16 @@ export function ConfirmationDialog({
             className="px-3 py-1.5 text-xs rounded transition-colors"
             style={{
               backgroundColor: accentColor,
-              color: "var(--term-bg)",
-              border: "none",
-              fontFamily: "var(--font-mono)",
+              color: 'var(--term-bg)',
+              border: 'none',
+              fontFamily: 'var(--font-mono)',
               fontWeight: 500,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.filter = "brightness(1.1)";
+              e.currentTarget.style.filter = 'brightness(1.1)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.filter = "brightness(1)";
+              e.currentTarget.style.filter = 'brightness(1)'
             }}
           >
             {confirmText}
@@ -182,5 +182,5 @@ export function ConfirmationDialog({
         </div>
       </div>
     </div>
-  );
+  )
 }

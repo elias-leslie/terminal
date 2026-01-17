@@ -1,17 +1,17 @@
-"use client";
+'use client'
 
-import { useState, useCallback } from "react";
-import { Terminal, Sparkles, Loader2 } from "lucide-react";
+import { Loader2, Sparkles, Terminal } from 'lucide-react'
+import { useCallback, useState } from 'react'
 
-export type TerminalMode = "shell" | "claude";
+export type TerminalMode = 'shell' | 'claude'
 
 interface ModeToggleProps {
-  value: TerminalMode;
-  onChange: (mode: TerminalMode) => void | Promise<void>;
-  disabled?: boolean;
-  isMobile?: boolean;
+  value: TerminalMode
+  onChange: (mode: TerminalMode) => void | Promise<void>
+  disabled?: boolean
+  isMobile?: boolean
   /** External loading state - when true, toggle is disabled and shows spinner */
-  isLoading?: boolean;
+  isLoading?: boolean
 }
 
 /**
@@ -25,40 +25,40 @@ export function ModeToggle({
   isMobile = false,
   isLoading = false,
 }: ModeToggleProps) {
-  const [internalLoading, setInternalLoading] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  const [internalLoading, setInternalLoading] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
 
-  const isCurrentlyLoading = isLoading || internalLoading;
-  const isDisabled = disabled || isCurrentlyLoading;
-  const isClaudeMode = value === "claude";
+  const isCurrentlyLoading = isLoading || internalLoading
+  const isDisabled = disabled || isCurrentlyLoading
+  const isClaudeMode = value === 'claude'
 
   const handleClick = useCallback(
     async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (isDisabled) return;
+      e.stopPropagation()
+      if (isDisabled) return
 
-      const oppositeMode: TerminalMode = isClaudeMode ? "shell" : "claude";
+      const oppositeMode: TerminalMode = isClaudeMode ? 'shell' : 'claude'
 
-      setInternalLoading(true);
+      setInternalLoading(true)
       try {
-        await onChange(oppositeMode);
+        await onChange(oppositeMode)
       } catch (error) {
-        console.error("Failed to switch mode:", error);
+        console.error('Failed to switch mode:', error)
       } finally {
-        setInternalLoading(false);
+        setInternalLoading(false)
       }
     },
     [isClaudeMode, onChange, isDisabled],
-  );
+  )
 
   const tooltipText = isCurrentlyLoading
-    ? "Switching mode..."
+    ? 'Switching mode...'
     : isClaudeMode
-      ? "Claude mode — click for Shell"
-      : "Shell mode — click for Claude";
+      ? 'Claude mode — click for Shell'
+      : 'Shell mode — click for Claude'
 
-  const size = isMobile ? 32 : 26;
-  const iconSize = isMobile ? 16 : 14;
+  const size = isMobile ? 32 : 26
+  const iconSize = isMobile ? 16 : 14
 
   return (
     <>
@@ -71,30 +71,30 @@ export function ModeToggle({
         className="mode-toggle-btn"
         style={{
           // Base button styles
-          position: "relative",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           width: size,
           height: size,
           borderRadius: 6,
-          border: "1px solid",
-          cursor: isDisabled ? "not-allowed" : "pointer",
-          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+          border: '1px solid',
+          cursor: isDisabled ? 'not-allowed' : 'pointer',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           // Mode-specific styling
           backgroundColor: isClaudeMode
-            ? "rgba(0, 255, 159, 0.08)"
+            ? 'rgba(0, 255, 159, 0.08)'
             : isHovered && !isDisabled
-              ? "var(--term-bg-elevated)"
-              : "var(--term-bg-surface)",
+              ? 'var(--term-bg-elevated)'
+              : 'var(--term-bg-surface)',
           borderColor: isClaudeMode
-            ? "var(--term-accent-muted)"
+            ? 'var(--term-accent-muted)'
             : isHovered && !isDisabled
-              ? "var(--term-border-active)"
-              : "var(--term-border)",
+              ? 'var(--term-border-active)'
+              : 'var(--term-border)',
           boxShadow: isClaudeMode
-            ? "0 0 8px var(--term-accent-glow), inset 0 0 12px var(--term-accent-glow)"
-            : "none",
+            ? '0 0 8px var(--term-accent-glow), inset 0 0 12px var(--term-accent-glow)'
+            : 'none',
           opacity: isDisabled ? 0.5 : 1,
         }}
         title={tooltipText}
@@ -106,12 +106,12 @@ export function ModeToggle({
           <span
             className="mode-toggle-glow"
             style={{
-              position: "absolute",
+              position: 'absolute',
               inset: -2,
               borderRadius: 8,
-              border: "1px solid var(--term-accent)",
+              border: '1px solid var(--term-accent)',
               opacity: 0.3,
-              animation: "mode-toggle-pulse 2s ease-in-out infinite",
+              animation: 'mode-toggle-pulse 2s ease-in-out infinite',
             }}
           />
         )}
@@ -119,14 +119,14 @@ export function ModeToggle({
         {/* Icon container with transition */}
         <span
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "transform 0.2s ease, color 0.2s ease",
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'transform 0.2s ease, color 0.2s ease',
             transform:
               isHovered && !isDisabled && !isCurrentlyLoading
-                ? "scale(1.1)"
-                : "scale(1)",
+                ? 'scale(1.1)'
+                : 'scale(1)',
           }}
         >
           {isCurrentlyLoading ? (
@@ -134,8 +134,8 @@ export function ModeToggle({
               width={iconSize}
               height={iconSize}
               style={{
-                color: "var(--term-accent)",
-                animation: "mode-toggle-spin 0.8s linear infinite",
+                color: 'var(--term-accent)',
+                animation: 'mode-toggle-spin 0.8s linear infinite',
               }}
             />
           ) : isClaudeMode ? (
@@ -143,8 +143,8 @@ export function ModeToggle({
               width={iconSize}
               height={iconSize}
               style={{
-                color: "var(--term-accent)",
-                filter: "drop-shadow(0 0 3px var(--term-accent-glow))",
+                color: 'var(--term-accent)',
+                filter: 'drop-shadow(0 0 3px var(--term-accent-glow))',
               }}
             />
           ) : (
@@ -154,8 +154,8 @@ export function ModeToggle({
               style={{
                 color:
                   isHovered && !isDisabled
-                    ? "var(--term-text-primary)"
-                    : "var(--term-text-muted)",
+                    ? 'var(--term-text-primary)'
+                    : 'var(--term-text-muted)',
               }}
             />
           )}
@@ -164,18 +164,18 @@ export function ModeToggle({
         {/* Active state indicator dot */}
         <span
           style={{
-            position: "absolute",
+            position: 'absolute',
             bottom: 2,
             right: 2,
             width: 4,
             height: 4,
-            borderRadius: "50%",
+            borderRadius: '50%',
             backgroundColor: isClaudeMode
-              ? "var(--term-accent)"
-              : "var(--term-text-muted)",
+              ? 'var(--term-accent)'
+              : 'var(--term-text-muted)',
             opacity: isClaudeMode ? 1 : 0.4,
-            transition: "all 0.2s ease",
-            boxShadow: isClaudeMode ? "0 0 4px var(--term-accent)" : "none",
+            transition: 'all 0.2s ease',
+            boxShadow: isClaudeMode ? '0 0 4px var(--term-accent)' : 'none',
           }}
         />
       </button>
@@ -213,5 +213,5 @@ export function ModeToggle({
         }
       `}</style>
     </>
-  );
+  )
 }

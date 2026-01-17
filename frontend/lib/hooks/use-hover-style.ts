@@ -1,23 +1,23 @@
-import { useState } from "react";
+import { useState } from 'react'
 
 export interface UseHoverStyleOptions {
-  hoverBg?: string;
-  defaultBg?: string;
-  hoverColor?: string;
-  defaultColor?: string;
-  hoverBorderColor?: string;
-  defaultBorderColor?: string;
+  hoverBg?: string
+  defaultBg?: string
+  hoverColor?: string
+  defaultColor?: string
+  hoverBorderColor?: string
+  defaultBorderColor?: string
 }
 
 export interface UseHoverStyleReturn {
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
+  onMouseEnter: () => void
+  onMouseLeave: () => void
   style: {
-    backgroundColor: string;
-    color: string;
-    borderColor?: string;
-  };
-  isHovered: boolean;
+    backgroundColor: string
+    color: string
+    borderColor?: string
+  }
+  isHovered: boolean
 }
 
 /**
@@ -37,25 +37,27 @@ export interface UseHoverStyleReturn {
  * </button>
  */
 export function useHoverStyle({
-  hoverBg = "transparent",
-  defaultBg = "transparent",
+  hoverBg = 'transparent',
+  defaultBg = 'transparent',
   hoverColor,
   defaultColor,
   hoverBorderColor,
   defaultBorderColor,
 }: UseHoverStyleOptions): UseHoverStyleReturn {
-  const [isHovered, setIsHovered] = useState(false);
+  const [isHovered, setIsHovered] = useState(false)
 
   return {
     onMouseEnter: () => setIsHovered(true),
     onMouseLeave: () => setIsHovered(false),
     style: {
       backgroundColor: isHovered ? hoverBg : defaultBg,
-      color: isHovered ? (hoverColor || defaultColor || "") : (defaultColor || ""),
+      color: isHovered ? hoverColor || defaultColor || '' : defaultColor || '',
       ...(defaultBorderColor && {
-        borderColor: isHovered ? (hoverBorderColor || defaultBorderColor) : defaultBorderColor,
+        borderColor: isHovered
+          ? hoverBorderColor || defaultBorderColor
+          : defaultBorderColor,
       }),
     },
     isHovered,
-  };
+  }
 }
