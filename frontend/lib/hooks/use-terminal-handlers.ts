@@ -14,7 +14,7 @@ import {
 } from "@/lib/hooks/use-project-terminals";
 import { useClaudePolling } from "@/lib/hooks/use-claude-polling";
 import { useProjectModeSwitch } from "@/lib/hooks/use-project-mode-switch";
-import { getNextTerminalName, getProjectSessionId } from "@/lib/utils/session";
+import { getProjectSessionId } from "@/lib/utils/session";
 import { TerminalPane } from "@/lib/hooks/use-terminal-panes";
 import { LayoutMode } from "@/components/LayoutModeButton";
 import { KeyboardSizePreset } from "@/components/SettingsDropdown";
@@ -94,9 +94,9 @@ interface UseTerminalHandlersReturn {
 
 export function useTerminalHandlers({
   projectId,
-  projectPath,
+  projectPath: _projectPath,
   sessions,
-  adHocSessions,
+  adHocSessions: _adHocSessions,
   projectTerminals,
   activeSessionId,
   terminalRefs,
@@ -114,7 +114,7 @@ export function useTerminalHandlers({
 }: UseTerminalHandlersProps): UseTerminalHandlersReturn {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
 
   // Session mutations
   const {

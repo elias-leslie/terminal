@@ -430,7 +430,7 @@ export function ResizablePaneLayout({
   isModeSwitching,
   isMobile,
   onLayoutChange,
-  initialLayouts,
+  initialLayouts: _initialLayouts,
   onSwapPanes,
 }: ResizablePaneLayoutProps) {
   // Cap at max panes
@@ -489,7 +489,7 @@ export function ResizablePaneLayout({
 
   // Render a single pane (terminal with header)
   const renderPane = useCallback(
-    (slot: TerminalSlot | PaneSlot, index: number) => {
+    (slot: TerminalSlot | PaneSlot, _index: number) => {
       const sessionId = getSlotSessionId(slot);
       const workingDir = getSlotWorkingDir(slot);
       const panelId = getSlotPanelId(slot);

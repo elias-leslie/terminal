@@ -81,7 +81,7 @@ async function fetchPanes(): Promise<PaneListResponse> {
   return res.json();
 }
 
-async function fetchPaneCount(): Promise<PaneCountResponse> {
+async function _fetchPaneCount(): Promise<PaneCountResponse> {
   const res = await fetch("/api/terminal/panes/count");
   if (!res.ok) throw new Error("Failed to fetch pane count");
   return res.json();

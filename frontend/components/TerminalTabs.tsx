@@ -39,18 +39,18 @@ export function TerminalTabs({
     switchToSession,
     sessions,
     projectTerminals,
-    adHocSessions,
+    adHocSessions: _adHocSessions,
     isLoading,
 
     // Layout state
-    layoutMode,
-    availableLayouts,
-    isGridMode,
+    layoutMode: _layoutMode,
+    availableLayouts: _availableLayouts,
+    isGridMode: _isGridMode,
 
     // Terminal slots
     terminalSlots,
     orderedIds,
-    reorder,
+    reorder: _reorder,
     swapPanes,
     canAddPane,
 
@@ -90,15 +90,15 @@ export function TerminalTabs({
     handleStatusChange,
     handleKeyboardInput,
     handleReconnect,
-    handleLayoutModeChange,
+    handleLayoutModeChange: _handleLayoutModeChange,
     handleAddTab,
     handleNewTerminalForProject,
     handleProjectTabClick,
     handleProjectModeChange,
-    handleCloseAll,
+    handleCloseAll: _handleCloseAll,
 
     // Project operations
-    resetAll,
+    resetAll: _resetAll,
     resetProject,
     disableProject,
     reset,
@@ -106,7 +106,7 @@ export function TerminalTabs({
     // Pane operations (new architecture)
     panes,
     removePane,
-    createAdHocPane,
+    createAdHocPane: _createAdHocPane,
     saveLayouts,
   } = useTerminalTabsState({ projectId, projectPath });
 
@@ -140,7 +140,7 @@ export function TerminalTabs({
   // Note: single mode header removed - all controls now in pane headers
 
   // Handler for project selection from switcher
-  const handleSelectProject = useCallback(
+  const _handleSelectProject = useCallback(
     (pId: string) => {
       const pt = projectTerminals.find((p) => p.projectId === pId);
       if (pt) {
@@ -177,8 +177,8 @@ export function TerminalTabs({
     handleSlotReset,
     handleSlotClose,
     handleSlotClean,
-    handleSlotNewShell,
-    handleSlotNewClaude,
+    handleSlotNewShell: _handleSlotNewShell,
+    handleSlotNewClaude: _handleSlotNewClaude,
     handleSlotModeSwitch,
     isModeSwitching,
   } = useTerminalSlotHandlers({
@@ -301,7 +301,7 @@ export function TerminalTabs({
   }, [setShowKeyboardHelp, updateUrlParams]);
 
   // File upload and prompt cleaner functionality
-  const { cleanPrompt, isLoading: isCleanerLoading } = usePromptCleaner();
+  const { cleanPrompt, isLoading: _isCleanerLoading } = usePromptCleaner();
   const {
     fileInputRef,
     progress,
@@ -310,7 +310,7 @@ export function TerminalTabs({
     handleUploadClick,
     handleFileSelect,
     handleFileInputChange,
-    handleCleanClick,
+    handleCleanClick: _handleCleanClick,
     handleCleanerSend,
     handleCleanerCancel,
   } = useTerminalActionHandlers({

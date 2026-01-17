@@ -19,18 +19,6 @@ interface CreateProjectSessionParams {
   workingDir: string | null;
 }
 
-interface TerminalSession {
-  id: string;
-  name: string;
-  project_id: string | null;
-  working_dir: string | null;
-  mode: "shell" | "claude";
-  is_alive: boolean;
-  created_at: string;
-  last_accessed_at: string;
-  claude_state?: "not_started" | "starting" | "running" | "stopped" | "error";
-}
-
 /**
  * Generate next sequential terminal name (Terminal 1, Terminal 2, etc.)
  * @param sessions - Array of sessions with name property

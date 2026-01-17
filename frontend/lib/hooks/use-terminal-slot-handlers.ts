@@ -38,7 +38,7 @@ interface UseTerminalSlotHandlersParams {
 export function useTerminalSlotHandlers({
   terminalRefs,
   switchToSession,
-  resetProject,
+  resetProject: _resetProject,
   reset,
   disableProject,
   remove,

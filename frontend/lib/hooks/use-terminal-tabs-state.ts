@@ -10,12 +10,7 @@ import { useTabEditing } from "@/lib/hooks/use-tab-editing";
 import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
 import { useTerminalHandlers } from "@/lib/hooks/use-terminal-handlers";
 import { KeyboardSizePreset } from "@/components/SettingsDropdown";
-import {
-  type TerminalSlot,
-  type PaneSlot,
-  panesToSlots,
-  getSlotPanelId,
-} from "@/lib/utils/slot";
+import { type PaneSlot, panesToSlots, getSlotPanelId } from "@/lib/utils/slot";
 import { useAvailableLayouts } from "@/lib/hooks/use-available-layouts";
 import { useTerminalPanes } from "@/lib/hooks/use-terminal-panes";
 
@@ -108,7 +103,7 @@ export function useTerminalTabsState({
     handleCloseAll,
     setTerminalRef,
     // Passthrough from sub-hooks
-    create,
+    create: _create,
     update,
     remove,
     reset,
@@ -213,7 +208,7 @@ export function useTerminalTabsState({
     return `Ad-Hoc Terminal [${adHocCount + 1}]`;
   }, []);
 
-  const getProjectPaneName = useCallback(
+  const _getProjectPaneName = useCallback(
     (existingPanes: typeof panes, projId: string) => {
       const projectPanes = existingPanes.filter((p) => p.project_id === projId);
       const baseName = projId.charAt(0).toUpperCase() + projId.slice(1);

@@ -12,7 +12,7 @@ import type {
   ProjectSession,
 } from "@/lib/hooks/use-project-terminals";
 import type { TerminalSession } from "@/lib/hooks/use-terminal-sessions";
-import type { TerminalPane, PaneSession } from "@/lib/hooks/use-terminal-panes";
+import type { TerminalPane } from "@/lib/hooks/use-terminal-panes";
 
 // Slot types for split-pane terminals
 export interface ProjectSlot {
