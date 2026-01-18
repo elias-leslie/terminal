@@ -1,11 +1,12 @@
 /**
  * API configuration for Terminal frontend.
  *
- * Provides consistent URL resolution for:
- * - Development (localhost:8002)
- * - Production (terminalapi.summitflow.dev)
+ * Uses same-origin routing via Next.js rewrites to avoid CORS issues with CF Access:
+ * - Development: http://localhost:3002/api/* -> localhost:8002/api/* (rewrite)
+ * - Production: https://terminal.summitflow.dev/api/* -> localhost:8002/api/* (rewrite)
  *
- * This pattern is self-contained - no external dependencies required.
+ * This pattern ensures all API requests go through the same origin as the frontend,
+ * with Next.js server-side proxying to the backend. No cross-origin = no CORS.
  */
 
 const PORTS = { frontend: 3002, backend: 8002 }
@@ -15,28 +16,19 @@ const PROD_API_DOMAIN = 'terminalapi.summitflow.dev'
 /**
  * Get the base URL for Terminal backend API calls.
  *
- * @returns Full URL (e.g., http://localhost:8002 or https://terminalapi.summitflow.dev)
+ * Returns empty string for client-side (same-origin via rewrites) or localhost for server-side.
+ *
+ * @returns Base URL (empty for client-side same-origin, full URL for server-side)
  */
 export function getApiBaseUrl(): string {
-  // Server-side: always use localhost
+  // Server-side: use localhost directly (for server components, API routes)
   if (typeof window === 'undefined') {
     return `http://localhost:${PORTS.backend}`
   }
 
-  const host = window.location.hostname
-
-  // Development: localhost or 127.0.0.1
-  if (host === 'localhost' || host === '127.0.0.1') {
-    return `http://localhost:${PORTS.backend}`
-  }
-
-  // Production: terminal.summitflow.dev -> terminalapi.summitflow.dev
-  if (host === PROD_DOMAIN) {
-    return `https://${PROD_API_DOMAIN}`
-  }
-
-  // Fallback: use localhost (shouldn't happen in normal use)
-  return `http://localhost:${PORTS.backend}`
+  // Client-side: use same-origin paths (Next.js rewrites handle proxying)
+  // All requests go to /api/* on current origin, rewrites proxy to backend
+  return ''
 }
 
 /**
