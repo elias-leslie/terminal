@@ -13,9 +13,13 @@ interface UsePromptCleanerReturn {
   clearError: () => void
 }
 
-// Agent-hub API base URL - can be configured via env var
-const AGENT_HUB_URL =
-  process.env.NEXT_PUBLIC_AGENT_HUB_URL || 'https://agent.summitflow.dev'
+/**
+ * Get agent-hub URL for external service integration.
+ * Returns null if not configured (feature disabled).
+ */
+function getAgentHubUrl(): string | null {
+  return process.env.NEXT_PUBLIC_AGENT_HUB_URL || null
+}
 
 // Model to use for prompt cleaning (fast and cheap)
 const CLEAN_MODEL = 'claude-haiku-4-5'
@@ -45,13 +49,19 @@ export function usePromptCleaner(): UsePromptCleanerReturn {
       setError(null)
 
       try {
+        const agentHubUrl = getAgentHubUrl()
+        if (!agentHubUrl) {
+          // Agent-hub not configured - return original prompt
+          return prompt.trim()
+        }
+
         // Build the user message
         let userMessage = `Clean and improve this prompt:\n\n${prompt}`
         if (refinement) {
           userMessage += `\n\nAdditional instruction: ${refinement}`
         }
 
-        const response = await fetch(`${AGENT_HUB_URL}/api/complete`, {
+        const response = await fetch(`${agentHubUrl}/api/complete`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

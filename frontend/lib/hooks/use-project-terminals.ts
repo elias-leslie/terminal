@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useMemo } from 'react'
+import { buildApiUrl } from '../api-config'
 import { useProjectSettings } from './use-project-settings'
 import {
   type TerminalSession,
@@ -164,9 +165,12 @@ export function useProjectTerminals(): UseProjectTerminalsResult {
   // Reset project mutation with proper optimistic updates
   const resetProjectMutation = useMutation({
     mutationFn: async (projectId: string) => {
-      const res = await fetch(`/api/terminal/projects/${projectId}/reset`, {
-        method: 'POST',
-      })
+      const res = await fetch(
+        buildApiUrl(`/api/terminal/projects/${projectId}/reset`),
+        {
+          method: 'POST',
+        },
+      )
       if (!res.ok) {
         const error = await res
           .json()

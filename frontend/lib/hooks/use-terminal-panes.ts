@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
+import { buildApiUrl } from '../api-config'
 
 // ============================================================================
 // Types
@@ -76,19 +77,19 @@ interface BulkLayoutUpdateRequest {
 // ============================================================================
 
 async function fetchPanes(): Promise<PaneListResponse> {
-  const res = await fetch('/api/terminal/panes')
+  const res = await fetch(buildApiUrl('/api/terminal/panes'))
   if (!res.ok) throw new Error('Failed to fetch terminal panes')
   return res.json()
 }
 
 async function _fetchPaneCount(): Promise<PaneCountResponse> {
-  const res = await fetch('/api/terminal/panes/count')
+  const res = await fetch(buildApiUrl('/api/terminal/panes/count'))
   if (!res.ok) throw new Error('Failed to fetch pane count')
   return res.json()
 }
 
 async function createPane(request: CreatePaneRequest): Promise<TerminalPane> {
-  const res = await fetch('/api/terminal/panes', {
+  const res = await fetch(buildApiUrl('/api/terminal/panes'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
@@ -106,7 +107,7 @@ async function updatePane(
   paneId: string,
   request: UpdatePaneRequest,
 ): Promise<TerminalPane> {
-  const res = await fetch(`/api/terminal/panes/${paneId}`, {
+  const res = await fetch(buildApiUrl(`/api/terminal/panes/${paneId}`), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
@@ -121,14 +122,14 @@ async function updatePane(
 }
 
 async function deletePane(paneId: string): Promise<void> {
-  const res = await fetch(`/api/terminal/panes/${paneId}`, {
+  const res = await fetch(buildApiUrl(`/api/terminal/panes/${paneId}`), {
     method: 'DELETE',
   })
   if (!res.ok) throw new Error('Failed to delete pane')
 }
 
 async function swapPanes(request: SwapPanesRequest): Promise<void> {
-  const res = await fetch('/api/terminal/panes/swap', {
+  const res = await fetch(buildApiUrl('/api/terminal/panes/swap'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
@@ -139,7 +140,7 @@ async function swapPanes(request: SwapPanesRequest): Promise<void> {
 async function updateAllLayouts(
   request: BulkLayoutUpdateRequest,
 ): Promise<TerminalPane[]> {
-  const res = await fetch('/api/terminal/layout', {
+  const res = await fetch(buildApiUrl('/api/terminal/layout'), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),

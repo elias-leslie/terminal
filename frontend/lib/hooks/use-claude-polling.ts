@@ -2,6 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { buildApiUrl } from '../api-config'
 
 /** Poll interval for Claude state check (500ms) */
 export const CLAUDE_POLL_INTERVAL_MS = 500
@@ -94,7 +95,7 @@ export function useClaudePolling(): UseClaudePollingReturn {
         // Fetch latest state
         try {
           const stateRes = await fetch(
-            `/api/terminal/sessions/${sessionId}/claude-state`,
+            buildApiUrl(`/api/terminal/sessions/${sessionId}/claude-state`),
             {
               signal: controller.signal,
             },
@@ -129,7 +130,7 @@ export function useClaudePolling(): UseClaudePollingReturn {
     async (sessionId: string): Promise<boolean> => {
       try {
         const res = await fetch(
-          `/api/terminal/sessions/${sessionId}/start-claude`,
+          buildApiUrl(`/api/terminal/sessions/${sessionId}/start-claude`),
           {
             method: 'POST',
           },

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ConnectionStatus } from '../../components/Terminal'
+import { getWsUrl } from '../api-config'
 import {
   CONNECTION_TIMEOUT,
   RETRY_BACKOFF,
@@ -119,23 +120,12 @@ export function useTerminalWebSocket({
       timeoutIdRef.current = null
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    let wsHost: string
-
-    if (window.location.host === 'terminal.summitflow.dev') {
-      wsHost = 'terminalapi.summitflow.dev'
-    } else if (window.location.host.includes('localhost')) {
-      wsHost = 'localhost:8002'
-    } else {
-      wsHost = window.location.host
-    }
-
-    let wsUrl = `${protocol}//${wsHost}/ws/terminal/${sessionId}`
+    let wsPath = `/ws/terminal/${sessionId}`
     if (workingDir) {
-      wsUrl += `?working_dir=${encodeURIComponent(workingDir)}`
+      wsPath += `?working_dir=${encodeURIComponent(workingDir)}`
     }
 
-    const ws = new WebSocket(wsUrl)
+    const ws = new WebSocket(getWsUrl(wsPath))
     wsRef.current = ws
 
     // Set up connection timeout

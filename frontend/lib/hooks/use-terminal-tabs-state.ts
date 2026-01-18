@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { LayoutMode } from '@/components/LayoutModeButton'
 import type { KeyboardSizePreset } from '@/components/SettingsDropdown'
 import type { ConnectionStatus, TerminalHandle } from '@/components/Terminal'
+import { buildApiUrl } from '@/lib/api-config'
 import { useActiveSession } from '@/lib/hooks/use-active-session'
 import { useAvailableLayouts } from '@/lib/hooks/use-available-layouts'
 import { useLocalStorageState } from '@/lib/hooks/use-local-storage-state'
@@ -240,7 +241,7 @@ export function useTerminalTabsState({
       if (currLength === 0) {
         // No panes on initial load - create default ad-hoc
         isAutoCreatingRef.current = true
-        fetch('/api/terminal/panes/count')
+        fetch(buildApiUrl('/api/terminal/panes/count'))
           .then((res) => res.json())
           .then((data) => {
             if (data.count === 0) {

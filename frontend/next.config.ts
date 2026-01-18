@@ -1,18 +1,9 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://127.0.0.1:8002/api/:path*',
-      },
-      {
-        source: '/health',
-        destination: 'http://127.0.0.1:8002/health',
-      },
-    ]
-  },
+  // API routing is handled client-side via lib/api-config.ts
+  // No rewrites needed - buildApiUrl() resolves to correct backend URL
+  // based on window.location (localhost for dev, terminalapi.summitflow.dev for prod)
 }
 
 export default nextConfig

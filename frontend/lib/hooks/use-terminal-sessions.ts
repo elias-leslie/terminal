@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
+import { buildApiUrl } from '../api-config'
 
 // ============================================================================
 // Types
@@ -44,7 +45,7 @@ interface UpdateSessionRequest {
 // ============================================================================
 
 async function fetchSessions(): Promise<TerminalSession[]> {
-  const res = await fetch('/api/terminal/sessions')
+  const res = await fetch(buildApiUrl('/api/terminal/sessions'))
   if (!res.ok) throw new Error('Failed to fetch terminal sessions')
   const data: SessionListResponse = await res.json()
   return data.items
@@ -53,7 +54,7 @@ async function fetchSessions(): Promise<TerminalSession[]> {
 async function createSession(
   request: CreateSessionRequest,
 ): Promise<TerminalSession> {
-  const res = await fetch('/api/terminal/sessions', {
+  const res = await fetch(buildApiUrl('/api/terminal/sessions'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
@@ -71,7 +72,7 @@ async function updateSession(
   sessionId: string,
   request: UpdateSessionRequest,
 ): Promise<TerminalSession> {
-  const res = await fetch(`/api/terminal/sessions/${sessionId}`, {
+  const res = await fetch(buildApiUrl(`/api/terminal/sessions/${sessionId}`), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
@@ -86,16 +87,19 @@ async function updateSession(
 }
 
 async function deleteSession(sessionId: string): Promise<void> {
-  const res = await fetch(`/api/terminal/sessions/${sessionId}`, {
+  const res = await fetch(buildApiUrl(`/api/terminal/sessions/${sessionId}`), {
     method: 'DELETE',
   })
   if (!res.ok) throw new Error('Failed to delete session')
 }
 
 async function resetSession(sessionId: string): Promise<TerminalSession> {
-  const res = await fetch(`/api/terminal/sessions/${sessionId}/reset`, {
-    method: 'POST',
-  })
+  const res = await fetch(
+    buildApiUrl(`/api/terminal/sessions/${sessionId}/reset`),
+    {
+      method: 'POST',
+    },
+  )
   if (!res.ok) {
     const error = await res
       .json()
@@ -106,7 +110,7 @@ async function resetSession(sessionId: string): Promise<TerminalSession> {
 }
 
 async function resetAllSessions(): Promise<{ count: number }> {
-  const res = await fetch('/api/terminal/reset-all', {
+  const res = await fetch(buildApiUrl('/api/terminal/reset-all'), {
     method: 'POST',
   })
   if (!res.ok) {

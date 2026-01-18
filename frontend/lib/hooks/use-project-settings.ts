@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
+import { buildApiUrl } from '../api-config'
 
 // ============================================================================
 // Types
@@ -32,7 +33,7 @@ interface ProjectSettingsUpdate {
 // ============================================================================
 
 async function fetchProjects(): Promise<ProjectSetting[]> {
-  const res = await fetch('/api/terminal/projects')
+  const res = await fetch(buildApiUrl('/api/terminal/projects'))
   if (!res.ok) throw new Error('Failed to fetch projects')
   return res.json()
 }
@@ -41,11 +42,14 @@ async function updateProjectSettings(
   projectId: string,
   update: ProjectSettingsUpdate,
 ): Promise<ProjectSetting> {
-  const res = await fetch(`/api/terminal/project-settings/${projectId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(update),
-  })
+  const res = await fetch(
+    buildApiUrl(`/api/terminal/project-settings/${projectId}`),
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(update),
+    },
+  )
   if (!res.ok) {
     const error = await res
       .json()
@@ -58,11 +62,14 @@ async function updateProjectSettings(
 async function bulkUpdateOrder(
   projectIds: string[],
 ): Promise<ProjectSetting[]> {
-  const res = await fetch('/api/terminal/project-settings/bulk-order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project_ids: projectIds }),
-  })
+  const res = await fetch(
+    buildApiUrl('/api/terminal/project-settings/bulk-order'),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_ids: projectIds }),
+    },
+  )
   if (!res.ok) {
     const error = await res
       .json()
@@ -76,11 +83,14 @@ async function switchProjectMode(
   projectId: string,
   mode: 'shell' | 'claude',
 ): Promise<ProjectSetting> {
-  const res = await fetch(`/api/terminal/projects/${projectId}/mode`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode }),
-  })
+  const res = await fetch(
+    buildApiUrl(`/api/terminal/projects/${projectId}/mode`),
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    },
+  )
   if (!res.ok) {
     const error = await res
       .json()
