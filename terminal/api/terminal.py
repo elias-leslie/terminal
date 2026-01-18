@@ -67,7 +67,9 @@ async def session_switch_hook(
 
     # Validate session names to prevent injection
     # Empty from_session is valid (first connection to a session)
-    if (from_session and not validate_session_name(from_session)) or not validate_session_name(to_session):
+    if (
+        from_session and not validate_session_name(from_session)
+    ) or not validate_session_name(to_session):
         logger.warning(
             "session_switch_rejected",
             reason="invalid_session_name",

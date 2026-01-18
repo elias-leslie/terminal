@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { buildApiUrl } from '../api-config'
 
 interface UploadResult {
   path: string
@@ -94,7 +95,7 @@ export function useFileUpload(): UseFileUploadReturn {
           resolve(null)
         })
 
-        xhr.open('POST', '/api/terminal/files')
+        xhr.open('POST', buildApiUrl('/api/terminal/files'))
         xhr.send(formData)
       })
     },
