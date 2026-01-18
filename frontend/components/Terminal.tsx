@@ -306,6 +306,7 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
         }
       }
       // Dependencies: only session/connection related - scroll refs update independently
+      // Note: wsRef is a stable ref, don't include wsRef.current values (causes reconnect loops)
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
       connect,
@@ -316,8 +317,6 @@ export const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>(
       fontSize,
       scrollback,
       theme,
-      wsRef.current?.send,
-      wsRef.current?.readyState,
     ])
 
     // Handle container resize with debounce

@@ -66,17 +66,19 @@ async def session_switch_hook(
         return {"status": "rejected", "reason": "unauthorized"}
 
     # Validate session names to prevent injection
-    if not validate_session_name(from_session) or not validate_session_name(to_session):
+    # Empty from_session is valid (first connection to a session)
+    if (from_session and not validate_session_name(from_session)) or not validate_session_name(to_session):
         logger.warning(
             "session_switch_rejected",
             reason="invalid_session_name",
-            from_session=from_session[:50],
+            from_session=from_session[:50] if from_session else "",
             to_session=to_session[:50],
         )
         return {"status": "rejected", "reason": "invalid session name"}
 
     # Only track switches FROM a terminal base session
-    if not from_session.startswith(_BASE_SESSION_PREFIX):
+    # Empty from_session means initial connection, not a switch
+    if not from_session or not from_session.startswith(_BASE_SESSION_PREFIX):
         return {"status": "ignored", "reason": "not from base session"}
 
     # Extract terminal session ID from "summitflow-{uuid}"
