@@ -1,11 +1,13 @@
 project: terminal
-total_files: 202
+generated_at: 2026-01-19 19:14 UTC
+total_files: 218
 folders:
-  (root): 17 files - config, docs, tests - (0, claude, gitignore, json, md)
+  (root): 18 files - config, docs, tests - (0, claude, dev-tools, gitignore, json)
   .claude: 6 files - docs, tests - (md)
-  frontend: 89 files - components, config, docs, storage, tests - (css, gitignore,
+  .dev-tools: 6 files - tests - (txt)
+  frontend: 90 files - api, components, config, docs, storage, tests - (css, gitignore,
     json, md, mjs)
-  scripts: 9 files - (sh)
+  scripts: 14 files - config - (sh)
   spec: 5 files - docs, tests - (json, md)
-  tasks: 35 files - (json)
+  tasks: 38 files - (json)
   terminal: 41 files - api, config, models, services, storage - (py)
