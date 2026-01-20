@@ -65,6 +65,8 @@ export function usePromptCleaner(): UsePromptCleanerReturn {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-Source-Client': 'terminal',
+            'X-Source-Path': 'frontend/lib/hooks/use-prompt-cleaner.ts',
           },
           body: JSON.stringify({
             model: CLEAN_MODEL,
