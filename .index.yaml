@@ -1,13 +1,47 @@
 project: terminal
-generated_at: 2026-01-19 23:04 UTC
-total_files: 218
+generated_at: 2026-01-24 07:07 UTC
+pages:
+- / (app)
+tables:
+- agent_sessions
+- artifacts
+- backup_schedules
+- backups
+- code_health_lists
+- design_rules
+- design_standards
+- explorer_entries
+- explorer_relationships
+- explorer_sub_elements
+- ideas
+- migration_backup
+- mockups
+- notifications
+- project_agent_config
+- projects
+- qa_issues
+- quality_check_results
+- refactor_sessions
+- scan_history
+- scan_states
+- sitemap_entries
+- subtask_dependencies
+- task_dependencies
+- task_labels
+- task_spirit
+- task_subtask_steps
+- task_subtasks
+- tasks
+- terminal_panes
+- terminal_project_settings
+- terminal_sessions
+- user_prompts
 folders:
-  (root): 18 files - config, docs, tests - (0, claude, dev-tools, gitignore, json)
-  .claude: 6 files - docs, tests - (md)
-  .dev-tools: 6 files - tests - (txt)
-  frontend: 90 files - api, components, config, docs, storage, tests - (css, gitignore,
-    json, md, mjs)
-  scripts: 14 files - config - (sh)
-  spec: 5 files - docs, tests - (json, md)
-  tasks: 38 files - (json)
-  terminal: 41 files - api, config, models, services, storage - (py)
+  (root): 18 files - tests
+  .claude: 6 files - tests
+  .dev-tools: 12 files - tests
+  frontend: 93 files - api, components, tests
+  scripts: 14 files
+  spec: 5 files - tests
+  tasks: 38 files
+  terminal: 41 files - api, services

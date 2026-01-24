@@ -11,7 +11,6 @@
 
 const PORTS = { frontend: 3002, backend: 8002 }
 const PROD_DOMAIN = 'terminal.summitflow.dev'
-const PROD_API_DOMAIN = 'terminalapi.summitflow.dev'
 
 /**
  * Get the base URL for Terminal backend API calls.

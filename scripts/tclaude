@@ -50,10 +50,10 @@ create_session() {
   local project_dir="$2"
 
   if [ -n "${TMUX:-}" ]; then
-    tmux new-session -d -s "$session_name" -c "$project_dir" "claude --dangerously-skip-permissions"
+    tmux new-session -d -s "$session_name" -c "$project_dir" "claude --model opusplan --dangerously-skip-permissions"
     tmux switch-client -t "$session_name"
   else
-    tmux new -s "$session_name" -c "$project_dir" "claude --dangerously-skip-permissions"
+    tmux new -s "$session_name" -c "$project_dir" "claude --model opusplan --dangerously-skip-permissions"
   fi
 }
 

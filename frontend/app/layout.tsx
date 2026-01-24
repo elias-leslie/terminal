@@ -42,6 +42,7 @@ export default function RootLayout({
         <Script
           id="sw-register"
           strategy="afterInteractive"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: SW registration is hardcoded, no user input
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
