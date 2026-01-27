@@ -70,11 +70,11 @@ def run_tmux_command(args: list[str], check: bool = False) -> tuple[bool, str]:
             if check:
                 raise TmuxError(error_msg)
             return False, error_msg
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as err:
         error_msg = f"tmux command timed out after {TMUX_COMMAND_TIMEOUT}s"
         logger.error("tmux_command_timeout", cmd=args)
         if check:
-            raise TmuxError(error_msg)
+            raise TmuxError(error_msg) from err
         return False, error_msg
 
 
@@ -269,11 +269,7 @@ def is_claude_running_in_session(session_name: str) -> bool:
         return False
 
     # Check if any pane is running claude
-    for line in output.split("\n"):
-        if "claude" in line.lower():
-            return True
-
-    return False
+    return any("claude" in line.lower() for line in output.split("\n"))
 
 
 def get_scrollback(session_name: str) -> str | None:

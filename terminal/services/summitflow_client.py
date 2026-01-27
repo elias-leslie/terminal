@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 import httpx
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 SUMMITFLOW_API_BASE = os.getenv("SUMMITFLOW_API_BASE", "http://localhost:8001/api")
 
 
-async def list_projects() -> list[dict]:
+async def list_projects() -> list[dict[str, Any]]:
     """Fetch all projects from SummitFlow API.
 
     Returns:
@@ -29,7 +30,8 @@ async def list_projects() -> list[dict]:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(url)
             response.raise_for_status()
-            return response.json()
+            result: list[dict[str, Any]] = response.json()
+            return result
     except httpx.ConnectError:
         logger.warning("Could not connect to SummitFlow API at %s", url)
         return []

@@ -5,8 +5,8 @@ Runs on port 8002, separate from main SummitFlow backend.
 """
 
 import subprocess
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import uvicorn
 from fastapi import FastAPI
@@ -97,7 +97,7 @@ app.include_router(files.router)
 
 
 @app.get("/health")
-async def health() -> dict:
+async def health() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "healthy", "service": "terminal"}
 

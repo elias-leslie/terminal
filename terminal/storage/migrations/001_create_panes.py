@@ -13,15 +13,18 @@ from __future__ import annotations
 import os
 import sys
 import uuid
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import psycopg
 
 
-def get_connection():
+def get_connection() -> psycopg.Connection[tuple[Any, ...]]:
     """Get database connection using psycopg."""
     import psycopg
 
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        # Try to load from .env.local
         env_file = os.path.expanduser("~/.env.local")
         if os.path.exists(env_file):
             with open(env_file) as f:
@@ -34,7 +37,7 @@ def get_connection():
     return psycopg.connect(db_url)
 
 
-def check_already_migrated(conn) -> bool:
+def check_already_migrated(conn: psycopg.Connection[tuple[Any, ...]]) -> bool:
     """Check if migration has already been applied."""
     with conn.cursor() as cur:
         cur.execute(
@@ -43,10 +46,11 @@ def check_already_migrated(conn) -> bool:
                 WHERE table_name = 'terminal_panes'
             )"""
         )
-        return cur.fetchone()[0]
+        row = cur.fetchone()
+        return bool(row[0]) if row else False
 
 
-def create_panes_table(conn) -> None:
+def create_panes_table(conn: psycopg.Connection[tuple[Any, ...]]) -> None:
     """Create terminal_panes table."""
     with conn.cursor() as cur:
         cur.execute("""
@@ -73,7 +77,7 @@ def create_panes_table(conn) -> None:
         print("Added project_id constraint")
 
 
-def add_pane_id_column(conn) -> None:
+def add_pane_id_column(conn: psycopg.Connection[tuple[Any, ...]]) -> None:
     """Add pane_id column to terminal_sessions."""
     with conn.cursor() as cur:
         # Check if column already exists
@@ -83,7 +87,8 @@ def add_pane_id_column(conn) -> None:
                 WHERE table_name = 'terminal_sessions' AND column_name = 'pane_id'
             )"""
         )
-        if cur.fetchone()[0]:
+        row = cur.fetchone()
+        if row and row[0]:
             print("pane_id column already exists")
             return
 
@@ -94,7 +99,9 @@ def add_pane_id_column(conn) -> None:
         print("Added pane_id column to terminal_sessions")
 
 
-def migrate_existing_sessions(conn) -> dict:
+def migrate_existing_sessions(
+    conn: psycopg.Connection[tuple[Any, ...]],
+) -> dict[str, int]:
     """Migrate existing sessions to panes.
 
     Strategy:
@@ -103,10 +110,9 @@ def migrate_existing_sessions(conn) -> dict:
 
     Returns dict with migration stats.
     """
-    stats = {"panes_created": 0, "sessions_updated": 0, "orphaned": 0}
+    stats: dict[str, int] = {"panes_created": 0, "sessions_updated": 0, "orphaned": 0}
 
     with conn.cursor() as cur:
-        # 1. Get all sessions grouped by project
         cur.execute("""
             SELECT id, name, project_id, mode, session_number, is_alive
             FROM terminal_sessions
@@ -115,14 +121,12 @@ def migrate_existing_sessions(conn) -> dict:
         """)
         sessions = cur.fetchall()
 
-        # Group project sessions by (project_id, session_number)
-        # Ad-hoc sessions (project_id IS NULL) each get their own pane
-        project_groups: dict[tuple[str, int], list[tuple]] = {}
+        project_groups: dict[tuple[str, int], list[tuple[Any, ...]]] = {}
         adhoc_sessions = []
         project_names: dict[str, str] = {}  # project_id -> display name
 
         for session in sessions:
-            sid, name, project_id, mode, session_number, is_alive = session
+            _sid, name, project_id, _mode, session_number, _is_alive = session
             if project_id is None:
                 adhoc_sessions.append(session)
             else:
@@ -143,7 +147,7 @@ def migrate_existing_sessions(conn) -> dict:
 
         # 2. Create panes for project session groups
         pane_order = 0
-        for (project_id, session_number), group_sessions in sorted(
+        for (project_id, _session_number), group_sessions in sorted(
             project_groups.items()
         ):
             # Get or increment pane counter for this project
@@ -178,9 +182,7 @@ def migrate_existing_sessions(conn) -> dict:
                 stats["sessions_updated"] += 1
 
         # 3. Create panes for ad-hoc sessions
-        adhoc_count = 0
-        for session in adhoc_sessions:
-            adhoc_count += 1
+        for adhoc_count, session in enumerate(adhoc_sessions, start=1):
             session_id, name, _, _, _, _ = session
 
             pane_name = (
@@ -209,7 +211,7 @@ def migrate_existing_sessions(conn) -> dict:
     return stats
 
 
-def create_indexes(conn) -> None:
+def create_indexes(conn: psycopg.Connection[tuple[Any, ...]]) -> None:
     """Create indexes for efficient queries."""
     with conn.cursor() as cur:
         cur.execute("""
@@ -227,34 +229,35 @@ def create_indexes(conn) -> None:
         print("Created indexes")
 
 
-def verify_migration(conn) -> bool:
+def verify_migration(conn: psycopg.Connection[tuple[Any, ...]]) -> bool:
     """Verify migration completed correctly."""
     with conn.cursor() as cur:
-        # Check no sessions without pane_id (among alive ones)
         cur.execute("""
             SELECT COUNT(*) FROM terminal_sessions
             WHERE is_alive = true AND pane_id IS NULL
         """)
-        orphaned = cur.fetchone()[0]
+        row = cur.fetchone()
+        orphaned = row[0] if row else 0
         if orphaned > 0:
             print(f"WARNING: {orphaned} alive sessions without pane_id")
             return False
 
-        # Check pane counts
         cur.execute("SELECT COUNT(*) FROM terminal_panes")
-        pane_count = cur.fetchone()[0]
+        row = cur.fetchone()
+        pane_count = row[0] if row else 0
 
         cur.execute("""
             SELECT COUNT(*) FROM terminal_sessions
             WHERE is_alive = true AND pane_id IS NOT NULL
         """)
-        linked_sessions = cur.fetchone()[0]
+        row = cur.fetchone()
+        linked_sessions = row[0] if row else 0
 
         print(f"Verification: {pane_count} panes, {linked_sessions} linked sessions")
         return True
 
 
-def run_migration():
+def run_migration() -> bool:
     """Run the migration."""
     print("Starting migration: 001_create_panes")
     conn = get_connection()

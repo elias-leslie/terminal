@@ -35,7 +35,6 @@ from ..utils.tmux import (
 logger = get_logger(__name__)
 router = APIRouter()
 
-# Active terminal sessions: session_id -> master_fd
 _sessions: dict[str, dict[str, Any]] = {}
 
 # Prefix for terminal base sessions
@@ -47,7 +46,7 @@ async def session_switch_hook(
     request: Request,
     from_session: str = Query(..., alias="from"),
     to_session: str = Query(..., alias="to"),
-) -> dict:
+) -> dict[str, Any]:
     """Handle tmux session switch notifications.
 
     Called by tmux hook when a client switches sessions.
@@ -244,7 +243,7 @@ async def terminal_websocket(
         except ValueError as e:
             await websocket.close(
                 code=4000,
-                reason=f'{{"error": "session_dead", "message": "{str(e)}"}}',
+                reason=f'{{"error": "session_dead", "message": "{e!s}"}}',
             )
             return
 

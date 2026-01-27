@@ -9,6 +9,8 @@ Handles multi-session operations:
 
 from __future__ import annotations
 
+from typing import Any
+
 from ..constants import SESSION_MODES
 from ..logging_config import get_logger
 from ..storage import project_settings as settings_store
@@ -90,7 +92,7 @@ def reset_project_sessions(
     all_sessions = get_all_project_sessions(project_id)
 
     # Collect working_dir and name from existing sessions for recreation
-    session_info: dict[str, dict] = {}
+    session_info: dict[str, dict[str, Any]] = {}
     for session in all_sessions:
         mode = session.get("mode", "shell")
         if mode not in session_info:

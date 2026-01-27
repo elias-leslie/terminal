@@ -6,7 +6,7 @@ purging old sessions, and tracking session activity.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .connection import get_connection
@@ -44,7 +44,7 @@ def purge_dead_sessions(older_than_days: int = 7) -> int:
     Returns:
         Number of sessions deleted
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+    cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
 
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
@@ -100,7 +100,7 @@ def list_orphaned(older_than_days: int = 30) -> list[dict[str, Any]]:
     Returns:
         List of orphaned session dicts
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+    cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
     query = f"""
         SELECT {TERMINAL_SESSION_FIELDS}
         FROM terminal_sessions
@@ -113,10 +113,9 @@ def list_orphaned(older_than_days: int = 30) -> list[dict[str, Any]]:
 # Import _row_to_dict for touch_session
 from .terminal_crud import _row_to_dict  # noqa: E402
 
-
 __all__ = [
+    "list_orphaned",
     "mark_dead",
     "purge_dead_sessions",
     "touch_session",
-    "list_orphaned",
 ]

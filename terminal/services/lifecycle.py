@@ -11,13 +11,6 @@ Submodules:
 
 from __future__ import annotations
 
-# Core single-session operations
-from .lifecycle_core import (
-    create_session,
-    delete_session,
-    ensure_session_alive,
-)
-
 # Re-export TmuxError for convenience
 from ..utils.tmux import TmuxError  # noqa: F401
 
@@ -29,19 +22,23 @@ from .lifecycle_batch import (
     reset_session,
 )
 
+# Core single-session operations
+from .lifecycle_core import (
+    create_session,
+    delete_session,
+    ensure_session_alive,
+)
+
 # Startup reconciliation
 from .lifecycle_reconcile import reconcile_on_startup
 
 __all__ = [
-    # Core operations
     "create_session",
     "delete_session",
-    "ensure_session_alive",
-    # Batch operations
-    "reset_session",
-    "reset_project_sessions",
-    "reset_all_sessions",
     "disable_project_terminal",
-    # Reconciliation
+    "ensure_session_alive",
     "reconcile_on_startup",
+    "reset_all_sessions",
+    "reset_project_sessions",
+    "reset_session",
 ]

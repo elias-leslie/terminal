@@ -13,4 +13,4 @@ def _to_str(session_id: SessionId) -> str:
     return str(session_id)
 
 
-__all__ = ["_to_str", "SessionId"]
+__all__ = ["SessionId", "_to_str"]

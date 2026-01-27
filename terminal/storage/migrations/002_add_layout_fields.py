@@ -15,9 +15,13 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import psycopg
 
 
-def get_connection():
+def get_connection() -> psycopg.Connection[tuple[Any, ...]]:
     """Get database connection using psycopg."""
     import psycopg
 
@@ -35,7 +39,7 @@ def get_connection():
     return psycopg.connect(db_url)
 
 
-def check_already_migrated(conn) -> bool:
+def check_already_migrated(conn: psycopg.Connection[tuple[Any, ...]]) -> bool:
     """Check if migration has already been applied."""
     with conn.cursor() as cur:
         cur.execute(
@@ -44,10 +48,11 @@ def check_already_migrated(conn) -> bool:
                 WHERE table_name = 'terminal_panes' AND column_name = 'width_percent'
             )"""
         )
-        return cur.fetchone()[0]
+        row = cur.fetchone()
+        return bool(row[0]) if row else False
 
 
-def add_layout_columns(conn) -> None:
+def add_layout_columns(conn: psycopg.Connection[tuple[Any, ...]]) -> None:
     """Add layout columns to terminal_panes."""
     with conn.cursor() as cur:
         cur.execute("""
@@ -60,7 +65,7 @@ def add_layout_columns(conn) -> None:
         print("Added layout columns: width_percent, height_percent, grid_row, grid_col")
 
 
-def set_initial_layout(conn) -> int:
+def set_initial_layout(conn: psycopg.Connection[tuple[Any, ...]]) -> int:
     """Set initial layout values for existing panes.
 
     Strategy: All existing panes get full width/height (will be recalculated by frontend).
@@ -75,10 +80,10 @@ def set_initial_layout(conn) -> int:
                 grid_col = pane_order
             WHERE width_percent IS NULL OR grid_row IS NULL
         """)
-        return cur.rowcount
+        return int(cur.rowcount) if cur.rowcount else 0
 
 
-def run_migration():
+def run_migration() -> bool:
     """Run the migration."""
     print("Starting migration: 002_add_layout_fields")
     conn = get_connection()

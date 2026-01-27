@@ -11,9 +11,9 @@ from .connection import get_connection
 from .terminal_utils import SessionId, _to_str
 
 __all__ = [
+    "get_claude_state",
     "update_claude_session",
     "update_claude_state",
-    "get_claude_state",
 ]
 
 

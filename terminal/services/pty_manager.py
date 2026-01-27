@@ -10,6 +10,7 @@ Handles low-level PTY operations:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import errno
 import fcntl
 import os
@@ -233,17 +234,14 @@ async def read_pty_output(websocket: WebSocket, master_fd: int) -> None:
                 batch_buffer += decoded
 
                 # Flush if batch size limit reached
-                if len(batch_buffer) >= BATCH_SIZE_LIMIT:
-                    if not await flush_batch():
-                        break
+                if len(batch_buffer) >= BATCH_SIZE_LIMIT and not await flush_batch():
+                    break
 
     except asyncio.CancelledError:
         # Flush remaining buffer on cancellation
         if batch_buffer:
-            try:
+            with contextlib.suppress(Exception):
                 await websocket.send_text(batch_buffer)
-            except Exception:
-                pass  # WebSocket may already be closed
     except Exception as e:
         logger.error("terminal_output_error", error=str(e))
     finally:

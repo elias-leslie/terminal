@@ -13,7 +13,6 @@ import psycopg.sql
 from .connection import get_connection
 from .terminal_utils import SessionId, _to_str
 
-
 # Standard SELECT field list for terminal_sessions queries
 # Keep in sync with _row_to_dict() field order
 TERMINAL_SESSION_FIELDS = """id, name, user_id, project_id, working_dir, display_order,
@@ -23,18 +22,18 @@ TERMINAL_SESSION_FIELDS = """id, name, user_id, project_id, working_dir, display
 
 @overload
 def _execute_session_query(
-    query: str, params: tuple, *, fetch_mode: Literal["one"] = "one"
+    query: str, params: tuple[Any, ...], *, fetch_mode: Literal["one"] = "one"
 ) -> dict[str, Any] | None: ...
 
 
 @overload
 def _execute_session_query(
-    query: str, params: tuple, *, fetch_mode: Literal["all"]
+    query: str, params: tuple[Any, ...], *, fetch_mode: Literal["all"]
 ) -> list[dict[str, Any]]: ...
 
 
 def _execute_session_query(
-    query: str, params: tuple, *, fetch_mode: Literal["one", "all"] = "one"
+    query: str, params: tuple[Any, ...], *, fetch_mode: Literal["one", "all"] = "one"
 ) -> dict[str, Any] | list[dict[str, Any]] | None:
     """Execute a session query and return converted result(s).
 
@@ -58,7 +57,7 @@ def _execute_session_query(
             return [_row_to_dict(row) for row in rows]
 
 
-def _row_to_dict(row: tuple) -> dict[str, Any]:
+def _row_to_dict(row: tuple[Any, ...]) -> dict[str, Any]:
     """Convert a database row to a session dict."""
     return {
         "id": str(row[0]),
@@ -249,9 +248,9 @@ __all__ = [
     "TERMINAL_SESSION_FIELDS",
     "_execute_session_query",
     "_row_to_dict",
-    "list_sessions",
-    "get_session",
     "create_session",
-    "update_session",
     "delete_session",
+    "get_session",
+    "list_sessions",
+    "update_session",
 ]

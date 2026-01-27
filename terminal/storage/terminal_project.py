@@ -107,8 +107,8 @@ def get_all_project_sessions(project_id: str) -> list[dict[str, Any]]:
 
 
 __all__ = [
-    "get_session_by_project",
+    "get_all_project_sessions",
     "get_dead_session_by_project",
     "get_project_sessions",
-    "get_all_project_sessions",
+    "get_session_by_project",
 ]

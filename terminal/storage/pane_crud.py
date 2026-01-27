@@ -28,18 +28,18 @@ def _pane_id_to_str(pane_id: PaneId) -> str:
 
 @overload
 def _execute_pane_query(
-    query: str, params: tuple, *, fetch_mode: Literal["one"] = "one"
+    query: str, params: tuple[Any, ...], *, fetch_mode: Literal["one"] = "one"
 ) -> dict[str, Any] | None: ...
 
 
 @overload
 def _execute_pane_query(
-    query: str, params: tuple, *, fetch_mode: Literal["all"]
+    query: str, params: tuple[Any, ...], *, fetch_mode: Literal["all"]
 ) -> list[dict[str, Any]]: ...
 
 
 def _execute_pane_query(
-    query: str, params: tuple, *, fetch_mode: Literal["one", "all"] = "one"
+    query: str, params: tuple[Any, ...], *, fetch_mode: Literal["one", "all"] = "one"
 ) -> dict[str, Any] | list[dict[str, Any]] | None:
     """Execute a pane query and return converted result(s)."""
     with get_connection() as conn, conn.cursor() as cur:
@@ -52,7 +52,7 @@ def _execute_pane_query(
             return [_row_to_pane_dict(row) for row in rows]
 
 
-def _row_to_pane_dict(row: tuple) -> dict[str, Any]:
+def _row_to_pane_dict(row: tuple[Any, ...]) -> dict[str, Any]:
     """Convert a database row to a pane dict."""
     return {
         "id": str(row[0]),
@@ -162,7 +162,7 @@ def list_panes_with_sessions() -> list[dict[str, Any]]:
         rows = cur.fetchall()
 
     # Group sessions by pane_id
-    sessions_by_pane: dict[str, list[dict]] = {}
+    sessions_by_pane: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         pane_id = str(row[0])
         if pane_id not in sessions_by_pane:
@@ -571,19 +571,19 @@ def update_pane_layouts(
 
 
 __all__ = [
-    "PaneId",
     "PANE_FIELDS",
-    "list_panes",
-    "get_pane",
-    "get_pane_with_sessions",
-    "list_panes_with_sessions",
+    "PaneId",
+    "count_panes",
     "create_pane",
     "create_pane_with_sessions",
-    "update_pane",
     "delete_pane",
-    "update_pane_order",
-    "swap_pane_positions",
-    "count_panes",
     "get_next_pane_number",
+    "get_pane",
+    "get_pane_with_sessions",
+    "list_panes",
+    "list_panes_with_sessions",
+    "swap_pane_positions",
+    "update_pane",
     "update_pane_layouts",
+    "update_pane_order",
 ]

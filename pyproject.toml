@@ -21,8 +21,29 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
-    "ruff>=0.1.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["terminal"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["terminal"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["psycopg", "psycopg.*", "psycopg_pool", "psycopg_pool.*"]
+ignore_missing_imports = true

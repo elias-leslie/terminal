@@ -13,6 +13,13 @@ Submodules:
 
 from __future__ import annotations
 
+# Claude integration (re-exported from terminal_claude.py)
+from .terminal_claude import (
+    get_claude_state,
+    update_claude_session,
+    update_claude_state,
+)
+
 # CRUD operations
 from .terminal_crud import (
     create_session,
@@ -37,32 +44,20 @@ from .terminal_project import (
     get_session_by_project,
 )
 
-# Claude integration (re-exported from terminal_claude.py)
-from .terminal_claude import (
-    get_claude_state,
-    update_claude_session,
-    update_claude_state,
-)
-
-
 __all__ = [
-    # CRUD
-    "list_sessions",
-    "get_session",
     "create_session",
-    "update_session",
     "delete_session",
-    # Lifecycle
+    "get_claude_state",
+    "get_dead_session_by_project",
+    "get_project_sessions",
+    "get_session",
+    "get_session_by_project",
+    "list_orphaned",
+    "list_sessions",
     "mark_dead",
     "purge_dead_sessions",
     "touch_session",
-    "list_orphaned",
-    # Project queries
-    "get_session_by_project",
-    "get_dead_session_by_project",
-    "get_project_sessions",
-    # Claude (re-exported from terminal_claude.py)
     "update_claude_session",
     "update_claude_state",
-    "get_claude_state",
+    "update_session",
 ]

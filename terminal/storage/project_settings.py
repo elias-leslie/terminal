@@ -160,7 +160,7 @@ def set_active_mode(project_id: str, mode: SessionMode) -> dict[str, Any] | None
     return _row_to_dict(row)
 
 
-def _row_to_dict(row: tuple) -> dict[str, Any]:
+def _row_to_dict(row: tuple[Any, ...]) -> dict[str, Any]:
     """Convert a database row to a settings dict."""
     return {
         "project_id": row[0],

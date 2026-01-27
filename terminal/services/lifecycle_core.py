@@ -11,6 +11,8 @@ The database is the source of truth; tmux is the implementation detail.
 
 from __future__ import annotations
 
+from typing import Any
+
 from ..logging_config import get_logger
 from ..storage import terminal as terminal_store
 from ..utils.tmux import (
@@ -54,7 +56,7 @@ def _kill_tmux_session(session_id: str, ignore_missing: bool = True) -> bool:
 
 
 def _resurrect_dead_session(
-    dead_session: dict,
+    dead_session: dict[str, Any],
     mode: str,
     name: str,
     working_dir: str | None,
@@ -76,7 +78,7 @@ def _resurrect_dead_session(
     Raises:
         TmuxError: If tmux creation fails (session marked dead again)
     """
-    session_id = dead_session["id"]
+    session_id: str = dead_session["id"]
     project_id = dead_session.get("project_id")
 
     logger.info(
