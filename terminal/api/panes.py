@@ -96,8 +96,7 @@ async def create_pane(request: CreatePaneRequest) -> PaneResponse:
 @router.get("/api/terminal/panes/{pane_id}", response_model=PaneResponse)
 async def get_pane(pane_id: str) -> PaneResponse:
     """Get a single terminal pane with its sessions."""
-    pane = pane_crud.get_pane_with_sessions(pane_id)
-    require_pane_exists(pane, pane_id)
+    pane = require_pane_exists(pane_crud.get_pane_with_sessions(pane_id), pane_id)
     return build_pane_response(pane)
 
 
