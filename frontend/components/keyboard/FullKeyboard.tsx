@@ -82,7 +82,7 @@ function FullKeyboardInner({
       style={{ backgroundColor: 'var(--term-bg-surface)' }}
     >
       <div ref={containerRef} />
-      <style jsx global>{getKeyboardStyles(rowHeight)}</style>
+      <style dangerouslySetInnerHTML={{ __html: getKeyboardStyles(rowHeight) }} />
     </div>
   )
 }

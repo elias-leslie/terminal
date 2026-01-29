@@ -1,11 +1,12 @@
 import { useCallback, useRef } from 'react'
 import type Keyboard from 'simple-keyboard'
 import { KEY_SEQUENCES } from './keyMappings'
+import type { ModifierStates } from './types'
 
 interface UseKeyboardHandlerProps {
   sendKey: (key: string) => void
   sendRaw: (data: string) => void
-  toggleModifier: (modifier: string) => void
+  toggleModifier: (key: keyof ModifierStates) => void
   keyboardRef: React.RefObject<Keyboard | null>
 }
 
