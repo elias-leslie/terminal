@@ -1,5 +1,5 @@
 project: terminal
-generated_at: 2026-01-24 07:07 UTC
+generated_at: 2026-01-29 02:12 UTC
 pages:
 - / (app)
 tables:
@@ -10,6 +10,7 @@ tables:
 - code_health_lists
 - design_rules
 - design_standards
+- events
 - explorer_entries
 - explorer_relationships
 - explorer_sub_elements
@@ -25,7 +26,9 @@ tables:
 - scan_history
 - scan_states
 - sitemap_entries
+- subtask_citations
 - subtask_dependencies
+- subtask_summaries
 - task_dependencies
 - task_labels
 - task_spirit
@@ -39,7 +42,7 @@ tables:
 folders:
   (root): 18 files - tests
   .claude: 6 files - tests
-  .dev-tools: 12 files - tests
+  .dev-tools: 11 files - tests
   frontend: 93 files - api, components, tests
   scripts: 14 files
   spec: 5 files - tests
