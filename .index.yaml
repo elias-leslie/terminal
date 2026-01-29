@@ -1,5 +1,16 @@
 project: terminal
-generated_at: 2026-01-29 02:12 UTC
+generated_at: 2026-01-29 16:25 UTC
+environment:
+  python_version: '>=3.12'
+  venv_path: .venv
+  package_manager: npm
+services:
+  backend_port: 8000
+  frontend_port: 3002
+  infrastructure:
+    neo4j: 7687
+    postgres: 5432
+    redis: 6379
 pages:
 - / (app)
 tables:
@@ -40,11 +51,12 @@ tables:
 - terminal_sessions
 - user_prompts
 folders:
-  (root): 18 files - tests
+  (root): 19 files - tests
   .claude: 6 files - tests
-  .dev-tools: 11 files - tests
-  frontend: 93 files - api, components, tests
+  .dev-tools: 12 files - tests
+  .summitflow: 1 files
+  frontend: 112 files - api, components, tests
   scripts: 14 files
   spec: 5 files - tests
   tasks: 38 files
-  terminal: 41 files - api, services
+  terminal: 50 files - api, services
