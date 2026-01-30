@@ -5,7 +5,6 @@ import { useCallback } from 'react'
 import * as api from './terminal-panes-api'
 import type {
   TerminalPane,
-  PaneSession,
   PaneListResponse,
   UpdatePaneRequest,
 } from './terminal-panes-types'
