@@ -1,5 +1,5 @@
 project: terminal
-generated_at: 2026-01-29 16:25 UTC
+generated_at: 2026-02-02 21:09 UTC
 environment:
   python_version: '>=3.12'
   venv_path: .venv
@@ -28,6 +28,8 @@ tables:
 - ideas
 - migration_backup
 - mockups
+- model_performance_logs
+- model_performance_metrics
 - notifications
 - project_agent_config
 - projects
@@ -53,9 +55,9 @@ tables:
 folders:
   (root): 19 files - tests
   .claude: 6 files - tests
-  .dev-tools: 12 files - tests
+  .dev-tools: 9 files - tests
   .summitflow: 1 files
-  frontend: 112 files - api, components, tests
+  frontend: 119 files - api, components, tests
   scripts: 14 files
   spec: 5 files - tests
   tasks: 38 files
