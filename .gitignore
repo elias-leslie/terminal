@@ -18,3 +18,5 @@ backups/*.tar.gz
 
 # Dev tools output (TOON details)
 .dev-tools/
+
+backup-index.json
