@@ -1,7 +1,7 @@
 project: terminal
-generated_at: 2026-02-02 21:09 UTC
+generated_at: 2026-02-04 22:12 UTC
 environment:
-  python_version: '>=3.12'
+  python_version: '>=3.13'
   venv_path: .venv
   package_manager: npm
 services:
