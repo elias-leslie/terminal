@@ -151,9 +151,7 @@ async def update_pane_order(request: UpdatePaneOrderRequest) -> dict[str, Any]:
 
 
 @router.patch("/api/terminal/panes/{pane_id}/layout", response_model=PaneResponse)
-async def update_pane_layout(
-    pane_id: str, request: UpdatePaneLayoutRequest
-) -> PaneResponse:
+async def update_pane_layout(pane_id: str, request: UpdatePaneLayoutRequest) -> PaneResponse:
     """Update a single pane's layout (position and size)."""
     existing = require_pane_exists(pane_crud.get_pane(pane_id), pane_id)
 
@@ -183,9 +181,7 @@ async def update_all_pane_layouts(
     if not request.layouts:
         return []
 
-    layouts_data = convert_layout_items_to_storage(
-        [item.model_dump() for item in request.layouts]
-    )
+    layouts_data = convert_layout_items_to_storage([item.model_dump() for item in request.layouts])
 
     try:
         await update_layouts_with_retry(layouts_data)

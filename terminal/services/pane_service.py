@@ -38,9 +38,7 @@ def get_layout_update_fields(
     return fields
 
 
-def convert_layout_items_to_storage(
-    layouts: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+def convert_layout_items_to_storage(layouts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Convert layout items from API format to storage format."""
     return [
         {

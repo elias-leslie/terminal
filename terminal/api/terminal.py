@@ -66,9 +66,9 @@ async def session_switch_hook(
 
     # Validate session names to prevent injection
     # Empty from_session is valid (first connection to a session)
-    if (
-        from_session and not validate_session_name(from_session)
-    ) or not validate_session_name(to_session):
+    if (from_session and not validate_session_name(from_session)) or not validate_session_name(
+        to_session
+    ):
         logger.warning(
             "session_switch_rejected",
             reason="invalid_session_name",
@@ -92,9 +92,7 @@ async def session_switch_hook(
         return {"status": "cleared"}
 
     # Store the target session
-    logger.info(
-        "session_switch_detected", terminal=terminal_session_id, target=to_session
-    )
+    logger.info("session_switch_detected", terminal=terminal_session_id, target=to_session)
     terminal_store.update_claude_session(terminal_session_id, to_session)
 
     return {"status": "stored", "target": to_session}
@@ -327,9 +325,7 @@ async def terminal_websocket(
                 if message["type"] == "websocket.disconnect":
                     break
 
-                _handle_websocket_message(
-                    message, master_fd, session_id, tmux_session_name
-                )
+                _handle_websocket_message(message, master_fd, session_id, tmux_session_name)
 
         except WebSocketDisconnect:
             logger.info("terminal_disconnected", session_id=session_id)

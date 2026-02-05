@@ -11,9 +11,7 @@ from typing import Any
 from .terminal_crud import TERMINAL_SESSION_FIELDS, _execute_session_query
 
 
-def get_session_by_project(
-    project_id: str, mode: str = "shell"
-) -> dict[str, Any] | None:
+def get_session_by_project(project_id: str, mode: str = "shell") -> dict[str, Any] | None:
     """Get the active session for a project and mode.
 
     Each project can have one shell session and one claude session.
@@ -35,9 +33,7 @@ def get_session_by_project(
     return _execute_session_query(query, (project_id, mode))
 
 
-def get_dead_session_by_project(
-    project_id: str, mode: str = "shell"
-) -> dict[str, Any] | None:
+def get_dead_session_by_project(project_id: str, mode: str = "shell") -> dict[str, Any] | None:
     """Get a dead session for a project and mode (for resurrection).
 
     The unique constraint covers all sessions including dead ones.

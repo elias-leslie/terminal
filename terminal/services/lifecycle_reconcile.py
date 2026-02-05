@@ -40,9 +40,7 @@ def _kill_orphan_tmux_sessions(db_session_ids: set[str]) -> int:
             killed += 1
             logger.info("orphan_tmux_killed", session_id=session_id)
         else:
-            logger.warning(
-                "orphan_tmux_kill_failed", session_id=session_id, error=error
-            )
+            logger.warning("orphan_tmux_kill_failed", session_id=session_id, error=error)
 
     return killed
 
@@ -102,9 +100,7 @@ def reconcile_on_startup(purge_after_days: int = 7) -> dict[str, int]:
 
     # Kill orphan tmux sessions (no DB record at all)
     # Must run AFTER purge so we have the final set of DB session IDs
-    remaining_db_ids = {
-        s["id"] for s in terminal_store.list_sessions(include_dead=True)
-    }
+    remaining_db_ids = {s["id"] for s in terminal_store.list_sessions(include_dead=True)}
     orphans_killed = _kill_orphan_tmux_sessions(remaining_db_ids)
     stats["orphans_killed"] = orphans_killed
     if orphans_killed > 0:

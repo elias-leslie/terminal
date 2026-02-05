@@ -105,17 +105,13 @@ def bulk_update_order(project_ids: list[str]) -> None:
         # Use a single query with CASE for efficiency
         # Build CASE clauses: WHEN project_id = %s THEN 0, WHEN project_id = %s THEN 1, ...
         case_parts = [
-            psycopg.sql.SQL("WHEN project_id = %s THEN {}").format(
-                psycopg.sql.Literal(i)
-            )
+            psycopg.sql.SQL("WHEN project_id = %s THEN {}").format(psycopg.sql.Literal(i))
             for i in range(len(project_ids))
         ]
         cases = psycopg.sql.SQL(" ").join(case_parts)
 
         # Build IN clause placeholders
-        placeholders = psycopg.sql.SQL(", ").join(
-            [psycopg.sql.SQL("%s")] * len(project_ids)
-        )
+        placeholders = psycopg.sql.SQL(", ").join([psycopg.sql.SQL("%s")] * len(project_ids))
 
         query = psycopg.sql.SQL("""
             UPDATE terminal_project_settings

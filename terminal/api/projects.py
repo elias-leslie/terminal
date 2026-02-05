@@ -98,9 +98,7 @@ async def list_projects() -> list[ProjectResponse]:
     return result
 
 
-@router.put(
-    "/api/terminal/project-settings/{project_id}", response_model=ProjectResponse
-)
+@router.put("/api/terminal/project-settings/{project_id}", response_model=ProjectResponse)
 async def update_project_settings(
     project_id: str,
     update: ProjectSettingsUpdate,
@@ -131,9 +129,7 @@ async def update_project_settings(
     )
 
 
-@router.post(
-    "/api/terminal/project-settings/bulk-order", response_model=list[ProjectResponse]
-)
+@router.post("/api/terminal/project-settings/bulk-order", response_model=list[ProjectResponse])
 async def bulk_update_order(update: BulkOrderUpdate) -> list[ProjectResponse]:
     """Bulk update display order for drag-and-drop reordering.
 

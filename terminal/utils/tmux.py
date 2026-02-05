@@ -20,10 +20,21 @@ _SESSION_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-:]+$")
 
 # Secrets filtered from tmux session environments
 FILTERED_ENV_VARS = {
-    "DATABASE_URL", "CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET",
-    "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY",
-    "SECRET_KEY", "JWT_SECRET", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
-    "GITHUB_TOKEN", "GITLAB_TOKEN", "SLACK_TOKEN", "DISCORD_TOKEN",
+    "DATABASE_URL",
+    "CF_ACCESS_CLIENT_ID",
+    "CF_ACCESS_CLIENT_SECRET",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "SECRET_KEY",
+    "JWT_SECRET",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "GITHUB_TOKEN",
+    "GITLAB_TOKEN",
+    "SLACK_TOKEN",
+    "DISCORD_TOKEN",
 }
 
 
@@ -44,9 +55,7 @@ def run_tmux_command(args: list[str], check: bool = False) -> tuple[bool, str]:
     """
     cmd = ["tmux", *args]
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=TMUX_COMMAND_TIMEOUT
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TMUX_COMMAND_TIMEOUT)
         if result.returncode == 0:
             return True, result.stdout.strip()
 
@@ -110,9 +119,16 @@ def create_tmux_session(
     # Create new session
     effective_working_dir = working_dir or os.path.expanduser("~")
     args = [
-        "new-session", "-d", "-s", session_name,
-        "-x", str(TMUX_DEFAULT_COLS), "-y", str(TMUX_DEFAULT_ROWS),
-        "-c", effective_working_dir,
+        "new-session",
+        "-d",
+        "-s",
+        session_name,
+        "-x",
+        str(TMUX_DEFAULT_COLS),
+        "-y",
+        str(TMUX_DEFAULT_ROWS),
+        "-c",
+        effective_working_dir,
     ]
 
     success, output = run_tmux_command(args)

@@ -162,7 +162,15 @@ def create_pane_with_sessions(
 
 def update_pane(pane_id: PaneId, **fields: Any) -> dict[str, Any] | None:
     """Update pane metadata."""
-    allowed = {"pane_name", "pane_order", "active_mode", "width_percent", "height_percent", "grid_row", "grid_col"}
+    allowed = {
+        "pane_name",
+        "pane_order",
+        "active_mode",
+        "width_percent",
+        "height_percent",
+        "grid_row",
+        "grid_col",
+    }
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return get_pane(pane_id)
@@ -181,7 +189,9 @@ def update_pane(pane_id: PaneId, **fields: Any) -> dict[str, Any] | None:
 def delete_pane(pane_id: PaneId) -> bool:
     """Delete a pane and all its sessions (cascading delete)."""
     with get_connection() as conn, conn.cursor() as cur:
-        cur.execute("DELETE FROM terminal_panes WHERE id = %s RETURNING id", (normalize_pane_id(pane_id),))
+        cur.execute(
+            "DELETE FROM terminal_panes WHERE id = %s RETURNING id", (normalize_pane_id(pane_id),)
+        )
         result = cur.fetchone()
         conn.commit()
     return result is not None
@@ -227,7 +237,9 @@ def get_next_pane_number(project_id: str | None) -> int:
     """Get the next pane number for naming (e.g., 'Project [2]')."""
     with get_connection() as conn, conn.cursor() as cur:
         if project_id:
-            cur.execute("SELECT COUNT(*) + 1 FROM terminal_panes WHERE project_id = %s", (project_id,))
+            cur.execute(
+                "SELECT COUNT(*) + 1 FROM terminal_panes WHERE project_id = %s", (project_id,)
+            )
         else:
             cur.execute("SELECT COUNT(*) + 1 FROM terminal_panes WHERE pane_type = 'adhoc'")
         row = cur.fetchone()
@@ -246,7 +258,13 @@ def update_pane_layouts(layouts: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 continue
             cur.execute(
                 f"UPDATE terminal_panes SET width_percent = COALESCE(%s, width_percent), height_percent = COALESCE(%s, height_percent), grid_row = COALESCE(%s, grid_row), grid_col = COALESCE(%s, grid_col) WHERE id = %s RETURNING {PANE_FIELDS}",
-                (layout.get("width_percent"), layout.get("height_percent"), layout.get("grid_row"), layout.get("grid_col"), normalize_pane_id(pane_id)),
+                (
+                    layout.get("width_percent"),
+                    layout.get("height_percent"),
+                    layout.get("grid_row"),
+                    layout.get("grid_col"),
+                    normalize_pane_id(pane_id),
+                ),
             )
             row = cur.fetchone()
             if row:

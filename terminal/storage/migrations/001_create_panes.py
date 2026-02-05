@@ -147,9 +147,7 @@ def migrate_existing_sessions(
 
         # 2. Create panes for project session groups
         pane_order = 0
-        for (project_id, _session_number), group_sessions in sorted(
-            project_groups.items()
-        ):
+        for (project_id, _session_number), group_sessions in sorted(project_groups.items()):
             # Get or increment pane counter for this project
             if project_id not in project_pane_counts:
                 project_pane_counts[project_id] = 0
@@ -186,9 +184,7 @@ def migrate_existing_sessions(
             session_id, name, _, _, _, _ = session
 
             pane_name = (
-                "Ad-Hoc Terminal"
-                if adhoc_count == 1
-                else f"Ad-Hoc Terminal [{adhoc_count}]"
+                "Ad-Hoc Terminal" if adhoc_count == 1 else f"Ad-Hoc Terminal [{adhoc_count}]"
             )
 
             pane_id = str(uuid.uuid4())

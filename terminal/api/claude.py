@@ -115,9 +115,7 @@ async def _background_verify_claude_start(session_id: str, tmux_session: str) ->
             )
     else:
         # Claude didn't start - set to error
-        updated = terminal_store.update_claude_state(
-            session_id, "error", expected_state="starting"
-        )
+        updated = terminal_store.update_claude_state(session_id, "error", expected_state="starting")
         if updated:
             logger.warning(
                 "claude_start_failed",
@@ -161,9 +159,7 @@ async def get_claude_state_endpoint(session_id: str) -> ClaudeStateResponse:
     "/api/terminal/sessions/{session_id}/start-claude",
     response_model=StartClaudeResponse,
 )
-async def start_claude(
-    session_id: str, background_tasks: BackgroundTasks
-) -> StartClaudeResponse:
+async def start_claude(session_id: str, background_tasks: BackgroundTasks) -> StartClaudeResponse:
     """Start Claude Code in a terminal session.
 
     Uses state machine to prevent duplicate starts:

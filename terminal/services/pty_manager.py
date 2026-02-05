@@ -65,9 +65,7 @@ def spawn_pty_for_tmux(
             success, _ = run_tmux_command(["has-session", "-t", stored_target_session])
             if success:
                 target_session = stored_target_session
-                logger.info(
-                    "using_stored_target_session", session=stored_target_session
-                )
+                logger.info("using_stored_target_session", session=stored_target_session)
 
     # Fork a PTY
     pid, master_fd = pty.fork()

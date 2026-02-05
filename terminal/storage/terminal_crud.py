@@ -197,8 +197,7 @@ def update_session(session_id: SessionId, **fields: Any) -> dict[str, Any] | Non
         return get_session(session_id)
 
     set_clauses = [
-        psycopg.sql.SQL("{} = %s").format(psycopg.sql.Identifier(field))
-        for field in update_fields
+        psycopg.sql.SQL("{} = %s").format(psycopg.sql.Identifier(field)) for field in update_fields
     ]
     values = list(update_fields.values())
     values.append(_to_str(session_id))
