@@ -2,21 +2,53 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 .venv/
 *.egg-info/
+dist/
+build/
 
 # Node
 node_modules/
 .next/
-.env*.local
+out/
+*.tsbuildinfo
 
 # IDE
 .idea/
 .vscode/
 *.swp
-backups/*.tar.gz
+*.swo
+*~
 
-# Dev tools output (TOON details)
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# Logs
+*.log
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Dev tools
 .dev-tools/
 
+# Project data
+backups/
 backup-index.json
