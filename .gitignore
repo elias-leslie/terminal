@@ -52,3 +52,6 @@ secrets.json
 # Project data
 backups/
 backup-index.json
+
+# SummitFlow context
+.summitflow/
